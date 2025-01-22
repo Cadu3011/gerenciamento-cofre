@@ -20,7 +20,7 @@ export class UsersService {
   }
 
   findOne(id: number) {
-    return `This action returns a #${id} user`;
+    return this.Prisma.user.findUnique({where:{id}})
   }
 
   async update(params:{id: number, updateUserDto: UpdateUserDto}) {
