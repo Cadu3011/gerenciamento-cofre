@@ -28,6 +28,8 @@ model User {
   password String
   name String
   role Role
+  filialId Int?
+  filial Filial? @relation("FiliaAndlUser",fields: [filialId],references: [id])
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -45,4 +47,9 @@ model DailyBalance {
   balance   Decimal  @db.Decimal(12,2)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+model Filial{
+  id Int @default(autoincrement()) @id
+  name String
+  user User[] @relation("FiliaAndlUser")
 }

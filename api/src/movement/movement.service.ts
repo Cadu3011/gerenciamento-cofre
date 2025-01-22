@@ -1,26 +1,29 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { CreateMovementDto } from './dto/create-movement.dto';
 import { UpdateMovementDto } from './dto/update-movement.dto';
+import { PrismaService } from 'src/database/prisma.service';
 
 @Injectable()
 export class MovementService {
+  @Inject()
+  private readonly Prisma:PrismaService
   create(createMovementDto: CreateMovementDto) {
-    return 'This action adds a new movement';
+    return this.Prisma.movimentations.create({data:createMovementDto})
   }
 
   findAll() {
-    return `This action returns all movement`;
+    return this.Prisma.movimentations.findMany()
   }
 
   findOne(id: number) {
-    return `This action returns a #${id} movement`;
+    return this.Prisma.movimentations.findUnique({where:{id}})
   }
 
   update(id: number, updateMovementDto: UpdateMovementDto) {
-    return `This action updates a #${id} movement`;
+    return this.Prisma.movimentations.update({where:{id},data:updateMovementDto})
   }
-
-  remove(id: number) {
-    return `This action removes a #${id} movement`;
+  remove(id:number){
+    return this.Prisma.movimentations.delete({where:{id}})
   }
+  
 }
