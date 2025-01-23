@@ -4,4 +4,5 @@ export class CreateMovementDto {
     descrition:string
     value: number
     type: Category
+    filialId: number
 }

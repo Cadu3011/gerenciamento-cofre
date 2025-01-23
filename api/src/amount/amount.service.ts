@@ -14,8 +14,10 @@ export class AmountService {
   async create(createAmountDto: CreateAmountDto) {
     const date:Date= new Date() 
     const dateFormat:string = date.toISOString()
-    console.log(dateFormat)
-    const movements = await this.transactions.findByDate(dateFormat)
+    const movements = await this.transactions.findByDate(dateFormat,createAmountDto.filialId)
+    if(movements.length>0){
+      this.Prisma.dailyBalance.create({data:createAmountDto})
+    }
     return movements.length
     
   }

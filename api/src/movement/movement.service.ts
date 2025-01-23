@@ -18,19 +18,22 @@ export class MovementService {
   findOne(id: number) {
     return this.Prisma.movimentations.findUnique({where:{id}})
   }
-  findByDate(date:string){
+  findByDate(date:string,filialId:number){
     const startOfDay = new Date(date);
-  const endOfDay = new Date(startOfDay);
-  endOfDay.setDate(startOfDay.getDate() + 1); // Próximo dia, para capturar até o final do dia
-  
-    return this.Prisma.movimentations.findMany({
-      where: {
-        createdAt: {
-          gte: startOfDay,  // Maior ou igual ao início do dia
-          lt: endOfDay,     // Menor que o próximo dia (fim do dia atual)
-        },
+    startOfDay.setHours(0, 0, 0, 0); // Define a data para 00:00:00 do dia
+
+    const endOfDay = new Date(startOfDay);
+    endOfDay.setHours(23, 59, 59, 999);
+  const extrato = this.Prisma.movimentations.findMany({
+    where: {
+      createdAt: {
+        gte: startOfDay,  // Maior ou igual ao início do dia
+          lte: endOfDay,    // Menor que o próximo dia (fim do dia atual)
       },
-    });
+      filialId:filialId
+    },
+  });
+    return extrato
   }
   update(id: number, updateMovementDto: UpdateMovementDto) {
     return this.Prisma.movimentations.update({where:{id},data:updateMovementDto})

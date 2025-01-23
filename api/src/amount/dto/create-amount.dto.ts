@@ -1,1 +1,4 @@
-export class CreateAmountDto {}
+export class CreateAmountDto {
+    balance:number
+    filialId:number
+}
