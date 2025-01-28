@@ -3,6 +3,7 @@ import { CreateMovementDto } from './dto/create-movement.dto';
 import { UpdateMovementDto } from './dto/update-movement.dto';
 import { PrismaService } from 'src/database/prisma.service';
 import { AmountService } from 'src/amount/amount.service';
+import { Decimal } from '@prisma/client/runtime/library';
 
 @Injectable()
 export class MovementService {
@@ -12,7 +13,16 @@ export class MovementService {
   private readonly Amont:AmountService
 
   async create(createMovementDto: CreateMovementDto) { 
-    const move = await this.Prisma.movimentations.create({data:createMovementDto}); 
+
+    if(createMovementDto.type =="DEPOSITO"|| createMovementDto.type == "DESPESA" && createMovementDto.value > 0){
+      const saida = createMovementDto.value *-1
+      await this.Prisma.movimentations.create({data:{
+        ...createMovementDto, 
+        value:   saida }}); 
+    }else{
+      await this.Prisma.movimentations.create({data:createMovementDto})
+    }
+
     await this.Amont.createOrUpdate({
       filialId: createMovementDto.filialId,
       balance: createMovementDto.value,
@@ -29,8 +39,14 @@ export class MovementService {
   update(id: number, updateMovementDto: UpdateMovementDto) {
     return this.Prisma.movimentations.update({where:{id},data:updateMovementDto})
   }
-  remove(id:number){
-    return this.Prisma.movimentations.delete({where:{id}})
+  async remove(id:number){
+    const moveDel = await this.Prisma.movimentations.delete({where:{id}})
+    const valueSub = new Decimal(moveDel.value).negated().toNumber();
+    await this.Amont.createOrUpdate({
+      filialId: moveDel.filialId,
+      balance: valueSub
+    });
+    return moveDel
   }
   
 }
