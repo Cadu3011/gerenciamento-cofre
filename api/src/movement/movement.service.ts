@@ -4,6 +4,7 @@ import { UpdateMovementDto } from './dto/update-movement.dto';
 import { PrismaService } from 'src/database/prisma.service';
 import { AmountService } from 'src/amount/amount.service';
 import { Decimal } from '@prisma/client/runtime/library';
+import { FindAllQueryDto } from './dto/query-movement.dto';
 
 @Injectable()
 export class MovementService {
@@ -13,28 +14,55 @@ export class MovementService {
   private readonly Amont:AmountService
 
   async create(createMovementDto: CreateMovementDto) { 
-
     if(createMovementDto.type =="DEPOSITO"|| createMovementDto.type == "DESPESA" && createMovementDto.value > 0){
       const saida = createMovementDto.value *-1
       await this.Prisma.movimentations.create({data:{
         ...createMovementDto, 
-        value:   saida }}); 
+        value:   saida 
+      }}); 
+        await this.Amont.createOrUpdate({
+          filialId: createMovementDto.filialId,
+          balance: saida,
+        });
     }else{
       await this.Prisma.movimentations.create({data:createMovementDto})
+      await this.Amont.createOrUpdate({
+        filialId: createMovementDto.filialId,
+        balance: createMovementDto.value,
+      });
     }
 
-    await this.Amont.createOrUpdate({
-      filialId: createMovementDto.filialId,
-      balance: createMovementDto.value,
-    });
   }
 
-  findAll() {
-    return this.Prisma.movimentations.findMany()
+  findAll(query:FindAllQueryDto) {
+    const { createdAt, type, filialId} = query;
+    const where: any = {};
+  if (createdAt) where.createdAt = new Date(createdAt);
+  if (type) where.type = type;
+  if (filialId) where.filialId = filialId;
+    return this.Prisma.movimentations.findMany({where})
   }
 
   findOne(id: number) {
     return this.Prisma.movimentations.findUnique({where:{id}})
+  }
+  async findByFilialOperator(filialId:number){
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+
+    const endOfDay = new Date(startOfDay);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    const movements = await this.Prisma.movimentations.findMany({
+      where:{
+        filialId,
+        createdAt: {
+          gte: startOfDay,
+          lte: endOfDay,
+        }
+      }
+    })
+    return movements
   }
   update(id: number, updateMovementDto: UpdateMovementDto) {
     return this.Prisma.movimentations.update({where:{id},data:updateMovementDto})
