@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import { Controller, Get, Param, Delete } from '@nestjs/common';
 import { AmountService } from './amount.service';
 
 
@@ -15,7 +15,10 @@ export class AmountController {
   findOne(@Param('id') id: string) {
     return this.amountService.findOne(+id);
   }
-
+  @Get('last/:id')
+  findLast(@Param('id') id: string){
+    return this.amountService.findLast(+id)
+  }
  
 
   @Delete(':id')

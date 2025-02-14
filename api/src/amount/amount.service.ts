@@ -48,6 +48,11 @@ export class AmountService {
     }
   }
   async findLast(filialId: number) {
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(startOfDay);
+    endOfDay.setHours(23, 59, 59, 999);
+
     const lastItem = await this.Prisma.dailyBalance.findFirst({
       where: {
         filialId: filialId
@@ -56,6 +61,7 @@ export class AmountService {
         id: 'desc',
       },
     });
+    
     return lastItem
   }
   findByDate(date: string, filialId: number) {
