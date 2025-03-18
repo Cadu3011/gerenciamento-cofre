@@ -6,30 +6,33 @@ import { Decimal } from '@prisma/client/runtime/library';
 @Injectable()
 export class AmountService {
   @Inject()
-  private readonly Prisma: PrismaService
+  private readonly Prisma: PrismaService;
 
   async createOrUpdate(createAmountDto: CreateAmountDto) {
     const date: Date = new Date();
     const dateFormat: string = date.toISOString();
-
     const amount = await this.findByDate(dateFormat, createAmountDto.filialId);
 
     if (amount.length === 1) {
-      const newBalance = new Decimal(amount[0].balance).add(createAmountDto.balance);
+      const newBalance = new Decimal(amount[0].balance).add(
+        createAmountDto.balance,
+      );
       await this.Prisma.dailyBalance.update({
         where: { id: amount[0].id },
         data: { balance: newBalance },
       });
       return newBalance;
     } else {
-      const lastAmount = await this.findLast(createAmountDto.filialId)
+      const lastAmount = await this.findLast(createAmountDto.filialId);
       if (lastAmount) {
-        const newBalance = new Decimal(createAmountDto.balance).add(lastAmount.balance)
+        const newBalance = new Decimal(createAmountDto.balance).add(
+          lastAmount.balance,
+        );
         await this.Prisma.dailyBalance.create({
           data: {
             filialId: createAmountDto.filialId,
             balance: newBalance,
-            createdAt: date
+            createdAt: date,
           },
         });
         return newBalance;
@@ -39,32 +42,43 @@ export class AmountService {
           data: {
             filialId: createAmountDto.filialId,
             balance: newBalance,
-            createdAt: date
+            createdAt: date,
           },
         });
         return newBalance;
       }
-
     }
   }
   async findLast(filialId: number) {
-    const startOfDay = new Date();
-    startOfDay.setHours(0, 0, 0, 0);
-    const endOfDay = new Date(startOfDay);
-    endOfDay.setHours(23, 59, 59, 999);
-
     const lastItem = await this.Prisma.dailyBalance.findFirst({
       where: {
-        filialId: filialId
+        filialId: filialId,
       },
       orderBy: {
         id: 'desc',
       },
     });
-    
-    return lastItem
+
+    return lastItem;
   }
-  findByDate(date: string, filialId: number) {
+  async findAnt(filialId: number) {
+    const date: Date = new Date();
+    const dateFormat: string = date.toISOString();
+    const amount = await this.findByDate(dateFormat, filialId);
+    if (amount.length === 1) {
+      return this.Prisma.dailyBalance.findFirst({
+        where: {
+          filialId: filialId,
+        },
+        orderBy: {
+          id: 'desc',
+        },
+        skip: 1,
+      });
+    }
+    return this.findLast(filialId);
+  }
+  findByDate(date?: string, filialId?: number) {
     const startOfDay = new Date(date);
     startOfDay.setHours(0, 0, 0, 0);
 
@@ -76,13 +90,21 @@ export class AmountService {
           gte: startOfDay,
           lte: endOfDay,
         },
-        filialId: filialId
+        filialId: filialId,
       },
     });
-    return extrato
+    return extrato;
   }
-  findAll() {
-    return this.Prisma.dailyBalance.findMany()
+  findAll(dateInit: string, dateFinal: string, filialId?: number) {
+    return this.Prisma.dailyBalance.findMany({
+      where: {
+        createdAt: {
+          gte: new Date(dateInit),
+          lte: new Date(dateFinal),
+        },
+        filialId: +filialId,
+      },
+    });
   }
 
   findOne(id: number) {

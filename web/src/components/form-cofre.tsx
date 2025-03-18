@@ -26,7 +26,7 @@ export default function CardMovements({ title }: Props) {
   };
 
   return (
-    <div className="bg-slate-200 w-full h-80 p-2 rounded shadow-blue-300 shadow-md flex flex-col justify-between transition duration-500 ease-in-out transform hover:-translate-y-1 hover:scale-105 ">
+    <div className="bg-slate-200 w-full h-80 p-2 rounded shadow-blue-300 shadow-md flex flex-col justify-between transition duration-500 ease-in-out transform hover:-translate-y-1 hover:scale-100 ">
       <div>
         <div className="flex justify-center">
           <h1>{title}</h1>

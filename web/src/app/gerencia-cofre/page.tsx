@@ -1,4 +1,5 @@
 import CardMovements from "@/components/form-cofre";
+import HeaderCofre from "@/components/header-cofre";
 
 export default function GerenciaCofre() {
   async function getSaldoAtual() {
@@ -8,11 +9,18 @@ export default function GerenciaCofre() {
   }
 
   return (
-    <div className=" bg-gray-200 p-8 flex items-center gap-2 h-full">
-      <CardMovements title="Sangria" />
-      <CardMovements title="Outras entradas" />
-      <CardMovements title="Despesa" />
-      <CardMovements title="Deposito" />
+    <div className="bg-gray-200 flex items-center h-full ">
+      <div className="bg-blue-500 w-max m-10 rounded">
+        <div>
+          <HeaderCofre />
+        </div>
+        <div className="p-8 flex items-center gap-2 ">
+          <CardMovements title="Sangria" />
+          <CardMovements title="Outras entradas" />
+          <CardMovements title="Despesa" />
+          <CardMovements title="Deposito" />
+        </div>
+      </div>
     </div>
   );
 }
