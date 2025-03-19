@@ -11,8 +11,9 @@ async function getSaldos(): Promise<any> {
 
 export default async function HeaderCofre() {
   const { saldoAnt, saldoAt } = await getSaldos();
+
   return (
-    <div className="w-full h-1/5 bg-blue-500 p-16 rounded flex justify-between">
+    <div className="w-full h-1/5 bg-blue-500 p-16 rounded-2xl flex justify-between">
       <div className="bg-gray-400 w-64 rounded-3xl flex justify-center items-center font-bold text-3xl">
         LOJA
       </div>

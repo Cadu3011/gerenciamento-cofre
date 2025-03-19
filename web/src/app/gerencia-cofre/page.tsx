@@ -10,15 +10,15 @@ export default function GerenciaCofre() {
 
   return (
     <div className="bg-gray-200 flex items-center h-full ">
-      <div className="bg-blue-500 w-max m-10 rounded">
+      <div className="bg-blue-500 w-max m-10 rounded-2xl">
         <div>
           <HeaderCofre />
         </div>
         <div className="p-8 flex items-center gap-2 ">
-          <CardMovements title="Sangria" />
-          <CardMovements title="Outras entradas" />
-          <CardMovements title="Despesa" />
-          <CardMovements title="Deposito" />
+          <CardMovements title="Sangria" type="SANGRIA" />
+          <CardMovements title="Outras entradas" type="OUTRAS_ENTRADAS" />
+          <CardMovements title="Despesa" type="DESPESA" />
+          <CardMovements title="Deposito" type="DEPOSITO" />
         </div>
       </div>
     </div>

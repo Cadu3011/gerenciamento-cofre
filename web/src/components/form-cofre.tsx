@@ -3,12 +3,14 @@
 import { useState } from "react";
 import InputComp from "./input";
 import { handleFormSubmit } from "@/app/api/post";
+import ExibirMovimentos from "./movements";
 
 interface Props {
   title: string;
+  type: string;
 }
 
-export default function CardMovements({ title }: Props) {
+export default function CardMovements({ title, type }: Props) {
   const [value, setValue] = useState("");
   const [description, setDescription] = useState("");
 
@@ -18,9 +20,10 @@ export default function CardMovements({ title }: Props) {
     const formData = new FormData();
     formData.append("description", description);
     formData.append("value", value);
+    formData.append("type", type);
 
     await handleFormSubmit(formData);
-
+    window.location.reload();
     setDescription("");
     setValue("");
   };
@@ -46,6 +49,7 @@ export default function CardMovements({ title }: Props) {
           </button>
         </form>
       </div>
+      <ExibirMovimentos type={type} />
       <div className="">Total:</div>
     </div>
   );
