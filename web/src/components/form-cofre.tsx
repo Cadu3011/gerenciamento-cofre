@@ -4,7 +4,6 @@ import { useState } from "react";
 import InputComp from "./input";
 import { handleFormSubmit } from "@/app/api/post";
 import ExibirMovimentos from "./movements";
-
 interface Props {
   title: string;
   type: string;
@@ -40,8 +39,14 @@ export default function CardMovements({ title, type }: Props) {
               value={description}
               setValue={setDescription}
               placeholder="Descrição"
+              type="text"
             />
-            <InputComp value={value} setValue={setValue} placeholder="Valor" />
+            <InputComp
+              value={value}
+              setValue={setValue}
+              placeholder="Valor"
+              type="text"
+            />
           </div>
 
           <button type="submit" className="bg-blue-400 w-full rounded-lg">

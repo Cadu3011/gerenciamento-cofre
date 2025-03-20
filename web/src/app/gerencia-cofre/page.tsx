@@ -1,12 +1,9 @@
 import CardMovements from "@/components/form-cofre";
 import HeaderCofre from "@/components/header-cofre";
+import { cookies } from "next/headers";
 
-export default function GerenciaCofre() {
-  async function getSaldoAtual() {
-    const cofre = await fetch("http://localhost:3000/amount/last/2");
-    const saldo = await cofre.json();
-    return String(saldo.balance);
-  }
+export default async function GerenciaCofre() {
+  const token = (await cookies()).get("access_token")?.value;
 
   return (
     <div className="bg-gray-200 flex items-center h-full ">
