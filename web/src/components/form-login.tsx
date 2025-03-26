@@ -15,27 +15,29 @@ export function LoginForm() {
   };
   return (
     <div>
-      <form action="" method="post" onSubmit={handleSubmit}>
-        <div>Entrar</div>
+      <form action="" method="post" onSubmit={handleSubmit} className="bg-blue-400 w-80 p-3 space-y-5 ">
+        <div className="border-b border-gray-500"><img src="" alt="" /></div>
+        <div className=" flex justify-center">Entrar</div>
         <div>
-          <label htmlFor="">Login</label>
           <InputComp
             value={login}
             setValue={setLogin}
-            placeholder=""
+            placeholder="Login"
             type="text"
           />
         </div>
         <div>
-          <label htmlFor="">Senha</label>
           <InputComp
             value={password}
             setValue={setPassword}
-            placeholder=""
+            placeholder="Senha"
             type="password"
           />
         </div>
-        <input type="submit" />
+        <div className="flex justify-center">
+        <input type="submit" className="bg-gray-300 pr-3 pl-3 rounded hover:bg-slate-50"/>
+        </div>
+        
       </form>
     </div>
   );
