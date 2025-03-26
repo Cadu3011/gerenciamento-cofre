@@ -3,10 +3,18 @@
 import { useEffect, useState } from "react";
 interface Props {
   type: string;
+  filialId: string;
+  token: string;
 }
-async function getMovements() {
+async function getMovements(filialId: number, token: string) {
   const movementList = await fetch(
-    "http://localhost:3000/movement/operator/3"
+    `http://localhost:3000/movement/operator/${filialId}`,
+    {
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`, // Passa o token no header
+      },
+    }
   ).then((res) => res.json());
   return movementList;
 }
@@ -14,11 +22,11 @@ async function deleteMovements(id: number) {
   await fetch(`http://localhost:3000/movement/${id}`, { method: "DELETE" });
   window.location.reload();
 }
-export default function ExibirMovimentos({ type }: Props) {
+export default function ExibirMovimentos({ type, filialId, token }: Props) {
   const [movements, setMovements] = useState<any>([]);
   useEffect(() => {
     const fetchMovements = async () => {
-      const movement = await getMovements();
+      const movement = await getMovements(Number(filialId), token);
       const filteredMovements = movement
         .filter((move: { type: string }) => move.type === type)
         .map((move: any) => ({
