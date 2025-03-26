@@ -1,7 +1,12 @@
-import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  CanActivate,
+  ExecutionContext,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Reflector } from '@nestjs/core';
-import { Role } from '@prisma/client';  // Importe o tipo Role do Prisma
+import { Role } from '@prisma/client'; // Importe o tipo Role do Prisma
 import { ROLES_KEY } from './role.decorator';
 
 @Injectable()
@@ -23,19 +28,19 @@ export class AuthGuard implements CanActivate {
     ]);
 
     if (!requiredRoles) {
-      return true; 
+      return true;
     }
 
-    
-    const payload = this.jwtService.verify(authorization, { secret: process.env.SECRET_KEY });
+    const payload = this.jwtService.verify(authorization, {
+      secret: process.env.SECRET_KEY,
+    });
     request['sub'] = payload; // Adiciona o payload à requisição
+    const userRole: Role = payload.roles || [];
 
-    const userRole: Role = payload.roles || []; 
-    
-    
+    const filialId = request.params.id;
     const hasRole = requiredRoles.includes(userRole);
-
-    if (!hasRole) {
+    const hasAccess = payload.filialId === Number(filialId);
+    if (!hasRole || !hasAccess) {
       throw new UnauthorizedException('Insufficient permissions');
     }
 
