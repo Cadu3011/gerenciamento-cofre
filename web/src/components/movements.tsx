@@ -1,14 +1,17 @@
 "use client";
 
+import { apiPort } from "@/app/api/post";
 import { useEffect, useState } from "react";
 interface Props {
   type: string;
   filialId: string;
   token: string;
 }
+
 async function getMovements(filialId: number, token: string) {
+  const Port = await apiPort()
   const movementList = await fetch(
-    `http://localhost:3000/movement/operator/${filialId}`,
+    `http://localhost:${Port}/movement/operator/${filialId}`,
     {
       headers: {
         "Content-Type": "application/json",
@@ -19,7 +22,8 @@ async function getMovements(filialId: number, token: string) {
   return movementList;
 }
 async function deleteMovements(id: number) {
-  await fetch(`http://localhost:3000/movement/${id}`, { method: "DELETE" });
+  const Port = await apiPort()
+  await fetch(`http://localhost:${Port}/movement/${id}`, { method: "DELETE" });
   window.location.reload();
 }
 export default function ExibirMovimentos({ type, filialId, token }: Props) {
@@ -49,10 +53,10 @@ export default function ExibirMovimentos({ type, filialId, token }: Props) {
             className="flex items-center justify-between  pl-2 bg-slate-300  mb-2 rounded"
           >
             <strong className="items-start w-1/3">
-              Desc: {move.description}
+              {move.description}:
             </strong>
 
-            <strong className="items-center w-1/3">Valor: {move.value}</strong>
+            <strong className="items-center w-1/3"> {move.value}</strong>
 
             <button
               onClick={() => deleteMovements(move.id)}

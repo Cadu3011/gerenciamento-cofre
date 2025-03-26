@@ -21,7 +21,7 @@ export default async function GerenciaCofre() {
 
   return (
     <div className="bg-gray-200 flex items-center h-full ">
-      <div className="bg-blue-500 w-max m-10 rounded-2xl">
+      <div className="bg-gray-600 w-max m-10 rounded-2xl">
         <div>
           <HeaderCofre filialId={`${userData.filialId}`} token={token} />
         </div>
