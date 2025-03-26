@@ -7,9 +7,11 @@ import ExibirMovimentos from "./movements";
 interface Props {
   title: string;
   type: string;
+  filialId: string;
+  token: string;
 }
 
-export default function CardMovements({ title, type }: Props) {
+export default function CardMovements({ title, type, filialId, token }: Props) {
   const [value, setValue] = useState("");
   const [description, setDescription] = useState("");
 
@@ -20,6 +22,8 @@ export default function CardMovements({ title, type }: Props) {
     formData.append("description", description);
     formData.append("value", value);
     formData.append("type", type);
+    formData.append("filialId", filialId);
+    formData.append("token", token);
 
     await handleFormSubmit(formData);
     window.location.reload();
@@ -54,7 +58,7 @@ export default function CardMovements({ title, type }: Props) {
           </button>
         </form>
       </div>
-      <ExibirMovimentos type={type} />
+      <ExibirMovimentos type={type} filialId={filialId} token={token} />
       <div className="">Total:</div>
     </div>
   );
