@@ -22,12 +22,6 @@ export default async function GerenciaFilial() {
   return (
     <div className=" w-full flex justify-center items-center bg-gray-200">
       <div className="bg-slate-400 rounded">
-        <div className="ml-24 mr-24">Gerenciar Filiais</div>
-        <div className="ml-5">
-          <button className="bg-blue-400 pl-2 pr-2 mb-2 rounded border border-black">
-            criar
-          </button>
-        </div>
         <div className="">
           <Filiais token={token} />
         </div>
