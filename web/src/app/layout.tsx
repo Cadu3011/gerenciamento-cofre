@@ -16,7 +16,7 @@ export default function RootLayout({
   const shouldShowLayout = !hiddenRoutes.includes(pathname);
   return (
     <html lang="pt-br">
-      <body className={`antialiased`}>
+      <body className={`antialiased w-full h-full`}>
         {shouldShowLayout ? <SideBar>{children}</SideBar> : children}
       </body>
     </html>

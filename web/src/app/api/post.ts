@@ -51,3 +51,7 @@ export async function handlePostLogin(formData: FormData) {
   }
   redirect("/gerencia-cofre");
 }
+export async function handleLogut() {
+  (await cookies()).delete("access_token");
+  redirect("/login");
+}
