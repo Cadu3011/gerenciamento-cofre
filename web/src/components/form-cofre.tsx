@@ -4,6 +4,7 @@ import { useState } from "react";
 import InputComp from "./input";
 import { handleFormSubmit } from "@/app/api/post";
 import ExibirMovimentos from "./movements";
+import SumMovements from "./sumMovements";
 interface Props {
   title: string;
   type: string;
@@ -32,7 +33,7 @@ export default function CardMovements({ title, type, filialId, token }: Props) {
   };
 
   return (
-    <div className="bg-slate-200 w-full h-80 p-2 rounded shadow-blue-300 shadow-md flex flex-col justify-between transition duration-500 ease-in-out transform hover:-translate-y-1 hover:scale-100 ">
+    <div className="bg-slate-200 w-1/2 h-80 p-2 rounded shadow-blue-300 shadow-md flex flex-col justify-between transition duration-500 ease-in-out transform hover:-translate-y-1 hover:scale-100 ">
       <div>
         <div className="flex justify-center">
           <h1>{title}</h1>
@@ -53,13 +54,20 @@ export default function CardMovements({ title, type, filialId, token }: Props) {
             />
           </div>
 
-          <button type="submit" className="bg-blue-400 w-full rounded-lg">
-            +
+          <button
+            type="submit"
+            className="bg-blue-500 w-full rounded p-1 text-white text-sm font-bold transition duration-75 ease-in-out transform hover:bg-blue-600"
+          >
+            Adicionar
           </button>
         </form>
+        <div className="mb-2">
+          Total: <SumMovements type={type} filialId={filialId} token={token} />
+        </div>
+        <div>
+          <ExibirMovimentos type={type} filialId={filialId} token={token} />
+        </div>
       </div>
-      <ExibirMovimentos type={type} filialId={filialId} token={token} />
-      <div className="">Total:</div>
     </div>
   );
 }

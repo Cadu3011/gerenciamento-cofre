@@ -9,7 +9,8 @@ interface Props {
 }
 
 async function getMovements(filialId: number, token: string) {
-  const Port = await apiPort()
+  const Port = await apiPort();
+  console.log(filialId);
   const movementList = await fetch(
     `http://localhost:${Port}/movement/operator/${filialId}`,
     {
@@ -22,7 +23,7 @@ async function getMovements(filialId: number, token: string) {
   return movementList;
 }
 async function deleteMovements(id: number) {
-  const Port = await apiPort()
+  const Port = await apiPort();
   await fetch(`http://localhost:${Port}/movement/${id}`, { method: "DELETE" });
   window.location.reload();
 }
@@ -50,19 +51,22 @@ export default function ExibirMovimentos({ type, filialId, token }: Props) {
         {movements.map((move: any, index: number) => (
           <li
             key={index}
-            className="flex items-center justify-between  pl-2 bg-slate-300  mb-2 rounded"
+            className="flex items-center justify-between  pl-2   mb-2 rounded border border-b-slate-400"
           >
-            <strong className="items-start w-1/3">
-              {move.description}:
-            </strong>
+            <div className="items-start w-1/3">{move.description}:</div>
 
-            <strong className="items-center w-1/3"> {move.value}</strong>
+            <strong className=" w-1/3 text-center">{move.value}</strong>
 
             <button
               onClick={() => deleteMovements(move.id)}
-              className=" mr-3 text-red-500 rounded-full w-6 items-end"
+              className=" mr-3 text-red-600  items-end"
             >
-              X
+              <img
+                width="24"
+                height="24"
+                src="https://img.icons8.com/material-rounded/24/FA5252/full-trash.png"
+                alt="full-trash"
+              />
             </button>
           </li>
         ))}

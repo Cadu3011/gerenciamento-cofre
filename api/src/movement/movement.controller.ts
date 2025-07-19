@@ -22,11 +22,8 @@ export class MovementController {
   constructor(private readonly movementService: MovementService) {}
   @UseGuards(AuthGuard)
   @Roles(Role.OPERADOR)
-  @Post(':id')
-  create(
-    @Body() createMovementDto: CreateMovementDto,
-    @Param('id') idFilial: string,
-  ) {
+  @Post()
+  create(@Body() createMovementDto: CreateMovementDto) {
     return this.movementService.create(createMovementDto);
   }
 

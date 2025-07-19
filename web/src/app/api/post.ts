@@ -19,17 +19,21 @@ export async function handleFormSubmit(formData: FormData) {
     type,
     filialId,
   };
-  const dataPost = await fetch(
-    `http://localhost:${Port}/movement/${filialId}`,
-    {
+  console.log(data);
+  try {
+    const dataPost = await fetch(`http://localhost:${Port}/movement`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify(data),
-    }
-  );
+    });
+    console.log(JSON.stringify(dataPost));
+    return JSON.stringify(dataPost);
+  } catch (error) {
+    console.log(error);
+  }
 }
 export async function handlePostLogin(formData: FormData) {
   const login = formData.get("login") as string;
