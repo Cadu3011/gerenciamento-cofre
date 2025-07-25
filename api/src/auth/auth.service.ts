@@ -17,9 +17,7 @@ export class AuthService {
   @Inject()
   private readonly jtwService: JwtService;
 
-  async signin(
-    params: Prisma.UserCreateInput,
-  ): Promise<{ access_token: String; role: string }> {
+  async signin(params: Prisma.UserCreateInput): Promise<any> {
     const user = await this.prisma.user.findFirst({
       where: { login: params.login },
     });
@@ -27,9 +25,6 @@ export class AuthService {
     const passwordMatch = await bcrypt.compare(params.password, user.password);
     if (!passwordMatch) throw new UnauthorizedException('Invalid credentials');
     const payload = { sub: user.id, roles: user.role, filialId: user.filialId };
-    return {
-      access_token: await this.jtwService.signAsync(payload),
-      role: user.role,
-    };
+    return await this.jtwService.signAsync(payload);
   }
 }

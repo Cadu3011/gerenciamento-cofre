@@ -2,6 +2,8 @@
 
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
+import { jwtDecode } from "jwt-decode";
+
 export const apiPort = async (): Promise<string> => {
   const Port = "3000";
   return Port;
@@ -13,9 +15,10 @@ export async function handleFormSubmit(formData: FormData) {
   const type = formData.get("type") as string;
   const filialId = Number(formData.get("filialId") as string);
   const token = formData.get("token") as string;
+  console.log(value);
   const data = {
     descrition,
-    value: parseInt(value),
+    value: value.replace(",", "."),
     type,
     filialId,
   };
@@ -35,6 +38,13 @@ export async function handleFormSubmit(formData: FormData) {
     console.log(error);
   }
 }
+interface UserPayload {
+  sub: number;
+  roles: string;
+  filialId: number;
+  iat: number;
+  exp: number;
+}
 export async function handlePostLogin(formData: FormData) {
   const login = formData.get("login") as string;
   const password = formData.get("password") as string;
@@ -50,7 +60,12 @@ export async function handlePostLogin(formData: FormData) {
   });
   const token = await response.json();
   (await cookies()).set("access_token", token.access_token, { httpOnly: true });
-  if (token.role === "GESTOR") {
+  const tokenCookie = (await cookies()).get("access_token")?.value;
+  console.log(tokenCookie);
+
+  const userData = jwtDecode<UserPayload>(tokenCookie as string);
+
+  if (userData.roles === "GESTOR") {
     redirect("/admin");
   }
   redirect("/gerencia-cofre");

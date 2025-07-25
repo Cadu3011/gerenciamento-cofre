@@ -2,15 +2,16 @@ import { apiPort } from "@/app/api/post";
 
 async function getSaldos(filialId: string, token: string): Promise<any> {
   const Port = await apiPort();
+  console.log(filialId);
   try {
     const [saldoAnt, saldoAt, filial] = await Promise.all([
-      fetch(`http://localhost:${Port}/amount/ant/${filialId}`, {
+      fetch(`http://localhost:${Port}/amount/ant`, {
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
       }).then((res) => res.json()),
-      fetch(`http://localhost:${Port}/amount/last/${filialId}`, {
+      fetch(`http://localhost:${Port}/amount/last`, {
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
@@ -47,7 +48,7 @@ export default async function HeaderCofre({ filialId, token }: Props) {
   return (
     <div className="w-full h-1/2 bg-blue-500 p-3 rounded-t-2xl flex justify-between">
       <div className=" w-64 rounded-2xl flex justify-center items-center font-bold text-3xl">
-        Cofre{filial}
+        Cofre {filial}
       </div>
       <div className="flex items-end gap-11  ">
         <div className="bg-white w-44 p-2 text-center rounded-2xl">

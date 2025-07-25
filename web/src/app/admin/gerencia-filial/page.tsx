@@ -18,6 +18,7 @@ export default async function GerenciaFilial() {
   }
 
   const userData = jwtDecode<UserPayload>(token);
+  if (userData.roles !== "GESTOR") return;
 
   return (
     <div className=" w-full flex justify-center items-center bg-gray-200">

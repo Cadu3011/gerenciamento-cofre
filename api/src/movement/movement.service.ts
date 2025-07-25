@@ -50,7 +50,7 @@ export class MovementService {
   findOne(id: number) {
     return this.Prisma.movimentations.findUnique({ where: { id } });
   }
-  async findByFilialOperator(filialId: number) {
+  async findByFilialOperator(filialIdUser: number) {
     const startOfDay = new Date();
     startOfDay.setHours(0, 0, 0, 0);
 
@@ -59,7 +59,7 @@ export class MovementService {
 
     const movements = await this.Prisma.movimentations.findMany({
       where: {
-        filialId,
+        filialId: filialIdUser,
         createdAt: {
           gte: startOfDay,
           lte: endOfDay,
@@ -68,17 +68,19 @@ export class MovementService {
     });
     return movements;
   }
-  update(id: number, updateMovementDto: UpdateMovementDto) {
+  update(filialId: number, id: number, updateMovementDto: UpdateMovementDto) {
     return this.Prisma.movimentations.update({
-      where: { id },
+      where: { id, filialId: filialId },
       data: updateMovementDto,
     });
   }
-  async remove(id: number) {
-    const moveDel = await this.Prisma.movimentations.delete({ where: { id } });
+  async remove(filialId: number, id: number) {
+    const moveDel = await this.Prisma.movimentations.delete({
+      where: { id, filialId: filialId },
+    });
     const valueSub = new Decimal(moveDel.value).negated().toNumber();
     await this.Amont.createOrUpdate({
-      filialId: moveDel.filialId,
+      filialId: filialId,
       balance: valueSub,
     });
     return moveDel;

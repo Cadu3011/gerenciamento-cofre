@@ -12,19 +12,25 @@ async function getMovements(filialId: number, token: string) {
   const Port = await apiPort();
   console.log(filialId);
   const movementList = await fetch(
-    `http://localhost:${Port}/movement/operator/${filialId}`,
+    `http://localhost:${Port}/movement/operator`,
     {
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`, // Passa o token no header
+        Authorization: `Bearer ${token}`,
       },
     }
   ).then((res) => res.json());
   return movementList;
 }
-async function deleteMovements(id: number) {
+async function deleteMovements(id: number, token: string) {
   const Port = await apiPort();
-  await fetch(`http://localhost:${Port}/movement/${id}`, { method: "DELETE" });
+  await fetch(`http://localhost:${Port}/movement/${id}`, {
+    method: "DELETE",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`, // Passa o token no header
+    },
+  });
   window.location.reload();
 }
 export default function ExibirMovimentos({ type, filialId, token }: Props) {
@@ -58,7 +64,7 @@ export default function ExibirMovimentos({ type, filialId, token }: Props) {
             <strong className=" w-1/3 text-center">{move.value}</strong>
 
             <button
-              onClick={() => deleteMovements(move.id)}
+              onClick={() => deleteMovements(move.id, token)}
               className=" mr-3 text-red-600  items-end"
             >
               <img

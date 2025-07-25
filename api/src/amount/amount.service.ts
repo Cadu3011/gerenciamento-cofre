@@ -108,7 +108,7 @@ export class AmountService {
   }
 
   findOne(id: number) {
-    return `This action returns a #${id} amount`;
+    return this.Prisma.dailyBalance.findUnique({ where: { id } });
   }
 
   remove(id: number) {

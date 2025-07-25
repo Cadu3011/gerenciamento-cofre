@@ -10,7 +10,7 @@ export default function SumMovements({ type, filialId, token }: Props) {
     const Port = await apiPort();
     console.log(filialId);
     const movementList = await fetch(
-      `http://localhost:${Port}/movement/operator/${filialId}`,
+      `http://localhost:${Port}/movement/operator`,
       {
         headers: {
           "Content-Type": "application/json",

@@ -8,6 +8,7 @@ import {
   Delete,
   Query,
   UseGuards,
+  Req,
 } from '@nestjs/common';
 import { MovementService } from './movement.service';
 import { CreateMovementDto } from './dto/create-movement.dto';
@@ -16,6 +17,7 @@ import { FindAllQueryDto } from './dto/query-movement.dto';
 import { Roles } from 'src/auth/role.decorator';
 import { AuthGuard } from 'src/auth/auth.guard';
 import { Role } from '@prisma/client';
+import { Request } from 'express';
 
 @Controller('movement')
 export class MovementController {
@@ -32,27 +34,34 @@ export class MovementController {
     return this.movementService.findAll(query);
   }
 
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.movementService.findOne(+id);
+  @UseGuards(AuthGuard)
+  @Roles(Role.OPERADOR)
+  @Get('operator')
+  findByFilialOperator(@Req() req: Request) {
+    const filialUser = req['sub'];
+    return this.movementService.findByFilialOperator(filialUser.filialId);
   }
   @UseGuards(AuthGuard)
   @Roles(Role.OPERADOR)
-  @Get('operator/:id')
-  findByFilialOperator(@Param('id') id: number) {
-    return this.movementService.findByFilialOperator(+id);
-  }
-
   @Patch(':id')
   update(
+    @Req() req: Request,
     @Param('id') id: string,
     @Body() updateMovementDto: UpdateMovementDto,
   ) {
-    return this.movementService.update(+id, updateMovementDto);
+    const filialUser = req['sub'];
+    return this.movementService.update(
+      filialUser.filialId,
+      +id,
+      updateMovementDto,
+    );
   }
 
+  @UseGuards(AuthGuard)
+  @Roles(Role.OPERADOR)
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.movementService.remove(+id);
+  remove(@Param('id') id: string, @Req() req: Request) {
+    const filialUser = req['sub'];
+    return this.movementService.remove(filialUser.filialId, +id);
   }
 }

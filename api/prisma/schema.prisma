@@ -9,7 +9,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "mysql"
   url      = env("DATABASE_URL")
 }
 enum Role{
@@ -36,7 +36,7 @@ model User {
 model Movimentations{
   id Int @default(autoincrement()) @id
   descrition String
-  value Decimal
+  value Decimal  @db.Decimal(9,2)
   type Category
   filialId Int
   filial Filial @relation("FiliaAndMovimentations",fields: [filialId],references: [id])
@@ -45,7 +45,7 @@ model Movimentations{
 }
 model DailyBalance {
   id        Int      @default(autoincrement()) @id
-  balance   Decimal  
+  balance   Decimal  @db.Decimal(9,2)
   filialId Int?
   filial Filial? @relation("FiliaAndDayBalancy",fields: [filialId],references: [id])
   createdAt DateTime @default(now())

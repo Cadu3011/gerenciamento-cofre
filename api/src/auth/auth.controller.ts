@@ -1,15 +1,25 @@
-import { Body, Controller, HttpCode, HttpStatus, Inject, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  HttpCode,
+  HttpStatus,
+  Inject,
+  Post,
+} from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { AuthService } from './auth.service';
 
 @Controller('auth')
 export class AuthController {
-    @Inject()
-    private readonly authService: AuthService
+  @Inject()
+  private readonly authService: AuthService;
 
-    @Post('signin')
-    @HttpCode(HttpStatus.OK)
-    signin(@Body() body:Prisma.UserCreateInput){
-        return this.authService.signin(body)
-    }
+  @Post('signin')
+  @HttpCode(HttpStatus.OK)
+  async signin(
+    @Body()
+    body: Prisma.UserCreateInput,
+  ) {
+    return { access_token: await this.authService.signin(body) };
+  }
 }

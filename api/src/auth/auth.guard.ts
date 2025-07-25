@@ -40,6 +40,7 @@ export class AuthGuard implements CanActivate {
     const filialId = payload.filialId;
     const hasRole = requiredRoles.includes(userRole);
     const hasAccess = payload.filialId === Number(filialId);
+
     if (!hasRole || !hasAccess) {
       throw new UnauthorizedException('Insufficient permissions');
     }
