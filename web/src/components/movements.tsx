@@ -1,6 +1,7 @@
 "use client";
 
 import { apiPort } from "@/app/api/post";
+import { useCofreFisic } from "@/app/gerencia-cofre/components/cofreContext";
 import { useEffect, useState } from "react";
 interface Props {
   type: string;
@@ -10,7 +11,6 @@ interface Props {
 
 async function getMovements(filialId: number, token: string) {
   const Port = await apiPort();
-  console.log(filialId);
   const movementList = await fetch(
     `http://localhost:${Port}/movement/operator`,
     {
@@ -22,35 +22,39 @@ async function getMovements(filialId: number, token: string) {
   ).then((res) => res.json());
   return movementList;
 }
-async function deleteMovements(id: number, token: string) {
-  const Port = await apiPort();
-  await fetch(`http://localhost:${Port}/movement/${id}`, {
-    method: "DELETE",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`, // Passa o token no header
-    },
-  });
-  window.location.reload();
-}
+
 export default function ExibirMovimentos({ type, filialId, token }: Props) {
   const [movements, setMovements] = useState<any>([]);
-  useEffect(() => {
-    const fetchMovements = async () => {
-      const movement = await getMovements(Number(filialId), token);
-      const filteredMovements = movement
-        .filter((move: { type: string }) => move.type === type)
-        .map((move: any) => ({
-          description: move.descrition,
-          value: move.value,
-          type: move.type,
-          id: move.id,
-        }));
-      setMovements(filteredMovements);
-    };
+  const { refresh } = useCofreFisic();
+  const { updatedAt } = useCofreFisic();
+  const deleteMovements = async (id: number) => {
+    const Port = await apiPort();
+    await fetch(`http://localhost:${Port}/movement/${id}`, {
+      method: "DELETE",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`, // Passa o token no header
+      },
+    });
 
+    await fetchMovements();
+    refresh();
+  };
+  const fetchMovements = async () => {
+    const movement = await getMovements(Number(filialId), token);
+    const filteredMovements = movement
+      .filter((move: { type: string }) => move.type === type)
+      .map((move: any) => ({
+        description: move.descrition,
+        value: move.value,
+        type: move.type,
+        id: move.id,
+      }));
+    setMovements(filteredMovements);
+  };
+  useEffect(() => {
     fetchMovements();
-  }, [type]);
+  }, [type, updatedAt]);
   return (
     <div>
       <ul className="overflow-y-auto max-h-40 ">
@@ -64,7 +68,7 @@ export default function ExibirMovimentos({ type, filialId, token }: Props) {
             <strong className=" w-1/3 text-center">{move.value}</strong>
 
             <button
-              onClick={() => deleteMovements(move.id, token)}
+              onClick={() => deleteMovements(move.id)}
               className=" mr-3 text-red-600  items-end"
             >
               <img

@@ -36,6 +36,14 @@ export class MovementController {
 
   @UseGuards(AuthGuard)
   @Roles(Role.OPERADOR)
+  @Get('ant')
+  findByFilialMoveAnt(@Req() req: Request) {
+    const filialUser = req['sub'];
+    return this.movementService.findAnt(filialUser.filialId);
+  }
+
+  @UseGuards(AuthGuard)
+  @Roles(Role.OPERADOR)
   @Get('operator')
   findByFilialOperator(@Req() req: Request) {
     const filialUser = req['sub'];

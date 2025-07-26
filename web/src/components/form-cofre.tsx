@@ -5,6 +5,7 @@ import InputComp from "./input";
 import { handleFormSubmit } from "@/app/api/post";
 import ExibirMovimentos from "./movements";
 import SumMovements from "./sumMovements";
+import { useCofreFisic } from "@/app/gerencia-cofre/components/cofreContext";
 interface Props {
   title: string;
   type: string;
@@ -15,7 +16,7 @@ interface Props {
 export default function CardMovements({ title, type, filialId, token }: Props) {
   const [value, setValue] = useState("");
   const [description, setDescription] = useState("");
-
+  const { refresh } = useCofreFisic();
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -27,7 +28,7 @@ export default function CardMovements({ title, type, filialId, token }: Props) {
     formData.append("token", token);
 
     await handleFormSubmit(formData);
-    window.location.reload();
+    refresh();
     setDescription("");
     setValue("");
   };

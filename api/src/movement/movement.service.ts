@@ -68,6 +68,79 @@ export class MovementService {
     });
     return movements;
   }
+  async findAnt(filialIdUser: number) {
+    const inicioHoje = new Date();
+    inicioHoje.setHours(0, 0, 0, 0);
+
+    const endOfDay = new Date(inicioHoje);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    // Etapa 1: Verificar se existem movimentações hoje
+    const movimentosHoje = await this.Prisma.movimentations.findFirst({
+      where: {
+        filialId: filialIdUser,
+        createdAt: {
+          gte: inicioHoje,
+          lte: endOfDay,
+        },
+      },
+    });
+
+    let dataBaseBusca: Date;
+
+    if (movimentosHoje) {
+      // Existem lançamentos hoje → buscar o último dia anterior com dados
+      const ultimaMovimentacaoAntesDeHoje =
+        await this.Prisma.movimentations.findFirst({
+          where: {
+            filialId: filialIdUser,
+            createdAt: {
+              lt: inicioHoje, // apenas datas antes de hoje
+            },
+          },
+          orderBy: {
+            createdAt: 'desc',
+          },
+        });
+
+      if (!ultimaMovimentacaoAntesDeHoje) return []; // nunca houve lançamentos antes de hoje
+
+      dataBaseBusca = new Date(ultimaMovimentacaoAntesDeHoje.createdAt);
+    } else {
+      // Não há movimentações hoje → buscar pela última data existente (mesmo que seja ontem ou anterior)
+      const ultimaMovimentacao = await this.Prisma.movimentations.findFirst({
+        where: {
+          filialId: filialIdUser,
+        },
+        orderBy: {
+          createdAt: 'desc',
+        },
+      });
+
+      if (!ultimaMovimentacao) return []; // não há movimentações nunca
+
+      dataBaseBusca = new Date(ultimaMovimentacao.createdAt);
+    }
+
+    // Etapa 2: buscar todas as movimentações desse dia encontrado
+    const inicio = new Date(dataBaseBusca);
+    inicio.setHours(0, 0, 0, 0);
+
+    const fim = new Date(dataBaseBusca);
+    fim.setHours(23, 59, 59, 999);
+
+    const movimentos = await this.Prisma.movimentations.findMany({
+      where: {
+        filialId: filialIdUser,
+        createdAt: {
+          gte: inicio,
+          lte: fim,
+        },
+      },
+    });
+
+    return movimentos;
+  }
   update(filialId: number, id: number, updateMovementDto: UpdateMovementDto) {
     return this.Prisma.movimentations.update({
       where: { id, filialId: filialId },

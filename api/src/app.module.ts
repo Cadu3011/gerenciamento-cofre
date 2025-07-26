@@ -7,9 +7,10 @@ import { MovementModule } from './movement/movement.module';
 import { AuthModule } from './auth/auth.module';
 import { FilialModule } from './filial/filial.module';
 import { AmountModule } from './amount/amount.module';
+import { BalanceFisicModule } from './balance-fisic/balance-fisic.module';
 
 @Module({
-  imports: [UsersModule,DatabaseModule, MovementModule, AuthModule, FilialModule, AmountModule],
+  imports: [UsersModule,DatabaseModule, MovementModule, AuthModule, FilialModule, AmountModule, BalanceFisicModule],
   controllers: [AppController],
   providers: [AppService],
 })

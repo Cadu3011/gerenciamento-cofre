@@ -57,4 +57,21 @@ model Filial{
   user User[] @relation("FiliaAndlUser")
   saldo DailyBalance[] @relation("FiliaAndDayBalancy")
   movements Movimentations[] @relation("FiliaAndMovimentations")
+  balanceFisic BalanceFisic[] @relation("FiliaAndBalancyFisic")
+}
+
+model BalanceFisic{
+  id Int @default(autoincrement()) @id
+  value_100_50 Decimal  @db.Decimal(9,2) @default(0)
+  value_20 Decimal  @db.Decimal(9,2) @default(0)
+  value_10 Decimal  @db.Decimal(9,2) @default(0)
+  value_5 Decimal  @db.Decimal(9,2) @default(0)
+  value_2 Decimal  @db.Decimal(9,2) @default(0)
+  value_moedas Decimal  @db.Decimal(9,2) @default(0)
+  value_reserva Decimal  @db.Decimal(9,2) @default(0)
+  filialId Int?
+  filial Filial? @relation("FiliaAndBalancyFisic",fields: [filialId],references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
 }
