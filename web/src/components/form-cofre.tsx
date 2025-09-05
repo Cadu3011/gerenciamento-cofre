@@ -6,6 +6,7 @@ import { handleFormSubmit } from "@/app/api/post";
 import ExibirMovimentos from "./movements";
 import SumMovements from "./sumMovements";
 import { useCofreFisic } from "@/app/gerencia-cofre/components/cofreContext";
+import CategoriasButton from "@/app/gerencia-cofre/components/categoriaButton";
 interface Props {
   title: string;
   type: string;
@@ -16,6 +17,10 @@ interface Props {
 export default function CardMovements({ title, type, filialId, token }: Props) {
   const [value, setValue] = useState("");
   const [description, setDescription] = useState("");
+  const [categoria, setCategoria] = useState<{
+    id: number;
+    descricao: string;
+  } | null>(null);
   const { refresh } = useCofreFisic();
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -26,6 +31,10 @@ export default function CardMovements({ title, type, filialId, token }: Props) {
     formData.append("type", type);
     formData.append("filialId", filialId);
     formData.append("token", token);
+    if (categoria) {
+      formData.append("categoriaId", String(categoria.id));
+      formData.append("categoriaDesc", categoria.descricao);
+    }
 
     await handleFormSubmit(formData);
     refresh();
@@ -54,6 +63,7 @@ export default function CardMovements({ title, type, filialId, token }: Props) {
               type="text"
             />
           </div>
+          {type == "DESPESA" && <CategoriasButton onSelect={setCategoria} />}
 
           <button
             type="submit"

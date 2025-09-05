@@ -18,6 +18,8 @@ import { Roles } from 'src/auth/role.decorator';
 import { AuthGuard } from 'src/auth/auth.guard';
 import { Role } from '@prisma/client';
 import { Request } from 'express';
+import { MoveTrier } from './dto/create-move-trier';
+import { IDCofreTrier } from './dto/filiaisTrierMock';
 
 @Controller('movement')
 export class MovementController {
@@ -25,8 +27,21 @@ export class MovementController {
   @UseGuards(AuthGuard)
   @Roles(Role.OPERADOR)
   @Post()
-  create(@Body() createMovementDto: CreateMovementDto) {
-    return this.movementService.create(createMovementDto);
+  async create(@Body() createMovementDto: CreateMovementDto) {
+    const move = await this.movementService.create(createMovementDto);
+    const idCofreTrier = IDCofreTrier(move.filialId);
+    const idTrierMove: number = await MoveTrier.createDesp({
+      idFilial: move.filialId,
+      descricao: move.descrition,
+      filialName: move.filial.name,
+      idCofre: idCofreTrier,
+      valor: move.value,
+      idCategoria: Number(createMovementDto.idCategoria),
+      date: move.createdAt,
+    });
+    if (idTrierMove) {
+      await this.movementService.updateSync(move.id, idTrierMove);
+    }
   }
 
   @Get('list')
@@ -68,8 +83,18 @@ export class MovementController {
   @UseGuards(AuthGuard)
   @Roles(Role.OPERADOR)
   @Delete(':id')
-  remove(@Param('id') id: string, @Req() req: Request) {
+  async remove(@Param('id') id: string, @Req() req: Request) {
     const filialUser = req['sub'];
-    return this.movementService.remove(filialUser.filialId, +id);
+    const moveDel = await this.movementService.remove(filialUser.filialId, +id);
+    if (moveDel.status === 'SINCRONIZADO') {
+      const moveDelTrierid = await MoveTrier.deleteMoves(moveDel.idTrier);
+      if (moveDelTrierid!) {
+        this.movementService.insertMoveTrierDeleted(moveDelTrierid);
+      }
+    }
+    if (moveDel.status === 'PENDENTE') {
+      await MoveTrier.deleteMoves(moveDel.idTrier);
+    }
+    return;
   }
 }

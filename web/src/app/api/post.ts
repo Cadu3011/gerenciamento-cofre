@@ -4,25 +4,30 @@ import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { jwtDecode } from "jwt-decode";
 
-export const apiPort = async (): Promise<string> => {
-  const Port = "3000";
-  return Port;
+export const apiUrl = async (): Promise<string> => {
+  const url = "192.168.1.179:3000";
+  return url;
 };
-const Port = await apiPort();
+const Url = await apiUrl();
 export async function handleFormSubmit(formData: FormData) {
   const descrition = formData.get("description") as string;
   const value = formData.get("value") as string;
   const type = formData.get("type") as string;
   const filialId = Number(formData.get("filialId") as string);
   const token = formData.get("token") as string;
+  const idCategoria = formData.get("categoriaId") as string;
+  const category = formData.get("categoriaDesc") as string;
   const data = {
     descrition,
     value: value.replace(",", "."),
     type,
     filialId,
+    idCategoria: Number(idCategoria),
+    category,
   };
+  console.log(data);
   try {
-    const dataPost = await fetch(`http://localhost:${Port}/movement`, {
+    const dataPost = await fetch(`http://${Url}/movement`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -50,7 +55,7 @@ export async function handlePostLogin(formData: FormData) {
     login: parseInt(login),
     password,
   };
-  const response = await fetch(`http://localhost:${Port}/auth/signin`, {
+  const response = await fetch(`http://${Url}/auth/signin`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
@@ -91,7 +96,7 @@ export async function handleFormBalanceFisic(formData: FormData) {
   if (BalanceFisics.length !== 0) {
     try {
       const tokenCookie = (await cookies()).get("access_token")?.value;
-      const dataPost = await fetch(`http://localhost:${Port}/balance-fisic`, {
+      const dataPost = await fetch(`http://${Url}/balance-fisic`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -106,7 +111,7 @@ export async function handleFormBalanceFisic(formData: FormData) {
   } else {
     try {
       const tokenCookie = (await cookies()).get("access_token")?.value;
-      const dataPost = await fetch(`http://localhost:${Port}/balance-fisic`, {
+      const dataPost = await fetch(`http://${Url}/balance-fisic`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -120,10 +125,85 @@ export async function handleFormBalanceFisic(formData: FormData) {
     }
   }
 }
+export async function getFiliais() {
+  const tokenCookie = (await cookies()).get("access_token")?.value;
+  const filiais = await fetch(`http://${Url}/filial`, {
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${tokenCookie}`,
+    },
+  }).then((res) => res.json());
+  return filiais;
+}
+export async function fetchSaldos(filialId: string) {
+  const tokenCookie = (await cookies()).get("access_token")?.value;
+  try {
+    const [resAnt, resAt, resFilial] = await Promise.all([
+      fetch(`http://${Url}/amount/ant`, {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${tokenCookie}`,
+        },
+      }).then((res) => res.json()),
+      fetch(`http://${Url}/amount/last`, {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${tokenCookie}`,
+        },
+      }).then((res) => res.json()),
+      fetch(`http://${Url}/filial/${Number(filialId)}`, {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${tokenCookie}`,
+        },
+      }).then((res) => res.json()),
+    ]);
 
+    return {
+      saldosInfo: {
+        saldoAnt: resAnt.balance,
+        dataSaldoAnt: resAnt.createdAt,
+        saldoAtual: resAt.balance || "0",
+        filialName: resFilial.name || "0",
+      },
+    };
+  } catch (err) {
+    return {
+      saldosInfo: {
+        saldoAnt: 0,
+        dataSaldoAnt: "",
+        saldoAtual: 0,
+        filialName: "Erro",
+      },
+    };
+  }
+}
+export async function getMovements() {
+  const tokenCookie = (await cookies()).get("access_token")?.value;
+  const Url = await apiUrl();
+  const movementList = await fetch(`http://${Url}/movement/operator`, {
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${tokenCookie}`,
+    },
+  }).then((res) => res.json());
+  return movementList;
+}
+
+export async function deleteMoves(id: number) {
+  const tokenCookie = (await cookies()).get("access_token")?.value;
+  const Url = await apiUrl();
+  await fetch(`http://${Url}/movement/${id}`, {
+    method: "DELETE",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${tokenCookie}`, // Passa o token no header
+    },
+  });
+}
 export async function getBalanceFisics() {
   const tokenCookie = (await cookies()).get("access_token")?.value;
-  const data = await fetch(`http://localhost:${Port}/balance-fisic`, {
+  const data = await fetch(`http://${Url}/balance-fisic`, {
     headers: {
       Authorization: `Bearer ${tokenCookie}`,
     },
@@ -133,7 +213,7 @@ export async function getBalanceFisics() {
 }
 export async function getMovementsAnt() {
   const tokenCookie = (await cookies()).get("access_token")?.value;
-  const data = await fetch(`http://localhost:${Port}/movement/ant`, {
+  const data = await fetch(`http://${Url}/movement/ant`, {
     headers: {
       Authorization: `Bearer ${tokenCookie}`,
     },

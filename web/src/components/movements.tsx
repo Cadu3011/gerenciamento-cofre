@@ -1,6 +1,6 @@
 "use client";
 
-import { apiPort } from "@/app/api/post";
+import { deleteMoves, getMovements } from "@/app/api/post";
 import { useCofreFisic } from "@/app/gerencia-cofre/components/cofreContext";
 import { useEffect, useState } from "react";
 interface Props {
@@ -9,39 +9,15 @@ interface Props {
   token: string;
 }
 
-async function getMovements(filialId: number, token: string) {
-  const Port = await apiPort();
-  const movementList = await fetch(
-    `http://localhost:${Port}/movement/operator`,
-    {
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-    }
-  ).then((res) => res.json());
-  return movementList;
-}
-
 export default function ExibirMovimentos({ type, filialId, token }: Props) {
   const [movements, setMovements] = useState<any>([]);
-  const { refresh } = useCofreFisic();
-  const { updatedAt } = useCofreFisic();
+  const { refresh, updatedAt } = useCofreFisic();
   const deleteMovements = async (id: number) => {
-    const Port = await apiPort();
-    await fetch(`http://localhost:${Port}/movement/${id}`, {
-      method: "DELETE",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`, // Passa o token no header
-      },
-    });
-
-    await fetchMovements();
+    await deleteMoves(id);
     refresh();
   };
   const fetchMovements = async () => {
-    const movement = await getMovements(Number(filialId), token);
+    const movement = await getMovements();
     const filteredMovements = movement
       .filter((move: { type: string }) => move.type === type)
       .map((move: any) => ({

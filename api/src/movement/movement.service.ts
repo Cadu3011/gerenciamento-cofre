@@ -14,27 +14,47 @@ export class MovementService {
   private readonly Amont: AmountService;
 
   async create(createMovementDto: CreateMovementDto) {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { idCategoria, ...dtoWithoutCategory } = createMovementDto;
     if (
       createMovementDto.type == 'DEPOSITO' ||
       (createMovementDto.type == 'DESPESA' && createMovementDto.value > 0)
     ) {
       const saida = createMovementDto.value * -1;
-      await this.Prisma.movimentations.create({
+      const moveCreate = await this.Prisma.movimentations.create({
         data: {
-          ...createMovementDto,
+          ...dtoWithoutCategory,
           value: saida,
+        },
+        include: {
+          filial: {
+            select: {
+              name: true,
+            },
+          },
         },
       });
       await this.Amont.createOrUpdate({
         filialId: createMovementDto.filialId,
         balance: saida,
       });
+      return moveCreate;
     } else {
-      await this.Prisma.movimentations.create({ data: createMovementDto });
+      const moveCreate = await this.Prisma.movimentations.create({
+        data: dtoWithoutCategory,
+        include: {
+          filial: {
+            select: {
+              name: true, // retorna apenas o nome
+            },
+          },
+        },
+      });
       await this.Amont.createOrUpdate({
         filialId: createMovementDto.filialId,
         balance: createMovementDto.value,
       });
+      return moveCreate;
     }
   }
 
@@ -147,6 +167,15 @@ export class MovementService {
       data: updateMovementDto,
     });
   }
+  updateSync(id: number, idTrierMove: number) {
+    return this.Prisma.movimentations.update({
+      where: { id },
+      data: {
+        status: 'SINCRONIZADO',
+        idTrier: idTrierMove,
+      },
+    });
+  }
   async remove(filialId: number, id: number) {
     const moveDel = await this.Prisma.movimentations.delete({
       where: { id, filialId: filialId },
@@ -155,6 +184,18 @@ export class MovementService {
     await this.Amont.createOrUpdate({
       filialId: filialId,
       balance: valueSub,
+    });
+    return moveDel;
+  }
+  async insertMoveTrierDeleted(id: number) {
+    const moveDel = await this.Prisma.deletedMovements.create({
+      data: { movementId: id },
+    });
+    return moveDel;
+  }
+  async deleteMoveTrier(id: number) {
+    const moveDel = await this.Prisma.deletedMovements.delete({
+      where: { movementId: id },
     });
     return moveDel;
   }

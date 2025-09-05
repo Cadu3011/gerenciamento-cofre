@@ -22,6 +22,10 @@ enum Category{
   DESPESA
   DEPOSITO
 }
+enum Status{
+  SINCRONIZADO
+  PENDENTE
+}
 model User {
   id Int @default(autoincrement()) @id
   login Int @unique
@@ -35,6 +39,9 @@ model User {
 }
 model Movimentations{
   id Int @default(autoincrement()) @id
+  idTrier Int?
+  status Status @default(PENDENTE)
+  category String?
   descrition String
   value Decimal  @db.Decimal(9,2)
   type Category
@@ -74,4 +81,12 @@ model BalanceFisic{
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+}
+
+model DeletedMovements {
+ id         Int      @id @default(autoincrement())
+  movementId Int  @unique()
+  status     Status   @default(PENDENTE)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 }
