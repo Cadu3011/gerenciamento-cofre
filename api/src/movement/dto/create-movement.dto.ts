@@ -9,4 +9,5 @@ export class CreateMovementDto {
   status: Status;
   category?: string;
   idCategoria: number;
+  tokenTrier?: string;
 }

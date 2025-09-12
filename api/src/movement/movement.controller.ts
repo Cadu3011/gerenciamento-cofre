@@ -18,19 +18,22 @@ import { Roles } from 'src/auth/role.decorator';
 import { AuthGuard } from 'src/auth/auth.guard';
 import { Role } from '@prisma/client';
 import { Request } from 'express';
-import { MoveTrier } from './dto/create-move-trier';
+import { MoveTrier } from './create-move-trier.service';
 import { IDCofreTrier } from './dto/filiaisTrierMock';
 
 @Controller('movement')
 export class MovementController {
-  constructor(private readonly movementService: MovementService) {}
+  constructor(
+    private readonly movementService: MovementService,
+    private readonly moveTrier: MoveTrier,
+  ) {}
   @UseGuards(AuthGuard)
   @Roles(Role.OPERADOR)
   @Post()
   async create(@Body() createMovementDto: CreateMovementDto) {
     const move = await this.movementService.create(createMovementDto);
     const idCofreTrier = IDCofreTrier(move.filialId);
-    const idTrierMove: number = await MoveTrier.createDesp({
+    const idTrierMove: number = await this.moveTrier.createDesp({
       idFilial: move.filialId,
       descricao: move.descrition,
       filialName: move.filial.name,
@@ -38,6 +41,7 @@ export class MovementController {
       valor: move.value,
       idCategoria: Number(createMovementDto.idCategoria),
       date: move.createdAt,
+      token: createMovementDto.tokenTrier,
     });
     if (idTrierMove) {
       await this.movementService.updateSync(move.id, idTrierMove);
@@ -87,13 +91,16 @@ export class MovementController {
     const filialUser = req['sub'];
     const moveDel = await this.movementService.remove(filialUser.filialId, +id);
     if (moveDel.status === 'SINCRONIZADO') {
-      const moveDelTrierid = await MoveTrier.deleteMoves(moveDel.idTrier);
-      if (moveDelTrierid!) {
-        this.movementService.insertMoveTrierDeleted(moveDelTrierid);
+      const moveDelTrierid = await this.moveTrier.deleteMoves(
+        moveDel.idTrier,
+        filialUser.tokenTrier,
+      );
+      if (moveDelTrierid === undefined || moveDelTrierid === null) {
+        this.movementService.insertMoveTrierDeleted(moveDel.idTrier);
       }
     }
     if (moveDel.status === 'PENDENTE') {
-      await MoveTrier.deleteMoves(moveDel.idTrier);
+      await this.moveTrier.deleteMoves(moveDel.idTrier, filialUser.tokenTrier);
     }
     return;
   }

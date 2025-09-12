@@ -1,4 +1,4 @@
-import { getMovements } from "@/app/api/post";
+import { getMovements, getMovementsExtract } from "@/app/api/post";
 import { useEffect, useState } from "react";
 interface Props {
   type: string;
@@ -9,7 +9,7 @@ export default function SumMovements({ type, filialId, token }: Props) {
   const [SumMovements, setSumMovements] = useState<number>(0);
   useEffect(() => {
     const fetchMovements = async () => {
-      const movement = await getMovements();
+      const movement = await getMovementsExtract();
       console.log(movement);
       const totalValue = movement
         .filter((move: { type: string }) => move.type === type)

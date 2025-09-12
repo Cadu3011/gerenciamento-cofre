@@ -95,16 +95,79 @@ export class AmountService {
     });
     return extrato;
   }
-  findAll(dateInit: string, dateFinal: string, filialId?: number) {
-    return this.Prisma.dailyBalance.findMany({
-      where: {
-        createdAt: {
-          gte: new Date(dateInit),
-          lte: new Date(dateFinal),
+  async findAll(dateInit: string, dateFinal: string, filialId?: number) {
+    const startOfDay = new Date(dateInit);
+    startOfDay.setHours(0, 0, 0, 0);
+
+    const endOfDay = new Date(dateFinal);
+    endOfDay.setHours(23, 59, 59, 999);
+    const whereFilial = filialId ? { id: Number(filialId) } : {};
+    const extrato = await this.Prisma.filial.findMany({
+      where: whereFilial,
+      include: {
+        saldo: {
+          where:
+            startOfDay && endOfDay
+              ? {
+                  createdAt: {
+                    gte: startOfDay,
+                    lte: new Date(endOfDay.setDate(endOfDay.getDate() + 1)),
+                  },
+                }
+              : undefined,
         },
-        filialId: +filialId,
+        movements:
+          startOfDay && endOfDay
+            ? {
+                where: {
+                  createdAt: {
+                    gte: startOfDay,
+                    lte: new Date(endOfDay.setDate(endOfDay.getDate() + 1)),
+                  },
+                },
+              }
+            : true,
+        balanceFisic:
+          startOfDay && endOfDay
+            ? {
+                where: {
+                  createdAt: {
+                    gte: startOfDay,
+                    lte: new Date(endOfDay.setDate(endOfDay.getDate() + 1)),
+                  },
+                },
+              }
+            : true,
       },
     });
+
+    return extrato.map((f) => ({
+      filial: {
+        id: f.id,
+        name: f.name,
+      },
+      saldo: f.saldo.map((s) => {
+        // filtro por "mesmo dia" do saldo
+        const start = new Date(s.createdAt);
+        start.setHours(0, 0, 0, 0);
+        const end = new Date(start);
+        end.setHours(23, 59, 59, 999);
+
+        const movements = f.movements.filter(
+          (m) => m.createdAt >= start && m.createdAt <= end,
+        );
+
+        const balanceFisic = f.balanceFisic.filter(
+          (b) => b.createdAt >= start && b.createdAt <= end,
+        );
+
+        return {
+          ...s,
+          movements,
+          balanceFisic,
+        };
+      }),
+    }));
   }
 
   findOne(id: number) {

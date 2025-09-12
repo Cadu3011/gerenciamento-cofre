@@ -15,7 +15,8 @@ export class MovementService {
 
   async create(createMovementDto: CreateMovementDto) {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { idCategoria, ...dtoWithoutCategory } = createMovementDto;
+    const { idCategoria, tokenTrier, ...dtoWithoutCategory } =
+      createMovementDto;
     if (
       createMovementDto.type == 'DEPOSITO' ||
       (createMovementDto.type == 'DESPESA' && createMovementDto.value > 0)
@@ -127,7 +128,6 @@ export class MovementService {
 
       dataBaseBusca = new Date(ultimaMovimentacaoAntesDeHoje.createdAt);
     } else {
-      // Não há movimentações hoje → buscar pela última data existente (mesmo que seja ontem ou anterior)
       const ultimaMovimentacao = await this.Prisma.movimentations.findFirst({
         where: {
           filialId: filialIdUser,

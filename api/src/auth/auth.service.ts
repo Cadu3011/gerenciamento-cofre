@@ -17,6 +17,15 @@ export class AuthService {
   @Inject()
   private readonly jtwService: JwtService;
 
+  private tokenTrier: string | null = null;
+
+  setTokenTrier(token: string) {
+    this.tokenTrier = token;
+  }
+
+  getTokenTrier(): string | null {
+    return this.tokenTrier;
+  }
   async signin(params: Prisma.UserCreateInput): Promise<any> {
     const user = await this.prisma.user.findFirst({
       where: { login: params.login },
@@ -24,7 +33,13 @@ export class AuthService {
     if (!user) throw new NotFoundException('user not found');
     const passwordMatch = await bcrypt.compare(params.password, user.password);
     if (!passwordMatch) throw new UnauthorizedException('Invalid credentials');
-    const payload = { sub: user.id, roles: user.role, filialId: user.filialId };
+
+    const payload = {
+      sub: user.id,
+      roles: user.role,
+      filialId: user.filialId,
+      tokenTrier: this.tokenTrier,
+    };
     return await this.jtwService.signAsync(payload);
   }
 }

@@ -16,9 +16,10 @@ export default function HeaderCofre({ filialId }: Props) {
   useEffect(() => {
     async function fetchSaldosInfo() {
       const saldosInfo = await fetchSaldos(filialId);
+
       setSaldoAnt([
         saldosInfo.saldosInfo.saldoAnt,
-        saldosInfo.saldosInfo.dataSaldoAnt,
+        saldosInfo.saldosInfo.dataSaldoAnt.split("T")[0],
       ]);
       setSaldoAt(saldosInfo.saldosInfo.saldoAtual);
       setFilial(saldosInfo.saldosInfo.filialName);
@@ -34,6 +35,7 @@ export default function HeaderCofre({ filialId }: Props) {
         <div className="flex items-end gap-11  ">
           <div className="bg-white w-44 p-2 text-center rounded-2xl">
             Saldo anterior <div>{saldoAnt[0]}</div>
+            <div>{saldoAnt[1]}</div>
           </div>
           <div className="bg-white w-44 p-2 text-center rounded-2xl">
             Valor Fisico

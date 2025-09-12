@@ -5,7 +5,7 @@ import { cookies } from "next/headers";
 import { jwtDecode } from "jwt-decode";
 
 export const apiUrl = async (): Promise<string> => {
-  const url = "192.168.1.179:3000";
+  const url = "localhost:3000";
   return url;
 };
 const Url = await apiUrl();
@@ -17,6 +17,7 @@ export async function handleFormSubmit(formData: FormData) {
   const token = formData.get("token") as string;
   const idCategoria = formData.get("categoriaId") as string;
   const category = formData.get("categoriaDesc") as string;
+  const tokenTrier = (await cookies()).get("tokenTrier")?.value;
   const data = {
     descrition,
     value: value.replace(",", "."),
@@ -24,6 +25,7 @@ export async function handleFormSubmit(formData: FormData) {
     filialId,
     idCategoria: Number(idCategoria),
     category,
+    tokenTrier,
   };
   console.log(data);
   try {
@@ -62,6 +64,7 @@ export async function handlePostLogin(formData: FormData) {
   });
   const token = await response.json();
   (await cookies()).set("access_token", token.access_token, { httpOnly: true });
+  (await cookies()).set("tokenTrier", token.tokenTrier, { httpOnly: true });
   const tokenCookie = (await cookies()).get("access_token")?.value;
 
   const userData = jwtDecode<UserPayload>(tokenCookie as string);
@@ -125,6 +128,24 @@ export async function handleFormBalanceFisic(formData: FormData) {
     }
   }
 }
+export async function getExtract(
+  dateInit: string,
+  dateFinal: string,
+  filialId?: string
+) {
+  const tokenCookie = (await cookies()).get("access_token")?.value;
+  console.log(dateInit, dateFinal, filialId);
+  const extrato = await fetch(
+    `http://${Url}/amount?dateInit=${dateInit}&dateFinal=${dateFinal}&filialId=${filialId}`,
+    {
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${tokenCookie}`,
+      },
+    }
+  ).then((res) => res.json());
+  return extrato;
+}
 export async function getFiliais() {
   const tokenCookie = (await cookies()).get("access_token")?.value;
   const filiais = await fetch(`http://${Url}/filial`, {
@@ -182,6 +203,17 @@ export async function getMovements() {
   const tokenCookie = (await cookies()).get("access_token")?.value;
   const Url = await apiUrl();
   const movementList = await fetch(`http://${Url}/movement/operator`, {
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${tokenCookie}`,
+    },
+  }).then((res) => res.json());
+  return movementList;
+}
+export async function getMovementsExtract() {
+  const tokenCookie = (await cookies()).get("access_token")?.value;
+  const Url = await apiUrl();
+  const movementList = await fetch(`http://${Url}/movement/list`, {
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${tokenCookie}`,

@@ -25,6 +25,7 @@ export default function ExibirMovimentos({ type, filialId, token }: Props) {
         value: move.value,
         type: move.type,
         id: move.id,
+        status: move.status,
       }));
     setMovements(filteredMovements);
   };
@@ -42,7 +43,7 @@ export default function ExibirMovimentos({ type, filialId, token }: Props) {
             <div className="items-start w-1/3">{move.description}:</div>
 
             <strong className=" w-1/3 text-center">{move.value}</strong>
-
+            <div className=" w-1/3text-center text-sm">{move.status}</div>
             <button
               onClick={() => deleteMovements(move.id)}
               className=" mr-3 text-red-600  items-end"

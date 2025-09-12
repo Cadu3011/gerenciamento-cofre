@@ -16,6 +16,8 @@ import { Request } from 'express';
 @Controller('amount')
 export class AmountController {
   constructor(private readonly amountService: AmountService) {}
+  @UseGuards(AuthGuard)
+  @Roles(Role.GESTOR)
   @Get()
   findAll(
     @Query() query: { dateInit: string; dateFinal: string; filialId?: number },

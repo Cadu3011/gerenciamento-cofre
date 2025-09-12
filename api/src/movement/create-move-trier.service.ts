@@ -1,6 +1,7 @@
+import { Inject, Injectable } from '@nestjs/common';
 import { Decimal } from '@prisma/client/runtime/library';
-
-interface iMoveTrier {
+import { AuthService } from 'src/auth/auth.service';
+export interface iMoveTrier {
   idFilial: number;
   descricao: string;
   filialName: string;
@@ -8,17 +9,18 @@ interface iMoveTrier {
   valor: Decimal;
   idCategoria: number;
   date: Date;
+  token: string;
 }
-
+@Injectable()
 export class MoveTrier {
-  static async createDesp(move: iMoveTrier) {
+  @Inject()
+  private readonly authService: AuthService;
+
+  async createDesp(move: iMoveTrier) {
     const myHeaders = new Headers();
     myHeaders.append('Accept', 'application/json, text/plain, */*');
     myHeaders.append('Accept-Language', 'pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7');
-    myHeaders.append(
-      'Authorization',
-      'Bearer eyJhbGciOiJIUzI1NiJ9.eyJjb2RfZmlsaWFsIjoiOTkiLCJ1c2VyX25hbWUiOiJDQVJMT1MgRURVQVJETyBSQU1PUyBCT1JHRVMiLCJzY29wZSI6WyJkcm9nYXJpYSJdLCJ0b2tlbl9pbnRlZ3JhY2FvIjoiZmFsc2UiLCJ0aXBvX2ZpbGlhbCI6IkNFTlRSQUwiLCJleHAiOjE3NTcxNTgxMTYsImlhdCI6MTc1NzA3MTcxNiwianRpIjoiM2RkODE0NDUtMjViZi00NGMwLThhMTctYmU0ODIzZGQ4MjA5IiwiY2xpZW50X2lkIjoic2dmIiwiY29kX3VzdWFyaW8iOiI5NSIsImF1dGhvcml0aWVzIjpbIkFETUlOIl19.20gmR4LK-FVR8wh1Qvwu5Oy-ABTWby_hGSrBX6xjzZk',
-    );
+    myHeaders.append('Authorization', `Bearer ${move.token}`);
     myHeaders.append('Connection', 'keep-alive');
     myHeaders.append('Content-Type', 'application/json');
     myHeaders.append('Origin', 'http://192.168.1.253:4647');
@@ -82,14 +84,11 @@ export class MoveTrier {
       return error;
     }
   }
-  static async deleteMoves(id: number) {
+  async deleteMoves(id: number, token: string) {
     const myHeaders = new Headers();
     myHeaders.append('Accept', 'application/json, text/plain, */*');
     myHeaders.append('Accept-Language', 'pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7');
-    myHeaders.append(
-      'Authorization',
-      'Bearer eeyJhbGciOiJIUzI1NiJ9.eyJjb2RfZmlsaWFsIjoiOTkiLCJ1c2VyX25hbWUiOiJDQVJMT1MgRURVQVJETyBSQU1PUyBCT1JHRVMiLCJzY29wZSI6WyJkcm9nYXJpYSJdLCJ0b2tlbl9pbnRlZ3JhY2FvIjoiZmFsc2UiLCJ0aXBvX2ZpbGlhbCI6IkNFTlRSQUwiLCJleHAiOjE3NTcxNTgxMTYsImlhdCI6MTc1NzA3MTcxNiwianRpIjoiM2RkODE0NDUtMjViZi00NGMwLThhMTctYmU0ODIzZGQ4MjA5IiwiY2xpZW50X2lkIjoic2dmIiwiY29kX3VzdWFyaW8iOiI5NSIsImF1dGhvcml0aWVzIjpbIkFETUlOIl19.20gmR4LK-FVR8wh1Qvwu5Oy-ABTWby_hGSrBX6xjzZk',
-    );
+    myHeaders.append('Authorization', `Bearer ${token}`);
     myHeaders.append('Connection', 'keep-alive');
     myHeaders.append('Origin', 'http://192.168.1.253:4647');
     myHeaders.append('Referer', 'http://192.168.1.253:4647/web-drogaria-app/');
