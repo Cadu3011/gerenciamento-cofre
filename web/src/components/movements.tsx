@@ -13,7 +13,7 @@ export default function ExibirMovimentos({ type, filialId, token }: Props) {
   const [movements, setMovements] = useState<any>([]);
   const { refresh, updatedAt } = useCofreFisic();
   const deleteMovements = async (id: number) => {
-    await deleteMoves(id);
+    deleteMoves(id);
     refresh();
   };
   const fetchMovements = async () => {

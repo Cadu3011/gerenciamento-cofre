@@ -17,7 +17,9 @@ export async function handleFormSubmit(formData: FormData) {
   const token = formData.get("token") as string;
   const idCategoria = formData.get("categoriaId") as string;
   const category = formData.get("categoriaDesc") as string;
-  const tokenTrier = (await cookies()).get("tokenTrier")?.value;
+  const transfIdDest = formData.get("transfIdDest") as string;
+  const tokenCookie = (await cookies()).get("access_token")?.value;
+  const userData = jwtDecode<UserPayload>(tokenCookie as string);
   const data = {
     descrition,
     value: value.replace(",", "."),
@@ -25,9 +27,9 @@ export async function handleFormSubmit(formData: FormData) {
     filialId,
     idCategoria: Number(idCategoria),
     category,
-    tokenTrier,
+    tokenTrier: userData.tokenTrier,
+    idContaDest: Number(transfIdDest),
   };
-  console.log(data);
   try {
     const dataPost = await fetch(`http://${Url}/movement`, {
       method: "POST",
@@ -48,6 +50,8 @@ interface UserPayload {
   filialId: number;
   iat: number;
   exp: number;
+  cofreIdTrier: number;
+  tokenTrier?: string;
 }
 export async function handlePostLogin(formData: FormData) {
   const login = formData.get("login") as string;
@@ -64,7 +68,6 @@ export async function handlePostLogin(formData: FormData) {
   });
   const token = await response.json();
   (await cookies()).set("access_token", token.access_token, { httpOnly: true });
-  (await cookies()).set("tokenTrier", token.tokenTrier, { httpOnly: true });
   const tokenCookie = (await cookies()).get("access_token")?.value;
 
   const userData = jwtDecode<UserPayload>(tokenCookie as string);
@@ -252,4 +255,54 @@ export async function getMovementsAnt() {
   });
   const cash = await data.json();
   return cash;
+}
+export async function getCofresTrier() {
+  const tokenGetFilial = (await cookies()).get("access_token")?.value;
+  const userData = jwtDecode<UserPayload>(tokenGetFilial as string);
+  const dataMock = [
+    { id: 12099, titulo: "Cofre CENTRAL CAVALCANTE" },
+    { id: 6099, titulo: "Cofre FILIAL 1 - MATRIZ CAVALCANTE" },
+    { id: 9099, titulo: "Cofre FILIAL 2 - TAIRU" },
+    { id: 4099, titulo: "Cofre FILIAL 3 - ULTRA POPULAR" },
+    { id: 14099, titulo: "Cofre FILIAL 4 - HIPER IDEAL" },
+    { id: 17099, titulo: "Cofre FILIAL 5 - BOM DESPACHO" },
+    { id: 30099, titulo: "Cofre FILIAL 6 - ULTRA IRMA DULCE" },
+    { id: 32099, titulo: "Cofre FILIAL 7 - COROA" },
+  ];
+  function contasMock(userData: { cofreIdTrier: number }) {
+    return dataMock.filter((data) => data.id !== userData.cofreIdTrier);
+  }
+
+  try {
+    const data = await fetch(
+      `http://192.168.1.253:4647/web-drogaria/financeiro/contas/filtrar?page=0&size=50`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+
+          Authorization: `Bearer ${userData.tokenTrier}`,
+        },
+        body: JSON.stringify({
+          tiposConta: ["CONTA_COFRE"],
+          ignorarContas: [{ id: userData.cofreIdTrier }],
+          ignorarTiposConta: [],
+          incluirContasCompartilhadas: true,
+          situacoes: ["ATIVO"],
+        }),
+      }
+    );
+    if (!data.ok) throw new Error("Erro na API");
+
+    const cofres = await data.json();
+
+    if (!cofres?.content || !Array.isArray(cofres.content)) {
+      throw new Error("Resposta inválida da API");
+    }
+
+    return cofres.content;
+  } catch (error) {
+    const data = contasMock(userData);
+    return data;
+  }
 }

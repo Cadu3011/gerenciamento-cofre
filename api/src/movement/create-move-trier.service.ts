@@ -1,6 +1,5 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { Decimal } from '@prisma/client/runtime/library';
-import { AuthService } from 'src/auth/auth.service';
 export interface iMoveTrier {
   idFilial: number;
   descricao: string;
@@ -10,12 +9,10 @@ export interface iMoveTrier {
   idCategoria: number;
   date: Date;
   token: string;
+  idCofreDestino?: number;
 }
 @Injectable()
 export class MoveTrier {
-  @Inject()
-  private readonly authService: AuthService;
-
   async createDesp(move: iMoveTrier) {
     const myHeaders = new Headers();
     myHeaders.append('Accept', 'application/json, text/plain, */*');
@@ -81,7 +78,61 @@ export class MoveTrier {
       const moveIdTrier = await resp.json();
       return moveIdTrier.id;
     } catch (error) {
-      return error;
+      return (error as Error).message;
+    }
+  }
+  async createTransf(move: iMoveTrier) {
+    const myHeaders = new Headers();
+    myHeaders.append('Accept', 'application/json, text/plain, */*');
+    myHeaders.append('Accept-Language', 'pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7');
+    myHeaders.append('Authorization', `Bearer ${move.token}`);
+    myHeaders.append('Connection', 'keep-alive');
+    myHeaders.append('Content-Type', 'application/json');
+    myHeaders.append('Origin', 'http://192.168.1.253:4647');
+    myHeaders.append('Referer', 'http://192.168.1.253:4647/web-drogaria-app/');
+    myHeaders.append(
+      'User-Agent',
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36',
+    );
+    myHeaders.append(
+      'Cookie',
+      '_ga=GA1.1.1026063669.1631542119; Cad_0160_collapse_0=; _ga_8LW3WHRZZQ=GS2.1.s1757956536^$o312^$g1^$t1757956537^$j59^$l0^$h0; _ga_SEN1L4EC3B=GS1.1.1757956538.516.0.1757956538.0.0.0',
+    );
+
+    const raw = JSON.stringify({
+      descricao: move.descricao,
+      valor: move.valor,
+      data: move.date,
+      contaOrigem: {
+        id: move.idCofre,
+      },
+      contaDestino: {
+        id: move.idCofreDestino,
+      },
+      filialOrigem: {
+        codFilial: 1,
+      },
+      filialDestino: {
+        codFilial: 2,
+      },
+    });
+
+    const requestOptions: RequestInit = {
+      method: 'POST',
+      headers: myHeaders,
+      body: raw,
+      redirect: 'follow',
+    };
+    try {
+      const resp = await fetch(
+        'http://192.168.1.253:4647/web-drogaria/financeiro/transferencias',
+        requestOptions,
+      );
+      const moveTransf = await resp.json();
+
+      return moveTransf.movimentacaoOrigem.id;
+    } catch (error) {
+      return (error as Error).message;
     }
   }
   async deleteMoves(id: number, token: string) {

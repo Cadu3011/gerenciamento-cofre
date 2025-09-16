@@ -42,6 +42,8 @@ model Movimentations{
   idTrier Int?
   status Status @default(PENDENTE)
   category String?
+  idCategoria Int?
+  idContaDest Int?
   descrition String
   value Decimal  @db.Decimal(9,2)
   type Category
@@ -62,6 +64,8 @@ model Filial{
   id Int @default(autoincrement()) @id
   name String
   user User[] @relation("FiliaAndlUser")
+  idCofreTrier Int?
+  idBancoDefault Int?
   saldo DailyBalance[] @relation("FiliaAndDayBalancy")
   movements Movimentations[] @relation("FiliaAndMovimentations")
   balanceFisic BalanceFisic[] @relation("FiliaAndBalancyFisic")

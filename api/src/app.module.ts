@@ -8,9 +8,19 @@ import { AuthModule } from './auth/auth.module';
 import { FilialModule } from './filial/filial.module';
 import { AmountModule } from './amount/amount.module';
 import { BalanceFisicModule } from './balance-fisic/balance-fisic.module';
+import { ScheduleModule } from '@nestjs/schedule';
 
 @Module({
-  imports: [UsersModule,DatabaseModule, MovementModule, AuthModule, FilialModule, AmountModule, BalanceFisicModule],
+  imports: [
+    ScheduleModule.forRoot(),
+    UsersModule,
+    DatabaseModule,
+    MovementModule,
+    AuthModule,
+    FilialModule,
+    AmountModule,
+    BalanceFisicModule,
+  ],
   controllers: [AppController],
   providers: [AppService],
 })

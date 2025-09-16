@@ -19,7 +19,6 @@ import { AuthGuard } from 'src/auth/auth.guard';
 import { Role } from '@prisma/client';
 import { Request } from 'express';
 import { MoveTrier } from './create-move-trier.service';
-import { IDCofreTrier } from './dto/filiaisTrierMock';
 
 @Controller('movement')
 export class MovementController {
@@ -32,19 +31,62 @@ export class MovementController {
   @Post()
   async create(@Body() createMovementDto: CreateMovementDto) {
     const move = await this.movementService.create(createMovementDto);
-    const idCofreTrier = IDCofreTrier(move.filialId);
-    const idTrierMove: number = await this.moveTrier.createDesp({
-      idFilial: move.filialId,
-      descricao: move.descrition,
-      filialName: move.filial.name,
-      idCofre: idCofreTrier,
-      valor: move.value,
-      idCategoria: Number(createMovementDto.idCategoria),
-      date: move.createdAt,
-      token: createMovementDto.tokenTrier,
-    });
-    if (idTrierMove) {
-      await this.movementService.updateSync(move.id, idTrierMove);
+
+    if (move.type === 'DESPESA') {
+      const idTrierMove: number = await this.moveTrier.createDesp({
+        idFilial: move.filialId,
+        descricao: move.descrition,
+        filialName: move.filial.name,
+        idCofre: move.filial.idCofreTrier,
+        valor: move.value,
+        idCategoria: Number(createMovementDto.idCategoria),
+        date: move.createdAt,
+        token: createMovementDto.tokenTrier,
+      });
+      if (idTrierMove) {
+        await this.movementService.updateSync(move.id, idTrierMove);
+      }
+    }
+    if (move.type === 'DEPOSITO') {
+      if (
+        createMovementDto.idContaDest === 0 ||
+        createMovementDto.idContaDest === null ||
+        createMovementDto.idContaDest === undefined
+      ) {
+        const idTrierTransf: number = await this.moveTrier.createTransf({
+          idFilial: move.filialId,
+          descricao: move.descrition,
+          filialName: move.filial.name,
+          idCofre: move.filial.idCofreTrier,
+          idCofreDestino: move.filial.idBancoDefault,
+          valor: move.value.mul(-1),
+          idCategoria: Number(createMovementDto.idCategoria),
+          date: move.createdAt,
+          token: createMovementDto.tokenTrier,
+        });
+        if (idTrierTransf) {
+          await this.movementService.updateSync(move.id, idTrierTransf);
+          await this.movementService.updateIdContaDest(
+            move.id,
+            move.filial.idBancoDefault,
+          );
+        }
+      } else {
+        const idTrierTransf: number = await this.moveTrier.createTransf({
+          idFilial: move.filialId,
+          descricao: move.descrition,
+          filialName: move.filial.name,
+          idCofre: move.filial.idCofreTrier,
+          idCofreDestino: move.idContaDest,
+          valor: move.value.mul(-1),
+          idCategoria: Number(createMovementDto.idCategoria),
+          date: move.createdAt,
+          token: createMovementDto.tokenTrier,
+        });
+        if (idTrierTransf) {
+          await this.movementService.updateSync(move.id, idTrierTransf);
+        }
+      }
     }
   }
 

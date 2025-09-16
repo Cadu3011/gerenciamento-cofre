@@ -7,6 +7,8 @@ import ExibirMovimentos from "./movements";
 import SumMovements from "./sumMovements";
 import { useCofreFisic } from "@/app/gerencia-cofre/components/cofreContext";
 import CategoriasButton from "@/app/gerencia-cofre/components/categoriaButton";
+import SumMovementsOpe from "./sumMovementsOpe";
+import ToggleDepositoTransferir from "@/app/gerencia-cofre/components/interruptorDepAndTransf";
 interface Props {
   title: string;
   type: string;
@@ -17,6 +19,10 @@ interface Props {
 export default function CardMovements({ title, type, filialId, token }: Props) {
   const [value, setValue] = useState("");
   const [description, setDescription] = useState("");
+  const [transf, seTransf] = useState<{
+    id: number;
+    titulo: string;
+  } | null>(null);
   const [categoria, setCategoria] = useState<{
     id: number;
     descricao: string;
@@ -35,11 +41,15 @@ export default function CardMovements({ title, type, filialId, token }: Props) {
       formData.append("categoriaId", String(categoria.id));
       formData.append("categoriaDesc", categoria.descricao);
     }
+    if (transf) {
+      formData.append("transfIdDest", String(transf.id));
+    }
 
     await handleFormSubmit(formData);
-    refresh();
+
     setDescription("");
     setValue("");
+    refresh();
   };
 
   return (
@@ -64,7 +74,9 @@ export default function CardMovements({ title, type, filialId, token }: Props) {
             />
           </div>
           {type == "DESPESA" && <CategoriasButton onSelect={setCategoria} />}
-
+          {type == "DEPOSITO" && (
+            <ToggleDepositoTransferir onSelect={seTransf} />
+          )}
           <button
             type="submit"
             className="bg-blue-500 w-full rounded p-1 text-white text-sm font-bold transition duration-75 ease-in-out transform hover:bg-blue-600"
@@ -73,7 +85,8 @@ export default function CardMovements({ title, type, filialId, token }: Props) {
           </button>
         </form>
         <div className="mb-2">
-          Total: <SumMovements type={type} filialId={filialId} token={token} />
+          Total:{" "}
+          <SumMovementsOpe type={type} filialId={filialId} token={token} />
         </div>
         <div>
           <ExibirMovimentos type={type} filialId={filialId} token={token} />

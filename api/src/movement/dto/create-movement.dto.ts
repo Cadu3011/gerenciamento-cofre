@@ -10,4 +10,5 @@ export class CreateMovementDto {
   category?: string;
   idCategoria: number;
   tokenTrier?: string;
+  idContaDest?: number;
 }

@@ -1,10 +1,13 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { CreateMovementDto } from './dto/create-movement.dto';
 import { UpdateMovementDto } from './dto/update-movement.dto';
 import { PrismaService } from 'src/database/prisma.service';
 import { AmountService } from 'src/amount/amount.service';
 import { Decimal } from '@prisma/client/runtime/library';
 import { FindAllQueryDto } from './dto/query-movement.dto';
+import { Interval } from '@nestjs/schedule';
+import { authTrier } from 'src/auth/authTrier/loginTrier';
+import { MoveTrier } from './create-move-trier.service';
 
 @Injectable()
 export class MovementService {
@@ -12,11 +15,108 @@ export class MovementService {
   private readonly Prisma: PrismaService;
   @Inject()
   private readonly Amont: AmountService;
+  @Inject(MoveTrier)
+  private readonly moveTrier: MoveTrier;
+
+  private readonly logger = new Logger(MovementService.name);
+
+  @Interval(30_000)
+  async checkPendingMovements() {
+    this.logger.log('Checando movimentações pendentes...');
+
+    const pendentesDeleteds = await this.Prisma.deletedMovements.findMany({
+      where: { status: 'PENDENTE' },
+    });
+    const pendentesCreateds = await this.Prisma.movimentations.findMany({
+      where: { status: 'PENDENTE', type: { in: ['DESPESA', 'DEPOSITO'] } },
+      include: {
+        filial: {
+          select: {
+            name: true,
+            idCofreTrier: true,
+          },
+        },
+      },
+    });
+    if (pendentesDeleteds.length > 0) {
+      this.logger.warn(
+        `Encontradas ${pendentesDeleteds.length} movimentações pendentes.`,
+      );
+      await this.processMovementDeleted(pendentesDeleteds);
+    }
+    if (pendentesCreateds.length > 0) {
+      this.logger.warn(
+        `Encontradas ${pendentesCreateds.length} movimentações pendentes.`,
+      );
+      await this.processMovementCreated(pendentesCreateds);
+    }
+  }
+
+  private async processMovementCreated(movement: any) {
+    const token = await authTrier({
+      login: '95',
+      password: 'cadu3011',
+    });
+    for (const move of movement) {
+      this.logger.log(`Processando movimentação ${move.id}`);
+      if (move.type === 'DESPESA') {
+        const createdMoveTrier: number = await this.moveTrier.createDesp({
+          idFilial: move.filialId,
+          descricao: move.descrition,
+          filialName: move.filial.name,
+          idCofre: move.filial.idCofreTrier,
+          valor: move.value,
+          idCategoria: Number(move.idCategoria),
+          date: move.createdAt,
+          token,
+        });
+        if (createdMoveTrier !== undefined) {
+          await this.updateSync(move.id, createdMoveTrier);
+        }
+      }
+      if (move.type === 'DEPOSITO') {
+        const createdMoveTrier: number = await this.moveTrier.createTransf({
+          idFilial: move.filialId,
+          descricao: move.descrition,
+          filialName: move.filial.name,
+          idCofre: move.filial.idCofreTrier,
+          idCofreDestino: move.idContaDest,
+          valor: move.value.mul(-1),
+          idCategoria: Number(move.idCategoria),
+          date: move.createdAt,
+          token: token,
+        });
+
+        if (createdMoveTrier !== undefined) {
+          await this.updateSync(move.id, createdMoveTrier);
+        }
+      }
+    }
+  }
+
+  private async processMovementDeleted(movement: any) {
+    const tokenTrier = await authTrier({
+      login: '95',
+      password: 'cadu3011',
+    });
+    for (const mov of movement) {
+      this.logger.log(`Processando movimentação ${mov.id}`);
+      const deletedMoveTrier = await this.moveTrier.deleteMoves(
+        mov.movementId,
+        tokenTrier,
+      );
+      console.log(deletedMoveTrier);
+      if (deletedMoveTrier !== undefined) {
+        await this.Prisma.deletedMovements.delete({
+          where: { movementId: deletedMoveTrier },
+        });
+      }
+    }
+  }
 
   async create(createMovementDto: CreateMovementDto) {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { idCategoria, tokenTrier, ...dtoWithoutCategory } =
-      createMovementDto;
+    const { tokenTrier, ...dtoWithoutCategory } = createMovementDto;
     if (
       createMovementDto.type == 'DEPOSITO' ||
       (createMovementDto.type == 'DESPESA' && createMovementDto.value > 0)
@@ -31,6 +131,8 @@ export class MovementService {
           filial: {
             select: {
               name: true,
+              idCofreTrier: true,
+              idBancoDefault: true,
             },
           },
         },
@@ -46,7 +148,9 @@ export class MovementService {
         include: {
           filial: {
             select: {
-              name: true, // retorna apenas o nome
+              name: true,
+              idCofreTrier: true,
+              idBancoDefault: true,
             },
           },
         },
@@ -165,6 +269,14 @@ export class MovementService {
     return this.Prisma.movimentations.update({
       where: { id, filialId: filialId },
       data: updateMovementDto,
+    });
+  }
+  updateIdContaDest(id: number, idContaDest: number) {
+    return this.Prisma.movimentations.update({
+      where: { id },
+      data: {
+        idContaDest: idContaDest,
+      },
     });
   }
   updateSync(id: number, idTrierMove: number) {
