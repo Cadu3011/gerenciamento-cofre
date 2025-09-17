@@ -13,6 +13,7 @@ export interface iMoveTrier {
 }
 @Injectable()
 export class MoveTrier {
+  private urlTrier = 'farmargrande2.dyndns.org';
   async createDesp(move: iMoveTrier) {
     const myHeaders = new Headers();
     myHeaders.append('Accept', 'application/json, text/plain, */*');
@@ -20,8 +21,11 @@ export class MoveTrier {
     myHeaders.append('Authorization', `Bearer ${move.token}`);
     myHeaders.append('Connection', 'keep-alive');
     myHeaders.append('Content-Type', 'application/json');
-    myHeaders.append('Origin', 'http://192.168.1.253:4647');
-    myHeaders.append('Referer', 'http://192.168.1.253:4647/web-drogaria-app/');
+    myHeaders.append('Origin', `http://${this.urlTrier}:4647`);
+    myHeaders.append(
+      'Referer',
+      `http://${this.urlTrier}:4647/web-drogaria-app/`,
+    );
     myHeaders.append(
       'User-Agent',
       'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36',
@@ -72,7 +76,7 @@ export class MoveTrier {
     };
     try {
       const resp = await fetch(
-        'http://177.200.115.10:4647/web-drogaria/financeiro/movimentacoes',
+        `http://${this.urlTrier}:4647/web-drogaria/financeiro/movimentacoes`,
         requestOptions,
       );
       const moveIdTrier = await resp.json();
@@ -88,8 +92,11 @@ export class MoveTrier {
     myHeaders.append('Authorization', `Bearer ${move.token}`);
     myHeaders.append('Connection', 'keep-alive');
     myHeaders.append('Content-Type', 'application/json');
-    myHeaders.append('Origin', 'http://192.168.1.253:4647');
-    myHeaders.append('Referer', 'http://192.168.1.253:4647/web-drogaria-app/');
+    myHeaders.append('Origin', `http://${this.urlTrier}:4647`);
+    myHeaders.append(
+      'Referer',
+      `http://${this.urlTrier}:4647/web-drogaria-app/`,
+    );
     myHeaders.append(
       'User-Agent',
       'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36',
@@ -125,7 +132,7 @@ export class MoveTrier {
     };
     try {
       const resp = await fetch(
-        'http://192.168.1.253:4647/web-drogaria/financeiro/transferencias',
+        `http://${this.urlTrier}:4647/web-drogaria/financeiro/transferencias`,
         requestOptions,
       );
       const moveTransf = await resp.json();
@@ -141,8 +148,11 @@ export class MoveTrier {
     myHeaders.append('Accept-Language', 'pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7');
     myHeaders.append('Authorization', `Bearer ${token}`);
     myHeaders.append('Connection', 'keep-alive');
-    myHeaders.append('Origin', 'http://192.168.1.253:4647');
-    myHeaders.append('Referer', 'http://192.168.1.253:4647/web-drogaria-app/');
+    myHeaders.append('Origin', `http://${this.urlTrier}:4647`);
+    myHeaders.append(
+      'Referer',
+      `http://${this.urlTrier}:4647/web-drogaria-app/`,
+    );
     myHeaders.append(
       'User-Agent',
       'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36',
@@ -155,13 +165,14 @@ export class MoveTrier {
     };
     try {
       const resp = await fetch(
-        `http://192.168.1.253:4647/web-drogaria/financeiro/movimentacoes/${id}`,
+        `http://${this.urlTrier}:4647/web-drogaria/financeiro/movimentacoes/${id}`,
         requestOptions,
       );
       const moveDelIdTrier = await resp.json();
+
       return moveDelIdTrier.id;
     } catch (error) {
-      return error;
+      return (error as Error).message;
     }
   }
 }

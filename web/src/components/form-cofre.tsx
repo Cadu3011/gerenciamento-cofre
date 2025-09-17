@@ -79,19 +79,24 @@ export default function CardMovements({ title, type, filialId, token }: Props) {
           )}
           <button
             type="submit"
-            className="bg-blue-500 w-full rounded p-1 text-white text-sm font-bold transition duration-75 ease-in-out transform hover:bg-blue-600"
+            className=" bg-gradient-to-r from-blue-500 to-blue-700 w-full rounded p-1 text-white text-sm font-bold transition duration-75 ease-in-out transform hover:bg-blue-600"
           >
             Adicionar
           </button>
         </form>
-        <div className="mb-2">
-          Total:{" "}
-          <SumMovementsOpe type={type} filialId={filialId} token={token} />
-        </div>
+        
         <div>
           <ExibirMovimentos type={type} filialId={filialId} token={token} />
         </div>
+        
       </div>
+      <div className="mb-2 w-full rounded bg-gradient-to-r from-blue-500 to-blue-700 p-3 shadow-lg shadow-blue-300 flex justify-between items-center text-white text-base font-extrabold tracking-wide transition duration-200 ease-in-out hover:scale-[1.02]">
+        <span>Total</span>
+        <span className="text-lg font-black drop-shadow-md">
+          <SumMovementsOpe type={type} filialId={filialId} token={token} />
+        </span>
+      </div>
+
     </div>
   );
 }

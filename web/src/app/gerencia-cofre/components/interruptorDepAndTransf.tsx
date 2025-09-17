@@ -52,7 +52,7 @@ export default function ToggleDepositoTransferir({ onSelect }: Props) {
             type="button"
             onClick={() => setIsDeposito(true)}
             className={`flex-1 rounded-lg transition ${
-              isDeposito ? "bg-blue-500 text-white" : "text-white"
+              isDeposito ? "bg-gradient-to-r from-blue-500 to-blue-700 text-white" : "text-white"
             }`}
           >
             Depósito
@@ -61,7 +61,7 @@ export default function ToggleDepositoTransferir({ onSelect }: Props) {
             onClick={() => setIsDeposito(false)}
             type="button"
             className={`flex-1 rounded-lg transition ${
-              !isDeposito ? "bg-blue-500 text-white" : "text-white"
+              !isDeposito ? "bg-gradient-to-r from-blue-500 to-blue-700 text-white" : "text-white"
             }`}
           >
             Transferir

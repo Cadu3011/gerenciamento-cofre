@@ -132,12 +132,14 @@ export class MovementController {
   async remove(@Param('id') id: string, @Req() req: Request) {
     const filialUser = req['sub'];
     const moveDel = await this.movementService.remove(filialUser.filialId, +id);
+
     if (moveDel.status === 'SINCRONIZADO') {
-      const moveDelTrierid = await this.moveTrier.deleteMoves(
+      const moveDelTrierid: number = await this.moveTrier.deleteMoves(
         moveDel.idTrier,
         filialUser.tokenTrier,
       );
-      if (moveDelTrierid === undefined || moveDelTrierid === null) {
+      console.log(moveDelTrierid);
+      if (typeof moveDelTrierid !== 'number') {
         this.movementService.insertMoveTrierDeleted(moveDel.idTrier);
       }
     }

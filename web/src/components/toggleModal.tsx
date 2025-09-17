@@ -12,7 +12,7 @@ export default function ToggleModalClient() {
       <div className="">
         <button
           onClick={() => setShowForm(true)}
-          className="bg-blue-500 w-60 p-2 mr-2 flex justify-center rounded-b-lg text-white font-bold  text-center transition duration-75 ease-in-out transform hover:bg-blue-600"
+          className="bg-gradient-to-r from-blue-600 to-blue-700 w-60 p-2 mr-2 flex justify-center rounded-b-lg text-white font-bold  text-center transition duration-75 ease-in-out transform hover:bg-blue-600"
         >
           Editar Valores Fisicos
         </button>
@@ -30,7 +30,7 @@ export default function ToggleModalClient() {
       <div className="">
         <button
           onClick={() => setShowMoveAnt(true)}
-          className="bg-blue-500 w-60 p-2 mr-2 flex justify-center rounded-b-lg text-white font-bold  text-center transition duration-75 ease-in-out transform hover:bg-blue-600"
+          className="bg-gradient-to-r from-blue-600 to-blue-700 w-60 p-2 mr-2 flex justify-center rounded-b-lg text-white font-bold  text-center transition duration-75 ease-in-out transform hover:bg-blue-600"
         >
           Movimentos Anteriores
         </button>

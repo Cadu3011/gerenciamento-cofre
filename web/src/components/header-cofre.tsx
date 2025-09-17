@@ -27,7 +27,7 @@ export default function HeaderCofre({ filialId }: Props) {
     fetchSaldosInfo();
   }, [updatedAt]);
   return (
-    <div className="w-full h-1/2 bg-blue-500 p-3 flex justify-around rounded-t-2xl ">
+    <div className="w-full h-1/2 bg-gradient-to-r from-blue-500 to-blue-700 p-3 flex justify-around rounded-t-2xl ">
       <div className=" w-64 rounded-2xl flex justify-center items-center font-bold text-3xl">
         Cofre {filial}
       </div>

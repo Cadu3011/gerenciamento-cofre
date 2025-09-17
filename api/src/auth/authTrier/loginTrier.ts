@@ -4,6 +4,7 @@ export interface authData {
   password: string;
 }
 export async function authTrier(authData: authData) {
+  const urlTrier = 'farmargrande2.dyndns.org';
   let browser;
   try {
     const browser = await chromium.launch({
@@ -22,7 +23,7 @@ export async function authTrier(authData: authData) {
       }
     });
 
-    await page.goto('http://192.168.1.253:4647/sgfpod1/Login.pod', {
+    await page.goto(`http://${urlTrier}:4647/sgfpod1/Login.pod`, {
       waitUntil: 'domcontentloaded',
       timeout: 10000,
     });

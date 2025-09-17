@@ -275,7 +275,7 @@ export async function getCofresTrier() {
 
   try {
     const data = await fetch(
-      `http://192.168.1.253:4647/web-drogaria/financeiro/contas/filtrar?page=0&size=50`,
+      `http://farmargrande2.dyndns.org:4647/web-drogaria/financeiro/contas/filtrar?page=0&size=50`,
       {
         method: "POST",
         headers: {
