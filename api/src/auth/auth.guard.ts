@@ -37,9 +37,10 @@ export class AuthGuard implements CanActivate {
     request['sub'] = payload; // Adiciona o payload à requisição
     const userRole: Role = payload.roles || [];
 
-    const filialId = request.params.id;
+    const filialId = payload.filialId;
     const hasRole = requiredRoles.includes(userRole);
     const hasAccess = payload.filialId === Number(filialId);
+
     if (!hasRole || !hasAccess) {
       throw new UnauthorizedException('Insufficient permissions');
     }

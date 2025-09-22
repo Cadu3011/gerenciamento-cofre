@@ -4,6 +4,11 @@ import { useState } from "react";
 import InputComp from "./input";
 import { handleFormSubmit } from "@/app/api/post";
 import ExibirMovimentos from "./movements";
+import SumMovements from "./sumMovements";
+import { useCofreFisic } from "@/app/gerencia-cofre/components/cofreContext";
+import CategoriasButton from "@/app/gerencia-cofre/components/categoriaButton";
+import SumMovementsOpe from "./sumMovementsOpe";
+import ToggleDepositoTransferir from "@/app/gerencia-cofre/components/interruptorDepAndTransf";
 interface Props {
   title: string;
   type: string;
@@ -14,7 +19,15 @@ interface Props {
 export default function CardMovements({ title, type, filialId, token }: Props) {
   const [value, setValue] = useState("");
   const [description, setDescription] = useState("");
-
+  const [transf, seTransf] = useState<{
+    id: number;
+    titulo: string;
+  } | null>(null);
+  const [categoria, setCategoria] = useState<{
+    id: number;
+    descricao: string;
+  } | null>(null);
+  const { refresh } = useCofreFisic();
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -24,15 +37,23 @@ export default function CardMovements({ title, type, filialId, token }: Props) {
     formData.append("type", type);
     formData.append("filialId", filialId);
     formData.append("token", token);
+    if (categoria) {
+      formData.append("categoriaId", String(categoria.id));
+      formData.append("categoriaDesc", categoria.descricao);
+    }
+    if (transf) {
+      formData.append("transfIdDest", String(transf.id));
+    }
 
     await handleFormSubmit(formData);
-    window.location.reload();
+
     setDescription("");
     setValue("");
+    refresh();
   };
 
   return (
-    <div className="bg-slate-200 w-full h-80 p-2 rounded shadow-blue-300 shadow-md flex flex-col justify-between transition duration-500 ease-in-out transform hover:-translate-y-1 hover:scale-100 ">
+    <div className="bg-slate-200 w-1/2 h-80 p-2 rounded shadow-blue-300 shadow-md flex flex-col justify-between transition duration-500 ease-in-out transform hover:-translate-y-1 hover:scale-100 ">
       <div>
         <div className="flex justify-center">
           <h1>{title}</h1>
@@ -52,14 +73,30 @@ export default function CardMovements({ title, type, filialId, token }: Props) {
               type="text"
             />
           </div>
-
-          <button type="submit" className="bg-blue-400 w-full rounded-lg">
-            +
+          {type == "DESPESA" && <CategoriasButton onSelect={setCategoria} />}
+          {type == "DEPOSITO" && (
+            <ToggleDepositoTransferir onSelect={seTransf} />
+          )}
+          <button
+            type="submit"
+            className=" bg-gradient-to-r from-blue-500 to-blue-700 w-full rounded p-1 text-white text-sm font-bold transition duration-75 ease-in-out transform hover:bg-blue-600"
+          >
+            Adicionar
           </button>
         </form>
+        
+        <div>
+          <ExibirMovimentos type={type} filialId={filialId} token={token} />
+        </div>
+        
       </div>
-      <ExibirMovimentos type={type} filialId={filialId} token={token} />
-      <div className="">Total:</div>
+      <div className="mb-2 w-full rounded bg-gradient-to-r from-blue-500 to-blue-700 p-3 shadow-lg shadow-blue-300 flex justify-between items-center text-white text-base font-extrabold tracking-wide transition duration-200 ease-in-out hover:scale-[1.02]">
+        <span>Total</span>
+        <span className="text-lg font-black drop-shadow-md">
+          <SumMovementsOpe type={type} filialId={filialId} token={token} />
+        </span>
+      </div>
+
     </div>
   );
 }

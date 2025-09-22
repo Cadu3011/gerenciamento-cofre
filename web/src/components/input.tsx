@@ -16,6 +16,7 @@ export default function InputComp({
   return (
     <input
       type={type}
+      value={value}
       className="pl-2 w-full rounded-lg border border-gray-300 focus:border-blue-400 focus:ring-2 focus:ring-blue-400 outline-none transition-all duration-200 bg-white shadow-md placeholder:text-x1 placeholder:text-center"
       placeholder={`${placeholder}`}
       onChange={(e) => setValue(e.target.value)}

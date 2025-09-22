@@ -1,24 +1,16 @@
 "use client";
 import { useEffect, useState } from "react";
 import { FormFilial } from "./form-filial";
+import { apiUrl, getFiliais } from "@/app/api/post";
 
-async function getFiliais(token: string) {
-  const filiais = await fetch("http://localhost:3000/filial", {
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    },
-  }).then((res) => res.json());
-  return filiais;
-}
 interface Props {
   token: string;
 }
-export default function ExibirFiliais({ token }: Props) {
+export default function ExibirFiliais() {
   const [filiais, setFiliais] = useState<any>([]);
   useEffect(() => {
     const fetchFiliais = async () => {
-      const filiais = await getFiliais(token);
+      const filiais = await getFiliais();
       const filiaisFormat = await filiais.map((filial: any) => ({
         id: filial.id,
         name: filial.name,

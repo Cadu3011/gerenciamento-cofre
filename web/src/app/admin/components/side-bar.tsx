@@ -21,13 +21,13 @@ export function SideBar({ children }: { children: React.ReactNode }) {
           </button>
         </div>
         <div className="mt-10 pt-1 pl-2 pb-1 bg-slate-400">
-          <a href="/gerencia-filial">gerenciar filiais</a>
+          <a href="/admin/gerencia-filial">gerenciar filiais</a>
         </div>
         <div className="pt-1 pl-2 pb-1 bg-slate-400">
-          <a href="/gerencia-usuario">gerenciar usuarios</a>
+          <a href="/admin/gerencia-usuario">gerenciar usuarios</a>
         </div>
         <div className="pt-1 pl-2 pb-1 bg-slate-400">
-          <a href="/monitorar-cofres">monitorar cofres</a>
+          <a href="/admin/monitorar-cofres">monitorar cofres</a>
         </div>
       </div>
       <div>

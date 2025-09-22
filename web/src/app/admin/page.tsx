@@ -15,5 +15,7 @@ export default async function Admin() {
   }
 
   const userData = jwtDecode<UserPayload>(token);
-  return <div></div>;
+  if (userData.roles !== "GESTOR") return;
+
+  return <div>Home</div>;
 }

@@ -1,14 +1,14 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { AmountService } from './amount.service';
 import { AmountController } from './amount.controller';
 import { DatabaseModule } from 'src/database/database.module';
-import { MovementService } from 'src/movement/movement.service';
 import { UsersModule } from 'src/users/users.module';
+import { MovementModule } from 'src/movement/movement.module';
 
 @Module({
-  imports: [DatabaseModule, UsersModule],
+  imports: [DatabaseModule, UsersModule, forwardRef(() => MovementModule)],
   controllers: [AmountController],
-  providers: [AmountService, MovementService],
+  providers: [AmountService],
   exports: [AmountService],
 })
 export class AmountModule {}

@@ -16,7 +16,7 @@ export function LoginForm() {
   return (
     <div>
       <form action="" method="post" onSubmit={handleSubmit} className="bg-blue-400 w-80 p-3 space-y-5 ">
-        <div className="border-b border-gray-500"><img src="http://192.168.1.253:4647/sgfpod1/images/logo-versao.png" alt="" /></div>
+        <div className="border-b border-gray-500"><img src="http://farmargrande2.dyndns.org:4647/sgfpod1/images/logo-versao.png" alt="" /></div>
         <div>
           <InputComp
             value={login}

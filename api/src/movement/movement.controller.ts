@@ -8,6 +8,7 @@ import {
   Delete,
   Query,
   UseGuards,
+  Req,
 } from '@nestjs/common';
 import { MovementService } from './movement.service';
 import { CreateMovementDto } from './dto/create-movement.dto';
@@ -16,18 +17,85 @@ import { FindAllQueryDto } from './dto/query-movement.dto';
 import { Roles } from 'src/auth/role.decorator';
 import { AuthGuard } from 'src/auth/auth.guard';
 import { Role } from '@prisma/client';
+import { Request } from 'express';
+import { MoveTrier } from './create-move-trier.service';
+import { FilialService } from 'src/filial/filial.service';
 
 @Controller('movement')
 export class MovementController {
-  constructor(private readonly movementService: MovementService) {}
+  constructor(
+    private readonly movementService: MovementService,
+    private readonly moveTrier: MoveTrier,
+    private readonly filial: FilialService,
+  ) {}
   @UseGuards(AuthGuard)
   @Roles(Role.OPERADOR)
-  @Post(':id')
-  create(
-    @Body() createMovementDto: CreateMovementDto,
-    @Param('id') idFilial: string,
-  ) {
-    return this.movementService.create(createMovementDto);
+  @Post()
+  async create(@Body() createMovementDto: CreateMovementDto) {
+    const move = await this.movementService.create(createMovementDto);
+
+    if (move.type === 'DESPESA') {
+      const idTrierMove: number = await this.moveTrier.createDesp({
+        idFilial: move.filialId,
+        descricao: move.descrition,
+        filialName: move.filial.name,
+        idCofre: move.filial.idCofreTrier,
+        valor: move.value,
+        idCategoria: Number(createMovementDto.idCategoria),
+        date: move.createdAt,
+        token: createMovementDto.tokenTrier,
+      });
+      if (idTrierMove) {
+        await this.movementService.updateSync(move.id, idTrierMove);
+      }
+    }
+    if (move.type === 'DEPOSITO') {
+      if (
+        createMovementDto.idContaDest === 0 ||
+        createMovementDto.idContaDest === null ||
+        createMovementDto.idContaDest === undefined
+      ) {
+        await this.movementService.updateIdContaDest(
+          move.id,
+          move.filial.idBancoDefault,
+        );
+        const idTrierTransf: number = await this.moveTrier.createTransf({
+          idFilial: move.filialId,
+          descricao: move.descrition,
+          filialName: move.filial.name,
+          idCofre: move.filial.idCofreTrier,
+          idCofreDestino: move.filial.idBancoDefault,
+          idFilialDestino: move.filialId,
+          valor: move.value.mul(-1),
+          idCategoria: Number(createMovementDto.idCategoria),
+          date: move.createdAt,
+          token: createMovementDto.tokenTrier,
+        });
+        if (idTrierTransf) {
+          await this.movementService.updateSync(move.id, idTrierTransf);
+        }
+      } else {
+        const filialDestino = await this.filial.findByCofreDest(
+          move.idContaDest,
+        );
+
+        const idTrierTransf: number = await this.moveTrier.createTransf({
+          idFilial: move.filialId,
+          descricao: move.descrition,
+          filialName: move.filial.name,
+          idCofre: move.filial.idCofreTrier,
+          idCofreDestino: move.idContaDest,
+          idFilialDestino: filialDestino.id,
+          valor: move.value.mul(-1),
+          idCategoria: Number(createMovementDto.idCategoria),
+          date: move.createdAt,
+          token: createMovementDto.tokenTrier,
+        });
+        if (idTrierTransf) {
+          await this.movementService.updateSync(move.id, idTrierTransf);
+        }
+      }
+    }
   }
 
   @Get('list')
@@ -35,27 +103,57 @@ export class MovementController {
     return this.movementService.findAll(query);
   }
 
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.movementService.findOne(+id);
+  @UseGuards(AuthGuard)
+  @Roles(Role.OPERADOR)
+  @Get('ant')
+  findByFilialMoveAnt(@Req() req: Request) {
+    const filialUser = req['sub'];
+    return this.movementService.findAnt(filialUser.filialId);
+  }
+
+  @UseGuards(AuthGuard)
+  @Roles(Role.OPERADOR)
+  @Get('operator')
+  findByFilialOperator(@Req() req: Request) {
+    const filialUser = req['sub'];
+    return this.movementService.findByFilialOperator(filialUser.filialId);
   }
   @UseGuards(AuthGuard)
   @Roles(Role.OPERADOR)
-  @Get('operator/:id')
-  findByFilialOperator(@Param('id') id: number) {
-    return this.movementService.findByFilialOperator(+id);
-  }
-
   @Patch(':id')
   update(
+    @Req() req: Request,
     @Param('id') id: string,
     @Body() updateMovementDto: UpdateMovementDto,
   ) {
-    return this.movementService.update(+id, updateMovementDto);
+    const filialUser = req['sub'];
+    return this.movementService.update(
+      filialUser.filialId,
+      +id,
+      updateMovementDto,
+    );
   }
 
+  @UseGuards(AuthGuard)
+  @Roles(Role.OPERADOR)
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.movementService.remove(+id);
+  async remove(@Param('id') id: string, @Req() req: Request) {
+    const filialUser = req['sub'];
+    const moveDel = await this.movementService.remove(filialUser.filialId, +id);
+
+    if (moveDel.status === 'SINCRONIZADO') {
+      const moveDelTrierid: number = await this.moveTrier.deleteMoves(
+        moveDel.idTrier,
+        filialUser.tokenTrier,
+      );
+
+      if (typeof moveDelTrierid !== 'number') {
+        this.movementService.insertMoveTrierDeleted(moveDel.idTrier);
+      }
+    }
+    if (moveDel.status === 'PENDENTE') {
+      await this.moveTrier.deleteMoves(moveDel.idTrier, filialUser.tokenTrier);
+    }
+    return;
   }
 }
