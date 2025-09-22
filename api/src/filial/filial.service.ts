@@ -6,23 +6,27 @@ import { PrismaService } from 'src/database/prisma.service';
 @Injectable()
 export class FilialService {
   @Inject()
-  private readonly Prisma: PrismaService
+  private readonly Prisma: PrismaService;
 
   create(createFilialDto: CreateFilialDto) {
-    return this.Prisma.filial.create({data:createFilialDto})
+    return this.Prisma.filial.create({ data: createFilialDto });
   }
 
   findAll() {
-    return this.Prisma.filial.findMany()
+    return this.Prisma.filial.findMany();
   }
+  findByCofreDest(idCofre: number) {
+    const filialId = this.Prisma.filial.findFirst({
+      where: { idCofreTrier: idCofre },
+    });
 
+    return filialId;
+  }
   findOne(id: number) {
-    return this.Prisma.filial.findUnique({where:{id}})
+    return this.Prisma.filial.findUnique({ where: { id } });
   }
 
   update(id: number, updateFilialDto: UpdateFilialDto) {
-    return this.Prisma.filial.update({where:{id},data:updateFilialDto})
+    return this.Prisma.filial.update({ where: { id }, data: updateFilialDto });
   }
-
-  
 }

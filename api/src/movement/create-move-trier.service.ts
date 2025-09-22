@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { Decimal } from '@prisma/client/runtime/library';
+
 export interface iMoveTrier {
   idFilial: number;
   descricao: string;
@@ -10,9 +11,12 @@ export interface iMoveTrier {
   date: Date;
   token: string;
   idCofreDestino?: number;
+  idFilialDestino?: number;
 }
 @Injectable()
 export class MoveTrier {
+  private readonly relatorioUrl =
+    'http://192.168.1.253:4647/sgfpod1/Rel_0047.pod';
   private urlTrier = 'farmargrande2.dyndns.org';
   async createDesp(move: iMoveTrier) {
     const myHeaders = new Headers();
@@ -117,10 +121,10 @@ export class MoveTrier {
         id: move.idCofreDestino,
       },
       filialOrigem: {
-        codFilial: 1,
+        codFilial: move.idFilial,
       },
       filialDestino: {
-        codFilial: 2,
+        codFilial: move.idFilialDestino,
       },
     });
 
@@ -136,7 +140,6 @@ export class MoveTrier {
         requestOptions,
       );
       const moveTransf = await resp.json();
-
       return moveTransf.movimentacaoOrigem.id;
     } catch (error) {
       return (error as Error).message;
@@ -171,6 +174,96 @@ export class MoveTrier {
       const moveDelIdTrier = await resp.json();
 
       return moveDelIdTrier.id;
+    } catch (error) {
+      return (error as Error).message;
+    }
+  }
+  async getVendasTotais(initDay: Date, finalDay: Date, token: string) {
+    const myHeaders = new Headers();
+    myHeaders.append('Accept', 'application/json, text/plain, */*');
+    myHeaders.append('Accept-Language', 'pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7');
+    myHeaders.append('Authorization', `Bearer ${token}`);
+    myHeaders.append('Connection', 'keep-alive');
+    myHeaders.append('Content-Type', 'application/json');
+    myHeaders.append('Origin', `http://${this.urlTrier}:4647`);
+    myHeaders.append(
+      'Referer',
+      `http://${this.urlTrier}:4647/web-drogaria-app/`,
+    );
+    myHeaders.append(
+      'User-Agent',
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36',
+    );
+    myHeaders.append(
+      'Cookie',
+      '_ga=GA1.1.1026063669.1631542119; Cad_0160_collapse_0=; _ga_8LW3WHRZZQ=GS2.1.s1758306070^$o334^$g1^$t1758306526^$j4^$l0^$h0; _ga_SEN1L4EC3B=GS1.1.1758306068.540.1.1758306644.0.0.0',
+    );
+
+    const raw = JSON.stringify({
+      customFilters: {
+        customFilters: [
+          {
+            attribute: 'categoria',
+            operator: 'IN',
+            values: [
+              {
+                id: 61,
+                descricao: 'Recebimento venda ^à vista',
+              },
+            ],
+            fieldType: 'MULTISELECT',
+          },
+        ],
+      },
+      dataInicio: initDay,
+      dataFim: finalDay,
+    });
+
+    const requestOptions: RequestInit = {
+      method: 'POST',
+      headers: myHeaders,
+      body: raw,
+      redirect: 'follow',
+    };
+    try {
+      const resp = await fetch(
+        `http://${this.urlTrier}:4647/web-drogaria/financeiro/movimentacoes/filtrar?page=0&size=10`,
+        requestOptions,
+      );
+      const moveTotals = await resp.json();
+      return moveTotals.content;
+    } catch (error) {
+      return (error as Error).message;
+    }
+  }
+  async getVendasDetalhes(idTotalMoves: number, token: string) {
+    const myHeaders = new Headers();
+    myHeaders.append('Accept', 'application/json, text/plain, */*');
+    myHeaders.append('Accept-Language', 'pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7');
+    myHeaders.append('Authorization', `Bearer ${token}`);
+    myHeaders.append('Connection', 'keep-alive');
+    myHeaders.append('Referer', 'http://192.168.1.253:4647/web-drogaria-app/');
+    myHeaders.append(
+      'User-Agent',
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36',
+    );
+    myHeaders.append(
+      'Cookie',
+      '_ga=GA1.1.1026063669.1631542119; Cad_0160_collapse_0=; _ga_8LW3WHRZZQ=GS2.1.s1758306070^$o334^$g1^$t1758306526^$j4^$l0^$h0; _ga_SEN1L4EC3B=GS1.1.1758306068.540.1.1758306644.0.0.0',
+    );
+
+    const requestOptions: RequestInit = {
+      method: 'GET',
+      headers: myHeaders,
+      redirect: 'follow',
+    };
+    try {
+      const resp = await fetch(
+        `http://192.168.1.253:4647/web-drogaria/financeiro/movimentacoes/detalhar/${idTotalMoves}`,
+        requestOptions,
+      );
+      const vendas = await resp.json();
+      return vendas;
     } catch (error) {
       return (error as Error).message;
     }

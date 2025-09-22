@@ -3,8 +3,8 @@ import { getCofresTrier } from "@/app/api/post";
 import React, { useState, useRef, useEffect } from "react";
 
 type Conta = {
-  id: number;
-  titulo: string;
+  id: number | null;
+  titulo: string | null;
 };
 
 interface Props {
@@ -13,7 +13,7 @@ interface Props {
 export default function ToggleDepositoTransferir({ onSelect }: Props) {
   const [isDeposito, setIsDeposito] = useState(true);
   const [selectedId, setSelectedId] = useState<number | null>(null);
-  const [selectedTitle, setSelectedTitle] = useState<string>("");
+  const [selectedTitle, setSelectedTitle] = useState<string | null>("");
   const [open, setOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const [contas, setContas] = useState<Conta[]>([]);
@@ -42,6 +42,14 @@ export default function ToggleDepositoTransferir({ onSelect }: Props) {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+  useEffect(() => {
+    if (isDeposito) {
+      setSelectedId(null);
+      setSelectedTitle("");
+      setOpen(false);
+      onSelect({ id: null, titulo: null });
+    }
+  }, [isDeposito]);
 
   return (
     <div className="w-full max-w-md mx-auto">
@@ -50,18 +58,29 @@ export default function ToggleDepositoTransferir({ onSelect }: Props) {
         <div className="flex bg-gray-500 rounded-lg w-64">
           <button
             type="button"
-            onClick={() => setIsDeposito(true)}
+            onClick={() => {
+              setIsDeposito(true);
+              // limpa os dados de transferir
+              setSelectedId(null);
+              setSelectedTitle(null);
+              setOpen(false);
+            }}
             className={`flex-1 rounded-lg transition ${
-              isDeposito ? "bg-gradient-to-r from-blue-500 to-blue-700 text-white" : "text-white"
+              isDeposito
+                ? "bg-gradient-to-r from-blue-500 to-blue-700 text-white"
+                : "text-white"
             }`}
           >
             Depósito
           </button>
+
           <button
             onClick={() => setIsDeposito(false)}
             type="button"
             className={`flex-1 rounded-lg transition ${
-              !isDeposito ? "bg-gradient-to-r from-blue-500 to-blue-700 text-white" : "text-white"
+              !isDeposito
+                ? "bg-gradient-to-r from-blue-500 to-blue-700 text-white"
+                : "text-white"
             }`}
           >
             Transferir

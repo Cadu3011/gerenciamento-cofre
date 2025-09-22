@@ -19,12 +19,14 @@ import { AuthGuard } from 'src/auth/auth.guard';
 import { Role } from '@prisma/client';
 import { Request } from 'express';
 import { MoveTrier } from './create-move-trier.service';
+import { FilialService } from 'src/filial/filial.service';
 
 @Controller('movement')
 export class MovementController {
   constructor(
     private readonly movementService: MovementService,
     private readonly moveTrier: MoveTrier,
+    private readonly filial: FilialService,
   ) {}
   @UseGuards(AuthGuard)
   @Roles(Role.OPERADOR)
@@ -53,12 +55,17 @@ export class MovementController {
         createMovementDto.idContaDest === null ||
         createMovementDto.idContaDest === undefined
       ) {
+        await this.movementService.updateIdContaDest(
+          move.id,
+          move.filial.idBancoDefault,
+        );
         const idTrierTransf: number = await this.moveTrier.createTransf({
           idFilial: move.filialId,
           descricao: move.descrition,
           filialName: move.filial.name,
           idCofre: move.filial.idCofreTrier,
           idCofreDestino: move.filial.idBancoDefault,
+          idFilialDestino: move.filialId,
           valor: move.value.mul(-1),
           idCategoria: Number(createMovementDto.idCategoria),
           date: move.createdAt,
@@ -66,18 +73,19 @@ export class MovementController {
         });
         if (idTrierTransf) {
           await this.movementService.updateSync(move.id, idTrierTransf);
-          await this.movementService.updateIdContaDest(
-            move.id,
-            move.filial.idBancoDefault,
-          );
         }
       } else {
+        const filialDestino = await this.filial.findByCofreDest(
+          move.idContaDest,
+        );
+
         const idTrierTransf: number = await this.moveTrier.createTransf({
           idFilial: move.filialId,
           descricao: move.descrition,
           filialName: move.filial.name,
           idCofre: move.filial.idCofreTrier,
           idCofreDestino: move.idContaDest,
+          idFilialDestino: filialDestino.id,
           valor: move.value.mul(-1),
           idCategoria: Number(createMovementDto.idCategoria),
           date: move.createdAt,
@@ -138,7 +146,7 @@ export class MovementController {
         moveDel.idTrier,
         filialUser.tokenTrier,
       );
-      console.log(moveDelTrierid);
+
       if (typeof moveDelTrierid !== 'number') {
         this.movementService.insertMoveTrierDeleted(moveDel.idTrier);
       }

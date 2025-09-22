@@ -5,7 +5,7 @@ import { cookies } from "next/headers";
 import { jwtDecode } from "jwt-decode";
 
 export const apiUrl = async (): Promise<string> => {
-  const url = "localhost:3000";
+  const url = "localhost:4000";
   return url;
 };
 const Url = await apiUrl();
@@ -305,4 +305,28 @@ export async function getCofresTrier() {
     const data = contasMock(userData);
     return data;
   }
+}
+export async function postUser(formData: FormData) {
+  const login = formData.get("login") as string;
+  const password = formData.get("password") as string;
+  const name = formData.get("name") as string;
+  const role = formData.get("role") as string;
+  const filialId = formData.get("filialId") as string;
+  const tokenCookie = (await cookies()).get("access_token")?.value;
+  const data = {
+    login: parseInt(login),
+    password,
+    name,
+    role,
+    filialId: parseInt(filialId),
+  };
+  const response = await fetch(`http://${Url}/users`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${tokenCookie}`,
+    },
+    body: JSON.stringify(data),
+  });
+  return;
 }

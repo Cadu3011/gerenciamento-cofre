@@ -4,8 +4,9 @@ import { FilialController } from './filial.controller';
 import { DatabaseModule } from 'src/database/database.module';
 
 @Module({
-  imports:[DatabaseModule],
+  imports: [DatabaseModule],
   controllers: [FilialController],
   providers: [FilialService],
+  exports: [FilialService],
 })
 export class FilialModule {}

@@ -5,9 +5,15 @@ import { DatabaseModule } from 'src/database/database.module';
 import { AmountModule } from 'src/amount/amount.module';
 import { MoveTrier } from './create-move-trier.service';
 import { AuthModule } from 'src/auth/auth.module';
+import { FilialModule } from 'src/filial/filial.module';
 
 @Module({
-  imports: [DatabaseModule, forwardRef(() => AmountModule), AuthModule],
+  imports: [
+    DatabaseModule,
+    forwardRef(() => AmountModule),
+    AuthModule,
+    FilialModule,
+  ],
   controllers: [MovementController],
   providers: [MovementService, MoveTrier],
   exports: [MovementService, MoveTrier],

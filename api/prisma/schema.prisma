@@ -44,8 +44,10 @@ model Movimentations{
   category String?
   idCategoria Int?
   idContaDest Int?
+  
+  valueSangriaTrier Decimal? @db.Decimal(9,2)
   descrition String
-  value Decimal  @db.Decimal(9,2)
+  value Decimal?  @db.Decimal(9,2)
   type Category
   filialId Int
   filial Filial @relation("FiliaAndMovimentations",fields: [filialId],references: [id])

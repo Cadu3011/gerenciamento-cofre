@@ -5,10 +5,19 @@ import { PrismaService } from 'src/database/prisma.service';
 import { AmountService } from 'src/amount/amount.service';
 import { Decimal } from '@prisma/client/runtime/library';
 import { FindAllQueryDto } from './dto/query-movement.dto';
-import { Interval } from '@nestjs/schedule';
+import { Cron, Interval } from '@nestjs/schedule';
 import { authTrier } from 'src/auth/authTrier/loginTrier';
 import { MoveTrier } from './create-move-trier.service';
+import { FilialService } from 'src/filial/filial.service';
+interface Movimento {
+  Caixa: string;
+  Valor: string;
+  Moeda: string;
+}
 
+interface Filiais {
+  [filial: string]: Movimento[];
+}
 @Injectable()
 export class MovementService {
   @Inject()
@@ -17,8 +26,109 @@ export class MovementService {
   private readonly Amont: AmountService;
   @Inject(MoveTrier)
   private readonly moveTrier: MoveTrier;
-
+  @Inject()
+  private readonly filial: FilialService;
   private readonly logger = new Logger(MovementService.name);
+
+  // @Cron('0 0 6,12 * * 1-7')
+  // @Interval(10_000)
+  async getVendasCaixasTrier() {
+    const lastDate = await this.Prisma.movimentations.findFirst({
+      orderBy: {
+        createdAt: 'desc',
+      },
+      select: {
+        createdAt: true,
+      },
+    });
+    const dateInit = new Date(lastDate.createdAt);
+    dateInit.setDate(dateInit.getDate() + 1);
+    const dataAtual = new Date();
+    const dataAtualFormat = new Date(
+      Date.UTC(
+        dataAtual.getUTCFullYear(),
+        dataAtual.getUTCMonth(),
+        dataAtual.getUTCDate(),
+        3,
+        0,
+        0,
+        0, // hora, minuto, segundo, milissegundo
+      ),
+    );
+    const token = await authTrier({
+      login: '95',
+      password: 'cadu3011',
+    });
+    for (
+      let current = new Date(dateInit);
+      current < dataAtualFormat;
+      current.setDate(current.getDate() + 1)
+    ) {
+      const initDay = new Date(
+        Date.UTC(
+          current.getUTCFullYear(),
+          current.getUTCMonth(),
+          current.getUTCDate(),
+          3,
+          0,
+          0,
+          0, // hora, minuto, segundo, milissegundo
+        ),
+      );
+      const finalDay = new Date(
+        Date.UTC(
+          current.getUTCFullYear(),
+          current.getUTCMonth(),
+          current.getUTCDate(),
+          23,
+          59,
+          59,
+          999,
+        ),
+      );
+      console.log(initDay, finalDay);
+      const totais = await this.moveTrier.getVendasTotais(
+        initDay,
+        finalDay,
+        token,
+      );
+      if (totais) {
+        const idMoveTotais = totais.map((move) => ({
+          id: move.id,
+        }));
+
+        const moveDetalhes = await Promise.all(
+          idMoveTotais.map(async ({ id }) => {
+            const res = await this.moveTrier.getVendasDetalhes(id, token);
+            return res.detalhes.map((detalhe) => {
+              return {
+                filial: detalhe.codFilial,
+                caixa: detalhe.numCaixa,
+                vlrRecebido: detalhe.vlrRecebido,
+              };
+            });
+          }),
+        );
+        return moveDetalhes;
+      }
+      // if (sangrias) {
+      //   // Itera sobre todas as filiais
+      //   for (const [filialId, movimentos] of Object.entries(sangrias)) {
+      //     // Itera sobre cada movimento da filial
+      //     for (const movimento of movimentos) {
+      //       await this.Prisma.movimentations.create({
+      //         data: {
+      //           filialId: parseInt(filialId),
+      //           descrition: movimento.Caixa,
+      //           valueSangriaTrier: movimento.Valor,
+      //           type: 'SANGRIA',
+      //         },
+      //       });
+      //     }
+      //   }
+      // }
+    }
+  }
 
   @Interval(30_000)
   async checkPendingMovements() {
@@ -34,6 +144,7 @@ export class MovementService {
           select: {
             name: true,
             idCofreTrier: true,
+            idBancoDefault: true,
           },
         },
       },
@@ -75,20 +186,43 @@ export class MovementService {
         }
       }
       if (move.type === 'DEPOSITO') {
-        const createdMoveTrier: number = await this.moveTrier.createTransf({
-          idFilial: move.filialId,
-          descricao: move.descrition,
-          filialName: move.filial.name,
-          idCofre: move.filial.idCofreTrier,
-          idCofreDestino: move.idContaDest,
-          valor: move.value.mul(-1),
-          idCategoria: Number(move.idCategoria),
-          date: move.createdAt,
-          token: token,
-        });
+        if (move.idContaDest === move.filial.idBancoDefault) {
+          const idTrierTransf: number = await this.moveTrier.createTransf({
+            idFilial: move.filialId,
+            descricao: move.descrition,
+            filialName: move.filial.name,
+            idCofre: move.filial.idCofreTrier,
+            idCofreDestino: move.filial.idBancoDefault,
+            idFilialDestino: move.filialId,
+            valor: move.value.mul(-1),
+            idCategoria: Number(move.idCategoria),
+            date: move.createdAt,
+            token,
+          });
+          if (idTrierTransf) {
+            await this.updateSync(move.id, idTrierTransf);
+            await this.updateIdContaDest(move.id, move.filial.idBancoDefault);
+          }
+        } else {
+          const filialDestino = await this.filial.findByCofreDest(
+            move.idContaDest,
+          );
 
-        if (createdMoveTrier !== undefined) {
-          await this.updateSync(move.id, createdMoveTrier);
+          const idTrierTransf: number = await this.moveTrier.createTransf({
+            idFilial: move.filialId,
+            descricao: move.descrition,
+            filialName: move.filial.name,
+            idCofre: move.filial.idCofreTrier,
+            idCofreDestino: move.idContaDest,
+            idFilialDestino: filialDestino.id,
+            valor: move.value.mul(-1),
+            idCategoria: Number(move.idCategoria),
+            date: move.createdAt,
+            token,
+          });
+          if (idTrierTransf) {
+            await this.updateSync(move.id, idTrierTransf);
+          }
         }
       }
     }
@@ -185,10 +319,17 @@ export class MovementService {
     const movements = await this.Prisma.movimentations.findMany({
       where: {
         filialId: filialIdUser,
-        createdAt: {
-          gte: startOfDay,
-          lte: endOfDay,
-        },
+        OR: [
+          {
+            createdAt: {
+              gte: startOfDay,
+              lte: endOfDay,
+            },
+          },
+          {
+            value: null,
+          },
+        ],
       },
     });
     return movements;
@@ -265,12 +406,22 @@ export class MovementService {
 
     return movimentos;
   }
-  update(filialId: number, id: number, updateMovementDto: UpdateMovementDto) {
-    return this.Prisma.movimentations.update({
+  async update(
+    filialId: number,
+    id: number,
+    updateMovementDto: UpdateMovementDto,
+  ) {
+    const moveCreate = await this.Prisma.movimentations.update({
       where: { id, filialId: filialId },
       data: updateMovementDto,
     });
+    await this.Amont.createOrUpdate({
+      filialId: updateMovementDto.filialId,
+      balance: updateMovementDto.value,
+    });
+    return moveCreate;
   }
+
   updateIdContaDest(id: number, idContaDest: number) {
     return this.Prisma.movimentations.update({
       where: { id },
