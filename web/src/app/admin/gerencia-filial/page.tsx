@@ -24,7 +24,7 @@ export default async function GerenciaFilial() {
     <div className=" w-full flex justify-center items-center bg-gray-200">
       <div className="bg-slate-400 rounded">
         <div className="">
-          <Filiais token={token} />
+          <Filiais  />
         </div>
       </div>
     </div>

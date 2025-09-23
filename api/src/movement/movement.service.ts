@@ -132,7 +132,7 @@ export class MovementService {
 
   @Interval(30_000)
   async checkPendingMovements() {
-    this.logger.log('Checando movimentações pendentes...');
+    
 
     const pendentesDeleteds = await this.Prisma.deletedMovements.findMany({
       where: { status: 'PENDENTE' },

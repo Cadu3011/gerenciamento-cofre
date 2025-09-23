@@ -34,7 +34,7 @@ export default async function GerenciaCofre() {
         <CofreProvider>
           <BalanceFisicProvider>
             <div>
-              <HeaderCofre filialId={`${userData.filialId}`} token={token} />
+              <HeaderCofre filialId={`${userData.filialId}`} />
             </div>
             <div className="flex justify-end mr-10">
               <ToggleModalClient />

@@ -8,7 +8,7 @@ import SumMovements from "./sumMovements";
 import { useCofreFisic } from "@/app/gerencia-cofre/components/cofreContext";
 import CategoriasButton from "@/app/gerencia-cofre/components/categoriaButton";
 import SumMovementsOpe from "./sumMovementsOpe";
-import ToggleDepositoTransferir from "@/app/gerencia-cofre/components/interruptorDepAndTransf";
+import ToggleDepositoTransferir, { Conta } from "@/app/gerencia-cofre/components/interruptorDepAndTransf";
 interface Props {
   title: string;
   type: string;
@@ -19,10 +19,7 @@ interface Props {
 export default function CardMovements({ title, type, filialId, token }: Props) {
   const [value, setValue] = useState("");
   const [description, setDescription] = useState("");
-  const [transf, seTransf] = useState<{
-    id: number;
-    titulo: string;
-  } | null>(null);
+  const [transf, seTransf] = useState<Conta | null>(null);
   const [categoria, setCategoria] = useState<{
     id: number;
     descricao: string;

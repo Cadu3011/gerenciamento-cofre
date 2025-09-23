@@ -2,7 +2,7 @@
 import { getCofresTrier } from "@/app/api/post";
 import React, { useState, useRef, useEffect } from "react";
 
-type Conta = {
+export type Conta = {
   id: number | null;
   titulo: string | null;
 };
