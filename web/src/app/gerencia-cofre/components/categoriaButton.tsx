@@ -43,6 +43,7 @@ export default function CategoriasButton({ onSelect }: Props) {
   return (
     <div ref={wrapperRef} className="relative w-full pb-2">
       <input
+        required
         type="text"
         value={query}
         placeholder="Selecione a categoria..."
