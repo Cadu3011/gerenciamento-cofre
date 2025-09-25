@@ -66,7 +66,11 @@ export async function handlePostLogin(formData: FormData) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   });
+  if (response.status === 500) {
+    return { data: "dados invalidos" };
+  }
   const token = await response.json();
+
   (await cookies()).set("access_token", token.access_token, { httpOnly: true });
   const tokenCookie = (await cookies()).get("access_token")?.value;
 
