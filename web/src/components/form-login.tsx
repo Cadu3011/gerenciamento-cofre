@@ -35,10 +35,12 @@ export function LoginForm() {
         className="bg-blue-400 w-80 p-3 space-y-5 "
       >
         <div className="border-b border-gray-500">
-          <img
-            src="http://farmargrande2.dyndns.org:4647/sgfpod1/images/logo-versao.png"
-            alt=""
-          />
+          <div className="bg-white rounded-md flex-col flex justify-center items-center py-2">
+            <img src="/OIP.jpg" alt="" />
+            <div className="text-green-800 px-6 rounded-md font-bold font-serif flex justify-center ">
+              CAVALCANTE DROGARIAS
+            </div>
+          </div>
         </div>
         <div>
           <InputComp
