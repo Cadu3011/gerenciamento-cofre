@@ -8,7 +8,9 @@ import SumMovements from "./sumMovements";
 import { useCofreFisic } from "@/app/gerencia-cofre/components/cofreContext";
 import CategoriasButton from "@/app/gerencia-cofre/components/categoriaButton";
 import SumMovementsOpe from "./sumMovementsOpe";
-import ToggleDepositoTransferir, { Conta } from "@/app/gerencia-cofre/components/interruptorDepAndTransf";
+import ToggleDepositoTransferir, {
+  Conta,
+} from "@/app/gerencia-cofre/components/interruptorDepAndTransf";
 interface Props {
   title: string;
   type: string;
@@ -50,12 +52,12 @@ export default function CardMovements({ title, type, filialId, token }: Props) {
   };
 
   return (
-    <div className="bg-slate-200 w-1/2 h-80 p-2 rounded shadow-blue-300 shadow-md flex flex-col justify-between transition duration-500 ease-in-out transform hover:-translate-y-1 hover:scale-100 ">
-      <div>
-        <div className="flex justify-center">
-          <h1>{title}</h1>
-        </div>
-        <form className="" onSubmit={handleSubmit}>
+    <div className="bg-slate-200 w-1/2 h-96 p-2 rounded shadow-blue-300 shadow-md flex flex-col  transition duration-500 ease-in-out transform hover:-translate-y-1 hover:scale-100 ">
+      <div className="flex justify-center">
+        <h1>{title}</h1>
+      </div>
+      <form className="" onSubmit={handleSubmit}>
+        {type !== "SANGRIA" && (
           <div className=" h-11 pb-2 pt-2 gap-2 flex justify-center">
             <InputComp
               value={description}
@@ -70,30 +72,29 @@ export default function CardMovements({ title, type, filialId, token }: Props) {
               type="text"
             />
           </div>
-          {type == "DESPESA" && <CategoriasButton onSelect={setCategoria} />}
-          {type == "DEPOSITO" && (
-            <ToggleDepositoTransferir onSelect={seTransf} />
-          )}
+        )}
+
+        {type == "DESPESA" && <CategoriasButton onSelect={setCategoria} />}
+        {type == "DEPOSITO" && <ToggleDepositoTransferir onSelect={seTransf} />}
+        {type !== "SANGRIA" && (
           <button
             type="submit"
-            className=" bg-gradient-to-r from-blue-500 to-blue-700 w-full rounded p-1 text-white text-sm font-bold transition duration-75 ease-in-out transform hover:bg-blue-600"
+            className=" bg-gradient-to-r from-blue-500 to-blue-700 w-full rounded  text-white text-sm font-bold transition duration-75 ease-in-out transform hover:bg-blue-600"
           >
             Adicionar
           </button>
-        </form>
-        
-        <div>
-          <ExibirMovimentos type={type} filialId={filialId} token={token} />
-        </div>
-        
+        )}
+      </form>
+      <div className="flex-1 overflow-auto">
+        <ExibirMovimentos type={type} filialId={filialId} token={token} />
       </div>
+
       <div className="mb-2 w-full rounded bg-gradient-to-r from-blue-500 to-blue-700 p-3 shadow-lg shadow-blue-300 flex justify-between items-center text-white text-base font-extrabold tracking-wide transition duration-200 ease-in-out hover:scale-[1.02]">
         <span>Total</span>
         <span className="text-lg font-black drop-shadow-md">
           <SumMovementsOpe type={type} filialId={filialId} token={token} />
         </span>
       </div>
-
     </div>
   );
 }

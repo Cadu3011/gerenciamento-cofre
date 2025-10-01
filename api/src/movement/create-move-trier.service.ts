@@ -210,6 +210,10 @@ export class MoveTrier {
                 id: 61,
                 descricao: 'Recebimento venda ^à vista',
               },
+              {
+                id: 66,
+                descricao: 'Recebimento credi^ário',
+              },
             ],
             fieldType: 'MULTISELECT',
           },

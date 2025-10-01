@@ -120,7 +120,7 @@ export class AmountService {
           startOfDay && endOfDay
             ? {
                 where: {
-                  createdAt: {
+                  updatedAt: {
                     gte: startOfDay,
                     lte: new Date(endOfDay.setDate(endOfDay.getDate() + 1)),
                   },
@@ -154,7 +154,7 @@ export class AmountService {
         end.setHours(23, 59, 59, 999);
 
         const movements = f.movements.filter(
-          (m) => m.createdAt >= start && m.createdAt <= end,
+          (m) => m.updatedAt >= start && m.updatedAt <= end,
         );
 
         const balanceFisic = f.balanceFisic.filter(
