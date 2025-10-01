@@ -44,6 +44,26 @@ export async function handleFormSubmit(formData: FormData) {
     console.log(error);
   }
 }
+
+export async function pushValueSangria(id: number, value: string) {
+  const tokenCookie = (await cookies()).get("access_token")?.value;
+  try {
+    const data = {
+      value: value,
+    };
+    const dataPost = await fetch(`http://${Url}/movement/${id}`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${tokenCookie}`,
+      },
+      body: JSON.stringify(data),
+    });
+    return JSON.stringify(dataPost);
+  } catch (error) {
+    console.log(error);
+  }
+}
 interface UserPayload {
   sub: number;
   roles: string;
