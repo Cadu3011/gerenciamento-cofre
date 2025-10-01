@@ -7,6 +7,7 @@ type Movement = {
   descrition: string;
   value: string;
   type: string;
+  valueSangriaTrier: string;
 };
 
 type BalanceFisic = {
@@ -220,7 +221,13 @@ export default function ExtractList() {
                                     : "text-green-600"
                                 }`}
                               >
-                                {m.type} - R$ {m.value}
+                                {m.type !== "SANGRIA" && (
+                                  <>
+                                    {m.type} - R$ {m.value}
+                                  </>
+                                )}
+                                VENDA {m.valueSangriaTrier} | {m.type} - R${" "}
+                                {m.value}
                               </span>
                             </li>
                           ))}
