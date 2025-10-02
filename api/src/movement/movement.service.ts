@@ -24,7 +24,7 @@ export class MovementService implements OnModuleInit {
   async onModuleInit() {
     // await this.getVendasCaixasTrier();
   }
-  @Cron('55 6,11 * * 1-7')
+  @Cron('29 6,14 * * 1-7')
   async getVendasCaixasTrier() {
     const lastDate = await this.Prisma.movimentations.findFirst({
       where: {
@@ -410,76 +410,40 @@ export class MovementService implements OnModuleInit {
     return movements;
   }
   async findAnt(filialIdUser: number) {
-    const inicioHoje = new Date();
-    inicioHoje.setHours(0, 0, 0, 0);
+    // Definir início do dia atual
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
 
-    const endOfDay = new Date(inicioHoje);
-    endOfDay.setHours(23, 59, 59, 999);
-
-    // Etapa 1: Verificar se existem movimentações hoje
-    const movimentosHoje = await this.Prisma.movimentations.findFirst({
+    // Buscar a última movimentação ANTES de hoje
+    const ultimaAntes = await this.Prisma.movimentations.findFirst({
       where: {
         filialId: filialIdUser,
-        createdAt: {
-          gte: inicioHoje,
-          lte: endOfDay,
-        },
+        updatedAt: { lt: hoje }, // só dias antes de hoje
       },
+      orderBy: { updatedAt: 'desc' },
     });
 
-    let dataBaseBusca: Date;
+    if (!ultimaAntes) return []; // nunca houve lançamentos antes de hoje
 
-    if (movimentosHoje) {
-      // Existem lançamentos hoje → buscar o último dia anterior com dados
-      const ultimaMovimentacaoAntesDeHoje =
-        await this.Prisma.movimentations.findFirst({
-          where: {
-            filialId: filialIdUser,
-            createdAt: {
-              lt: inicioHoje, // apenas datas antes de hoje
-            },
-          },
-          orderBy: {
-            createdAt: 'desc',
-          },
-        });
-
-      if (!ultimaMovimentacaoAntesDeHoje) return []; // nunca houve lançamentos antes de hoje
-
-      dataBaseBusca = new Date(ultimaMovimentacaoAntesDeHoje.createdAt);
-    } else {
-      const ultimaMovimentacao = await this.Prisma.movimentations.findFirst({
-        where: {
-          filialId: filialIdUser,
-        },
-        orderBy: {
-          createdAt: 'desc',
-        },
-      });
-
-      if (!ultimaMovimentacao) return []; // não há movimentações nunca
-
-      dataBaseBusca = new Date(ultimaMovimentacao.createdAt);
-    }
-
-    // Etapa 2: buscar todas as movimentações desse dia encontrado
-    const inicio = new Date(dataBaseBusca);
+    // Pegar todas as movimentações do dia da última encontrada
+    const dataBase = new Date(ultimaAntes.updatedAt);
+    const inicio = new Date(dataBase);
     inicio.setHours(0, 0, 0, 0);
 
-    const fim = new Date(dataBaseBusca);
+    const fim = new Date(dataBase);
     fim.setHours(23, 59, 59, 999);
 
-    const movimentos = await this.Prisma.movimentations.findMany({
+    return this.Prisma.movimentations.findMany({
       where: {
         filialId: filialIdUser,
-        createdAt: {
+        updatedAt: {
           gte: inicio,
           lte: fim,
         },
+        value: { not: null },
       },
+      orderBy: { updatedAt: 'asc' }, // opcional
     });
-
-    return movimentos;
   }
   async update(
     filialId: number,
