@@ -86,7 +86,8 @@ export async function handlePostLogin(formData: FormData) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   });
-  if (response.status === 500) {
+  console.log(response.status)
+  if (response.status === 500 || response.status === 404 || response.status === 401) {
     return { data: "dados invalidos" };
   }
   const token = await response.json();
