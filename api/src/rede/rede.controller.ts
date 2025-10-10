@@ -1,25 +1,47 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  UseGuards,
+  Req,
+  Query,
+} from '@nestjs/common';
 import { RedeService } from './rede.service';
-import { CreateRedeDto } from './dto/create-rede.dto';
 import { UpdateRedeDto } from './dto/update-rede.dto';
+import { AuthGuard } from 'src/auth/auth.guard';
+import { Roles } from 'src/auth/role.decorator';
+import { Role } from '@prisma/client';
 
 @Controller('rede')
 export class RedeController {
   constructor(private readonly redeService: RedeService) {}
 
-  @Post()
-  create(@Body() createRedeDto: CreateRedeDto) {
-    return this.redeService.create(createRedeDto);
+  @UseGuards(AuthGuard)
+  @Roles(Role.OPERADOR)
+  @Get('details/:date')
+  findSalesDetails(@Req() req: Request, @Param('date') date: string) {
+    const filialUser = req['sub'];
+    return this.redeService.findSalesDetails(filialUser.filialId, date);
   }
 
+  @UseGuards(AuthGuard)
+  @Roles(Role.OPERADOR)
   @Get()
-  findAll() {
-    return this.redeService.findAll();
-  }
+  findSalesTotals(
+    @Req() req: Request,
+    @Query('startDate') startDate: string,
+    @Query('endDate') endDate: string,
+  ) {
+    const filialUser = req['sub'];
 
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.redeService.findOne(+id);
+    return this.redeService.findSalesTotals(
+      filialUser.filialId,
+      startDate,
+      endDate,
+    );
   }
 
   @Patch(':id')
