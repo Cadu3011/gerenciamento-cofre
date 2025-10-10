@@ -1,5 +1,4 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { UpdateRedeDto } from './dto/update-rede.dto';
 import { FilialService } from 'src/filial/filial.service';
 
 @Injectable()
@@ -80,10 +79,6 @@ export class RedeService {
     );
     const vendas = await res.json();
     return vendas.content.sales;
-  }
-
-  update(id: number, updateRedeDto: UpdateRedeDto) {
-    return `This action updates a #${id} rede`;
   }
 
   remove(id: number) {

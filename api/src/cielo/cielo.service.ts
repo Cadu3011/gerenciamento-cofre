@@ -1,5 +1,5 @@
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common';
-import { UpdateCieloDto } from './dto/update-cielo.dto';
 import * as Client from 'ssh2-sftp-client';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -8,13 +8,17 @@ import { CieloTransformSalesService } from './cielo-extratc-vendas.service';
 import { PrismaService } from 'src/database/prisma.service';
 import { Prisma } from '@prisma/client';
 import { Cron } from '@nestjs/schedule';
+import { FilialService } from 'src/filial/filial.service';
 
 @Injectable()
-export class CieloService implements OnModuleInit {
+export class CieloService {
   private sftp = new (Client as any)();
   private readonly logger = new Logger(CieloService.name);
   @Inject(CieloTransformSalesService)
   private readonly cieloTransformSalesService: CieloTransformSalesService;
+
+  @Inject()
+  private readonly filial: FilialService;
 
   @Inject()
   private readonly Prisma: PrismaService;
@@ -27,44 +31,44 @@ export class CieloService implements OnModuleInit {
       path.resolve(__dirname, '../../sftpKey/ssh-key-2025-09-12.key'),
     ),
   };
-  async onModuleInit() {
-    const fileList = await this.uploadExtract(
-      '/home/cielo-sftp/uploads',
-      'C:\\Users\\Liderança\\Desktop\\gerenciamento-cofre\\api\\extractFiles',
-    );
-    await this.deleteRemoteFiles('/home/cielo-sftp/uploads');
+  // async onModuleInit() {
+  //   const fileList = await this.uploadExtract(
+  //     '/home/cielo-sftp/uploads',
+  //     'C:\\Users\\Liderança\\Desktop\\gerenciamento-cofre\\api\\extractFiles',
+  //   );
+  //   await this.deleteRemoteFiles('/home/cielo-sftp/uploads');
 
-    // const fileContent: string[] = listarArquivosSync(
-    //   'C:\\Users\\Liderança\\Desktop\\gerenciamento-cofre\\api\\src\\cielo\\extractFiles',
-    // );
+  //   const fileContent: string[] = listarArquivosSync(
+  //     'C:\\Users\\Liderança\\Desktop\\gerenciamento-cofre\\api\\extractFiles',
+  //   );
+  //   console.log(fileContent);
+  //   function listarArquivosSync(pasta) {
+  //     try {
+  //       const arquivos = fs.readdirSync(pasta);
+  //       const listaArquivos = [];
 
-    function listarArquivosSync(pasta) {
-      try {
-        const arquivos = fs.readdirSync(pasta);
-        const listaArquivos = [];
+  //       for (const arquivo of arquivos) {
+  //         const caminhoCompleto = path.posix.join(pasta, arquivo);
+  //         const stats = fs.statSync(caminhoCompleto);
 
-        for (const arquivo of arquivos) {
-          const caminhoCompleto = path.posix.join(pasta, arquivo);
-          const stats = fs.statSync(caminhoCompleto);
+  //         if (stats.isFile()) {
+  //           listaArquivos.push(arquivo);
+  //         }
+  //       }
 
-          if (stats.isFile()) {
-            listaArquivos.push(arquivo);
-          }
-        }
-
-        return listaArquivos;
-      } catch (error) {
-        console.error('Erro ao ler pasta:', error);
-        return [];
-      }
-    }
-    if (fileList.length === 0) {
-      return;
-    }
-    const vendas: Prisma.CartaoVendasCreateInput[] =
-      await this.cieloTransformSalesService.parseSalesData(fileList);
-    await this.create(vendas);
-  }
+  //       return listaArquivos;
+  //     } catch (error) {
+  //       console.error('Erro ao ler pasta:', error);
+  //       return [];
+  //     }
+  //   }
+  //   // if (fileList.length === 0) {
+  //   //   return;
+  //   // }
+  //   const vendas: Prisma.CartaoVendasCreateInput[] =
+  //     await this.cieloTransformSalesService.parseSalesData(fileContent);
+  //   await this.create(vendas);
+  // }
 
   @Cron('29 7,8,9 * * 1-7')
   async pipelineETL() {
@@ -72,7 +76,7 @@ export class CieloService implements OnModuleInit {
       '/home/cielo-sftp/uploads',
       'C:\\Users\\Liderança\\Desktop\\gerenciamento-cofre\\api\\extractFiles',
     );
-    await this.deleteRemoteFiles('/home/cielo-sftp/uploads');
+    // await this.deleteRemoteFiles('/home/cielo-sftp/uploads');
     if (fileList.length === 0) {
       return;
     }
@@ -132,16 +136,48 @@ export class CieloService implements OnModuleInit {
     return this.Prisma.cartaoVendas.createMany({ data: data });
   }
 
-  findAll() {
-    return `This action returns all cielo`;
+  async findSalesDetails(filialId: number, date: string) {
+    const estCielo = await this.filial.findOne(filialId);
+    const vendas = await this.Prisma.cartaoVendas.groupBy({
+      by: [
+        'codigoTransacao',
+        'estabelecimento',
+        'timeVenda',
+        'modalidade',
+        'bandeira',
+        'dataVenda',
+        'taxaAdministrativa',
+      ],
+      where: {
+        estabelecimento: String(estCielo.idCielo),
+        dataVenda: date,
+      },
+      _sum: {
+        valorBruto: true,
+        valorLiquido: true,
+      },
+    });
+    return vendas;
+  }
+  async findSalesTotals(filialId: number, startDate: string, endDate: string) {
+    const estCielo = await this.filial.findOne(filialId);
+    const vendas = await this.Prisma.cartaoVendas.groupBy({
+      by: ['dataVenda', 'estabelecimento'],
+      where: {
+        estabelecimento: String(estCielo.idCielo),
+        dataVenda: { gte: startDate, lte: endDate },
+      },
+      _sum: {
+        valorBruto: true,
+        valorLiquido: true,
+        taxaAdministrativa: true,
+      },
+    });
+    return vendas;
   }
 
   findOne(id: number) {
     return `This action returns a #${id} cielo`;
-  }
-
-  update(id: number, updateCieloDto: UpdateCieloDto) {
-    return `This action updates a #${id} cielo`;
   }
 
   remove(id: number) {

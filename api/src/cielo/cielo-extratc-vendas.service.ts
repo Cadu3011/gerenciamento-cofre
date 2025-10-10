@@ -1,8 +1,10 @@
 // cielo-sales.service.ts
 import { Injectable } from '@nestjs/common';
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { promises as fs, readFileSync } from 'fs';
 export interface SimplifiedSale {
-  dataVenda: Date;
+  dataVenda: string;
+  timeVenda: string;
   // dataCaptura: string;
   // dataLancamento: string;
   valorBruto: number;
@@ -13,6 +15,7 @@ export interface SimplifiedSale {
   estabelecimento: string;
   nsu: string;
   codigoAutorizacao: string;
+  codigoTransacao: string;
 }
 
 export interface SalesSummary {
@@ -24,25 +27,18 @@ export interface SalesSummary {
 
 @Injectable()
 export class CieloTransformSalesService {
-  //   async onModuleInit() {
-  //     const fileContent = readFileSync(
-  //       'C:\\Users\\Liderança\\Desktop\\gerenciamento-cofre\\api\\src\\cielo\\extractFiles\\CIELO03D_0002016567_20250923_20250923_20250923.TXT',
-  //       'utf8',
-  //     );
-  //     const vendas = await this.parseSalesData(fileContent);
-  //     console.log(vendas);
-  //   }
+  // async parseSalesData(fileNames: string[]) {
   async parseSalesData(fileNames: File[]) {
     const vendas: SimplifiedSale[] = [];
 
     for (const fileName of fileNames) {
       const isFileSale = fileName.name.substring(0, 8);
-
+      // const isFileSale = fileName.substring(0, 8);
       if (isFileSale !== 'CIELO03D') {
         continue;
       }
       const filePath = readFileSync(
-        `C:\\Users\\Liderança\\Desktop\\gerenciamento-cofre\\api\\src\\cielo\\extractFiles\\${fileName}`,
+        `C:\\Users\\Liderança\\Desktop\\gerenciamento-cofre\\api\\extractFiles\\${fileName}`,
         'utf8',
       );
       try {
@@ -64,17 +60,6 @@ export class CieloTransformSalesService {
 
     return vendas;
   }
-  private combineDateTime(dateStr: string, timeStr: string): string {
-    // dateStr vem em formato AAAA-MM-DD (já tratado)
-    // timeStr vem como "HHMMSS"
-    if (!dateStr || !timeStr || timeStr.length !== 6) return dateStr;
-
-    const hours = timeStr.substring(0, 2);
-    const minutes = timeStr.substring(2, 4);
-    const seconds = timeStr.substring(4, 6);
-
-    return `${dateStr}T${hours}:${minutes}:${seconds}`; // ISO-8601
-  }
 
   private parseSaleRecord(line: string): SimplifiedSale | null {
     try {
@@ -95,9 +80,10 @@ export class CieloTransformSalesService {
       );
       const dataVenda = this.formatDate(this.extractField(line, 566, 573)); // DDMMAAAA
       const horaVenda = this.extractField(line, 471, 476); // HHMMSS
-      const dataHoraVenda = this.combineDateTime(dataVenda, horaVenda); // ISO-8601
+
       return {
-        dataVenda: new Date(dataHoraVenda), // Data autorização DDMMAAAA
+        dataVenda: dataVenda,
+        timeVenda: horaVenda, // Data autorização DDMMAAAA
         // dataCaptura: this.formatDate(this.extractField(line, 574, 581)),
         // dataLancamento: this.formatDate(this.extractField(line, 582, 589)),
         valorBruto: valorBruto,
@@ -108,6 +94,7 @@ export class CieloTransformSalesService {
         estabelecimento: this.extractField(line, 2, 11),
         nsu: this.extractField(line, 176, 181),
         codigoAutorizacao: this.extractField(line, 22, 27),
+        codigoTransacao: this.extractField(line, 130, 151),
       };
     } catch (error) {
       console.error('Erro ao parsear registro de venda:', error);

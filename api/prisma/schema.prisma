@@ -77,7 +77,8 @@ model Filial{
 
 model CartaoVendas{
   id Int @default(autoincrement()) @id
-  dataVenda DateTime
+  dataVenda String
+  timeVenda String
     valorBruto Decimal
     valorLiquido Decimal
     taxaAdministrativa Decimal
@@ -86,6 +87,7 @@ model CartaoVendas{
     estabelecimento String
     nsu String
     codigoAutorizacao String
+    codigoTransacao String
 }
 model BalanceFisic{
   id Int @default(autoincrement()) @id

@@ -1,8 +1,6 @@
 import {
   Controller,
   Get,
-  Body,
-  Patch,
   Param,
   Delete,
   UseGuards,
@@ -10,7 +8,6 @@ import {
   Query,
 } from '@nestjs/common';
 import { RedeService } from './rede.service';
-import { UpdateRedeDto } from './dto/update-rede.dto';
 import { AuthGuard } from 'src/auth/auth.guard';
 import { Roles } from 'src/auth/role.decorator';
 import { Role } from '@prisma/client';
@@ -42,11 +39,6 @@ export class RedeController {
       startDate,
       endDate,
     );
-  }
-
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() updateRedeDto: UpdateRedeDto) {
-    return this.redeService.update(+id, updateRedeDto);
   }
 
   @Delete(':id')
