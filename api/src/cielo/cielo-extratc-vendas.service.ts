@@ -38,7 +38,7 @@ export class CieloTransformSalesService {
         continue;
       }
       const filePath = readFileSync(
-        `C:\\Users\\Liderança\\Desktop\\gerenciamento-cofre\\api\\extractFiles\\${fileName}`,
+        `C:\\Users\\Liderança\\Desktop\\gerenciamento-cofre\\api\\extractFiles\\${fileName.name}`,
         'utf8',
       );
       try {

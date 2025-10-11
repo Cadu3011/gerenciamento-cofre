@@ -69,6 +69,19 @@ export class CieloService {
   //     await this.cieloTransformSalesService.parseSalesData(fileContent);
   //   await this.create(vendas);
   // }
+  // async onModuleInit() {
+  //   const fileList = await this.uploadExtract(
+  //     '/home/cielo-sftp/uploads',
+  //     'C:\\Users\\Liderança\\Desktop\\gerenciamento-cofre\\api\\extractFiles',
+  //   );
+  //   await this.deleteRemoteFiles('/home/cielo-sftp/uploads');
+  //   if (fileList.length === 0) {
+  //     return;
+  //   }
+  //   const vendas: Prisma.CartaoVendasCreateInput[] =
+  //     await this.cieloTransformSalesService.parseSalesData(fileList);
+  //   await this.create(vendas);
+  // }
 
   @Cron('29 7,8,9 * * 1-7')
   async pipelineETL() {
@@ -76,10 +89,11 @@ export class CieloService {
       '/home/cielo-sftp/uploads',
       'C:\\Users\\Liderança\\Desktop\\gerenciamento-cofre\\api\\extractFiles',
     );
-    // await this.deleteRemoteFiles('/home/cielo-sftp/uploads');
     if (fileList.length === 0) {
       return;
     }
+    await this.deleteRemoteFiles('/home/cielo-sftp/uploads');
+
     const vendas: Prisma.CartaoVendasCreateInput[] =
       await this.cieloTransformSalesService.parseSalesData(fileList);
     await this.create(vendas);
