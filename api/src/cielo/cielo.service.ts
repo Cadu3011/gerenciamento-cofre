@@ -32,12 +32,6 @@ export class CieloService {
     ),
   };
   // async onModuleInit() {
-  //   const fileList = await this.uploadExtract(
-  //     '/home/cielo-sftp/uploads',
-  //     'C:\\Users\\Liderança\\Desktop\\gerenciamento-cofre\\api\\extractFiles',
-  //   );
-  //   await this.deleteRemoteFiles('/home/cielo-sftp/uploads');
-
   //   const fileContent: string[] = listarArquivosSync(
   //     'C:\\Users\\Liderança\\Desktop\\gerenciamento-cofre\\api\\extractFiles',
   //   );
@@ -67,7 +61,16 @@ export class CieloService {
   //   // }
   //   const vendas: Prisma.CartaoVendasCreateInput[] =
   //     await this.cieloTransformSalesService.parseSalesData(fileContent);
-  //   await this.create(vendas);
+  //   const dataAtual = new Date().toISOString().split('T')[0]; // ex: 2025-10-16
+  //   const outputPath = `C:\\Users\\Liderança\\Desktop\\gerenciamento-cofre\\api\\vendas_${dataAtual}.json`;
+
+  //   try {
+  //     // Salva as vendas em formato JSON bonito
+  //     await fs.writeFile(outputPath, JSON.stringify(vendas, null, 2), 'utf8');
+  //     console.log(`✅ Arquivo salvo com sucesso em: ${outputPath}`);
+  //   } catch (err) {
+  //     console.error('❌ Erro ao salvar o arquivo:', err);
+  //   }
   // }
   // async onModuleInit() {
   //   const fileList = await this.uploadExtract(
@@ -83,7 +86,7 @@ export class CieloService {
   //   await this.create(vendas);
   // }
 
-  @Cron('29 7,8,9 * * 1-7')
+  @Cron('56 7,8,9,15 * * 1-7')
   async pipelineETL() {
     const fileList = await this.uploadExtract(
       '/home/cielo-sftp/uploads',
@@ -161,6 +164,7 @@ export class CieloService {
         'bandeira',
         'dataVenda',
         'taxaAdministrativa',
+        'timeVenda',
       ],
       where: {
         estabelecimento: String(estCielo.idCielo),

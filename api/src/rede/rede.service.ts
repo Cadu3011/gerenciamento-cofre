@@ -20,7 +20,7 @@ export class RedeService {
     // Solicita novo token
     const data = await this.auth();
     this.token = data.access_token;
-    this.tokenExpiresAt = now + (data.expires_in - 1) * 60 * 1000;
+    this.tokenExpiresAt = now + (data.expires_in - 5) * 1000;
     return this.token;
   }
   async auth() {
@@ -54,29 +54,66 @@ export class RedeService {
   async findSalesDetails(idRede: number, date: string) {
     const token = await this.getAccessToken();
     const estRede = await this.filial.findOne(idRede);
-    const res = await fetch(
-      `https://api.userede.com.br/redelabs/merchant-statement/v1/sales?parentCompanyNumber=${estRede.idRede}&subsidiaries=${estRede.idRede}&startDate=${date}&endDate=${date}`,
-      {
+
+    const todasTransacoes: any[] = [];
+    let pageKey: string | undefined = undefined;
+
+    while (true) {
+      const url = new URL(
+        `https://api.userede.com.br/redelabs/merchant-statement/v2/sales`,
+      );
+
+      url.searchParams.set('parentCompanyNumber', String(estRede.idRede));
+      url.searchParams.set('subsidiaries', String(estRede.idRede));
+      url.searchParams.set('startDate', date);
+      url.searchParams.set('endDate', date);
+      url.searchParams.set('size', '100');
+
+      if (pageKey) {
+        url.searchParams.set('pageKey', pageKey);
+      }
+
+      const res = await fetch(url.toString(), {
         headers: {
           Authorization: `Bearer ${token}`,
         },
-      },
-    );
-    const vendas = await res.json();
-    return vendas.content.transactions;
-  }
+      });
 
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(`Erro na API Rede: ${res.status} - ${text}`);
+      }
+
+      const vendas = await res.json();
+      const transacoes = vendas?.content?.transactions ?? [];
+
+      todasTransacoes.push(...transacoes);
+
+      // Controle de paginação
+      const nextKey = vendas?.cursor?.nextKey;
+      const hasNext = vendas?.cursor?.hasNextKey;
+
+      if (!hasNext || !nextKey) break;
+
+      pageKey = nextKey;
+    }
+
+    return todasTransacoes;
+  }
   async findSalesTotals(idRede: number, startDate: string, endDate: string) {
     const token = await this.getAccessToken();
     const estRede = await this.filial.findOne(idRede);
     const res = await fetch(
       `https://api.userede.com.br/redelabs/merchant-statement/v2/sales/${estRede.idRede}/summary?startDate=${startDate}&endDate=${endDate}`,
       {
+        method: 'GET',
         headers: {
           Authorization: `Bearer ${token}`,
         },
+        redirect: 'follow',
       },
     );
+
     const vendas = await res.json();
     return vendas.content.sales;
   }

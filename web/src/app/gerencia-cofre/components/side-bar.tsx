@@ -1,6 +1,7 @@
 "use client";
 
 import { handleLogut } from "@/app/api/post";
+import Link from "next/link";
 import { useState } from "react";
 
 export function SideBar({ children }: { children: React.ReactNode }) {
@@ -19,6 +20,12 @@ export function SideBar({ children }: { children: React.ReactNode }) {
           <button className="bg-slate-400 rounded p-2" onClick={submitLogout}>
             sair
           </button>
+        </div>
+        <div className="mt-10 pt-1 pl-2 pb-1 bg-slate-400">
+          <a href="/gerencia-cofre">Gerencar Cofre</a>
+        </div>
+        <div className="mt-10 pt-1 pl-2 pb-1 bg-slate-400">
+          <a href="/gerencia-cofre/gerencia-cartao">Conferir Cartões</a>
         </div>
       </div>
       <div>

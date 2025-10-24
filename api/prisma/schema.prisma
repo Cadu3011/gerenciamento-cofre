@@ -70,6 +70,7 @@ model Filial{
   idBancoDefault Int?
   idCielo Int?
   idRede Int?
+  urlLocalTrier String?
   saldo DailyBalance[] @relation("FiliaAndDayBalancy")
   movements Movimentations[] @relation("FiliaAndMovimentations")
   balanceFisic BalanceFisic[] @relation("FiliaAndBalancyFisic")

@@ -34,9 +34,7 @@ export class CieloTransformSalesService {
     for (const fileName of fileNames) {
       const isFileSale = fileName.name.substring(0, 8);
       // const isFileSale = fileName.substring(0, 8);
-      if (isFileSale !== 'CIELO03D') {
-        continue;
-      }
+
       const filePath = readFileSync(
         `C:\\Users\\Liderança\\Desktop\\gerenciamento-cofre\\api\\extractFiles\\${fileName.name}`,
         'utf8',
@@ -46,8 +44,14 @@ export class CieloTransformSalesService {
 
         for (const line of lines) {
           const recordType = line.charAt(0);
-          if (recordType === 'E') {
+          if (recordType === 'E' && isFileSale === 'CIELO03D') {
             const venda = this.parseSaleRecord(line);
+            if (venda) {
+              vendas.push(venda);
+            }
+          }
+          if (recordType === '8' && isFileSale === 'CIELO04D') {
+            const venda = this.parsePixRecord(line);
             if (venda) {
               vendas.push(venda);
             }
@@ -60,7 +64,38 @@ export class CieloTransformSalesService {
 
     return vendas;
   }
+  private parsePixRecord(line: string): SimplifiedSale | null {
+    try {
+      const valorBruto = this.parseCurrency(this.extractField(line, 75, 87));
+      const valorLiquido = this.parseCurrency(
+        this.extractField(line, 103, 115),
+      );
+      const dataVenda = this.formatDate(this.extractField(line, 14, 19));
+      const horaVenda = this.extractField(line, 20, 25);
+      const codigoTransacao = this.extractField(line, 26, 61);
+      const estabelecimento = this.extractField(line, 2, 11);
+      const taxaAdministrativa = this.parseCurrency(
+        this.extractField(line, 89, 101),
+      );
 
+      return {
+        dataVenda,
+        timeVenda: horaVenda,
+        valorBruto,
+        valorLiquido,
+        taxaAdministrativa: taxaAdministrativa,
+        modalidade: 'Pix',
+        bandeira: 'Pix',
+        estabelecimento,
+        nsu: '',
+        codigoAutorizacao: '',
+        codigoTransacao,
+      };
+    } catch (error) {
+      console.error('Erro ao parsear registro PIX:', error);
+      return null;
+    }
+  }
   private parseSaleRecord(line: string): SimplifiedSale | null {
     try {
       // Extrair apenas campos essenciais
@@ -112,14 +147,23 @@ export class CieloTransformSalesService {
   }
 
   private formatDate(dateStr: string): string {
-    if (!dateStr || dateStr.length !== 8) return dateStr;
-
+    if (!dateStr) return dateStr;
     // Converter de DDMMAAAA para AAAA-MM-DD
-    const day = dateStr.substring(0, 2);
-    const month = dateStr.substring(2, 4);
-    const year = dateStr.substring(4, 8);
+    if (dateStr.length === 8) {
+      const day = dateStr.substring(0, 2);
+      const month = dateStr.substring(2, 4);
+      const year = dateStr.substring(4, 8);
 
-    return `${year}-${month}-${day}`;
+      return `${year}-${month}-${day}`;
+    }
+    // Converter de AAMMDD para AAAA-MM-DD
+    if (dateStr.length === 6) {
+      const day = dateStr.substring(4, 6);
+      const month = dateStr.substring(2, 4);
+      const year = dateStr.substring(0, 2);
+
+      return `20${year}-${month}-${day}`;
+    }
   }
 
   private getModalidade(tipoLancamento: string): string {
