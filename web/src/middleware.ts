@@ -17,14 +17,13 @@ export async function middleware(request: NextRequest) {
   if (!token) return NextResponse.redirect(new URL("/login", request.url));
 
   try {
-    await jwtVerify(token, secret);
-
-    const userData = jwtDecode<UserPayload>(token);
+    const { payload } = await jwtVerify(token, secret);
+    console.log(payload);
 
     // Bloquear rota /admin para não-admins
     if (
       request.nextUrl.pathname.startsWith("/admin") &&
-      userData.roles !== "GESTOR"
+      payload.roles !== "GESTOR"
     ) {
       return NextResponse.redirect(new URL("/unauthorized", request.url));
     }
