@@ -3,7 +3,6 @@ import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import * as Client from 'ssh2-sftp-client';
 import * as fs from 'fs';
 import * as path from 'path';
-import { exec } from 'child_process';
 import { CieloTransformSalesService } from './cielo-extratc-vendas.service';
 import { PrismaService } from 'src/database/prisma.service';
 import { Prisma } from '@prisma/client';
@@ -28,78 +27,34 @@ export class CieloService {
     port: 22,
     username: 'ubuntu',
     privateKey: fs.readFileSync(
-      path.resolve(__dirname, '../../sftpKey/ssh-key-2025-09-12.key'),
+      path.resolve(__dirname, process.env.PATH_SFTP_KEY),
     ),
   };
-  // async onModuleInit() {
-  //   const fileContent: string[] = listarArquivosSync(
-  //     'C:\\Users\\Liderança\\Desktop\\gerenciamento-cofre\\api\\extractFiles',
-  //   );
-  //   console.log(fileContent);
-  //   function listarArquivosSync(pasta) {
-  //     try {
-  //       const arquivos = fs.readdirSync(pasta);
-  //       const listaArquivos = [];
 
-  //       for (const arquivo of arquivos) {
-  //         const caminhoCompleto = path.posix.join(pasta, arquivo);
-  //         const stats = fs.statSync(caminhoCompleto);
-
-  //         if (stats.isFile()) {
-  //           listaArquivos.push(arquivo);
-  //         }
-  //       }
-
-  //       return listaArquivos;
-  //     } catch (error) {
-  //       console.error('Erro ao ler pasta:', error);
-  //       return [];
-  //     }
-  //   }
-  //   // if (fileList.length === 0) {
-  //   //   return;
-  //   // }
-  //   const vendas: Prisma.CartaoVendasCreateInput[] =
-  //     await this.cieloTransformSalesService.parseSalesData(fileContent);
-  //   const dataAtual = new Date().toISOString().split('T')[0]; // ex: 2025-10-16
-  //   const outputPath = `C:\\Users\\Liderança\\Desktop\\gerenciamento-cofre\\api\\vendas_${dataAtual}.json`;
-
-  //   try {
-  //     // Salva as vendas em formato JSON bonito
-  //     await fs.writeFile(outputPath, JSON.stringify(vendas, null, 2), 'utf8');
-  //     console.log(`✅ Arquivo salvo com sucesso em: ${outputPath}`);
-  //   } catch (err) {
-  //     console.error('❌ Erro ao salvar o arquivo:', err);
-  //   }
-  // }
-  // async onModuleInit() {
-  //   const fileList = await this.uploadExtract(
-  //     '/home/cielo-sftp/uploads',
-  //     'C:\\Users\\Liderança\\Desktop\\gerenciamento-cofre\\api\\extractFiles',
-  //   );
-  //   await this.deleteRemoteFiles('/home/cielo-sftp/uploads');
-  //   if (fileList.length === 0) {
-  //     return;
-  //   }
-  //   const vendas: Prisma.CartaoVendasCreateInput[] =
-  //     await this.cieloTransformSalesService.parseSalesData(fileList);
-  //   await this.create(vendas);
-  // }
-
-  @Cron('27 7,8,9,15 * * 1-7')
+  @Cron('14 7,8,9,11 * * 1-7')
   async pipelineETL() {
-    const fileList = await this.uploadExtract(
-      '/home/cielo-sftp/uploads',
-      'C:\\Users\\Liderança\\Desktop\\gerenciamento-cofre\\api\\extractFiles',
-    );
-    if (fileList.length === 0) {
-      return;
-    }
-    await this.deleteRemoteFiles('/home/cielo-sftp/uploads');
+    try {
+      const fileList = await this.uploadExtract(
+        process.env.PATH_VM_CIELO_UPLOADS,
+        process.env.PATH_LOCAL_UPLOADS,
+      );
 
-    const vendas: Prisma.CartaoVendasCreateInput[] =
-      await this.cieloTransformSalesService.parseSalesData(fileList);
-    await this.create(vendas);
+      if (fileList.length === 0) {
+        this.logger.log('Nenhum arquivo encontrado. Processo encerrado.');
+        return;
+      }
+
+      const vendas: Prisma.CartaoVendasCreateInput[] =
+        await this.cieloTransformSalesService.parseSalesData(fileList);
+
+      await this.create(vendas);
+
+      this.logger.log('✅ Vendas processadas e salvas com sucesso.');
+
+      await this.deleteRemoteFiles(process.env.PATH_VM_CIELO_UPLOADS);
+    } catch (error) {
+      this.logger.error('❌ Erro durante o pipeline ETL:', error);
+    }
   }
 
   async uploadExtract(remoteSourceDir: string, localDir: string) {
@@ -133,21 +88,34 @@ export class CieloService {
     }
   }
   async deleteRemoteFiles(remoteDir: string) {
-    return new Promise<void>((resolve, reject) => {
-      // Comando SSH remoto para deletar todos os arquivos da pasta
-      const cmd = `ssh -i C:\\Users\\Liderança\\Downloads\\ssh-key-2025-09-12.key ubuntu@152.70.222.12 "sudo rm -f ${remoteDir}/*"`;
+    // return new Promise<void>((resolve, reject) => {
+    //   // Comando SSH remoto para deletar todos os arquivos da pasta
+    //   const cmd = `ssh -i C:\\Users\\Liderança\\Downloads\\ssh-key-2025-09-12.key ubuntu@152.70.222.12 "sudo rm -f ${remoteDir}/*"`;
 
-      exec(cmd, (error, stdout, stderr) => {
-        if (error) {
-          this.logger.error('❌ Erro ao deletar arquivos via SSH', error);
-          return reject(error);
-        }
-        if (stderr) this.logger.warn('⚠️ SSH stderr: ' + stderr);
+    //   exec(cmd, (error, stdout, stderr) => {
+    //     if (error) {
+    //       this.logger.error('❌ Erro ao deletar arquivos via SSH', error);
+    //       return reject(error);
+    //     }
+    //     if (stderr) this.logger.warn('⚠️ SSH stderr: ' + stderr);
 
-        this.logger.log('🗑️ Arquivos deletados com sucesso via SSH');
-        resolve();
-      });
-    });
+    //     this.logger.log('🗑️ Arquivos deletados com sucesso via SSH');
+    //     resolve();
+    //   });
+    // });
+    try {
+      await this.sftp.connect(this.config);
+      const files = await this.sftp.list(remoteDir);
+      for (const file of files) {
+        await this.sftp.delete(path.posix.join(remoteDir, file.name));
+        this.logger.log(`🗑️ Deletado: ${file.name}`);
+      }
+    } catch (error) {
+      this.logger.error('❌ Erro ao deletar arquivos via SFTP', error);
+    } finally {
+      await this.sftp.end();
+      this.logger.log('🔌 Conexão encerrada após deleção.');
+    }
   }
   create(data: Prisma.CartaoVendasCreateInput[]) {
     return this.Prisma.cartaoVendas.createMany({ data: data });
