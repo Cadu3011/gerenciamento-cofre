@@ -3,8 +3,8 @@ export interface authData {
   login: string;
   password: string;
 }
-export async function authTrier(authData: authData) {
-  const urlTrier = 'farmargrande2.dyndns.org';
+export async function authTrier(authData: authData, urlTrier?: string) {
+  if (!urlTrier) urlTrier = 'farmargrande2.dyndns.org';
   let browser;
   try {
     const browser = await chromium.launch({

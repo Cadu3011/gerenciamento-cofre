@@ -86,8 +86,12 @@ export async function handlePostLogin(formData: FormData) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   });
-  console.log(response.status)
-  if (response.status === 500 || response.status === 404 || response.status === 401) {
+  console.log(response.status);
+  if (
+    response.status === 500 ||
+    response.status === 404 ||
+    response.status === 401
+  ) {
     return { data: "dados invalidos" };
   }
   const token = await response.json();
@@ -104,6 +108,7 @@ export async function handlePostLogin(formData: FormData) {
 }
 export async function handleLogut() {
   (await cookies()).delete("access_token");
+  (await cookies()).delete("tokenLocalTrier");
   redirect("/login");
 }
 export async function handleFormBalanceFisic(formData: FormData) {

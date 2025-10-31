@@ -68,11 +68,28 @@ model Filial{
   user User[] @relation("FiliaAndlUser")
   idCofreTrier Int?
   idBancoDefault Int?
+  idCielo String?
+  idRede String?
+  urlLocalTrier String?
   saldo DailyBalance[] @relation("FiliaAndDayBalancy")
   movements Movimentations[] @relation("FiliaAndMovimentations")
   balanceFisic BalanceFisic[] @relation("FiliaAndBalancyFisic")
 }
 
+model CartaoVendas{
+  id Int @default(autoincrement()) @id
+  dataVenda String
+  timeVenda String
+    valorBruto Decimal
+    valorLiquido Decimal
+    taxaAdministrativa Decimal
+    modalidade String
+    bandeira String
+    estabelecimento String
+    nsu String
+    codigoAutorizacao String
+    codigoTransacao String
+}
 model BalanceFisic{
   id Int @default(autoincrement()) @id
   value_100_50 Decimal  @db.Decimal(9,2) @default(0)

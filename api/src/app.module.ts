@@ -9,6 +9,9 @@ import { FilialModule } from './filial/filial.module';
 import { AmountModule } from './amount/amount.module';
 import { BalanceFisicModule } from './balance-fisic/balance-fisic.module';
 import { ScheduleModule } from '@nestjs/schedule';
+import { RedeModule } from './rede/rede.module';
+import { CieloModule } from './cielo/cielo.module';
+import { TrierModule } from './trier/trier.module';
 
 @Module({
   imports: [
@@ -20,6 +23,9 @@ import { ScheduleModule } from '@nestjs/schedule';
     FilialModule,
     AmountModule,
     BalanceFisicModule,
+    RedeModule,
+    CieloModule,
+    TrierModule,
   ],
   controllers: [AppController],
   providers: [AppService],

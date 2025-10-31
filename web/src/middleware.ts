@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { jwtDecode } from "jwt-decode";
 import { cookies } from "next/headers";
+import { jwtVerify } from "jose";
 interface UserPayload {
   sub: number;
   roles: string;
@@ -9,18 +9,19 @@ interface UserPayload {
   iat: number;
   exp: number;
 }
+const secret = new TextEncoder().encode(process.env.JWT_SECRET);
 export async function middleware(request: NextRequest) {
   const token = (await cookies()).get("access_token")?.value;
 
   if (!token) return NextResponse.redirect(new URL("/login", request.url));
 
   try {
-    const userData = jwtDecode<UserPayload>(token);
+    const { payload } = await jwtVerify(token, secret);
 
     // Bloquear rota /admin para não-admins
     if (
       request.nextUrl.pathname.startsWith("/admin") &&
-      userData.roles !== "GESTOR"
+      payload.roles !== "GESTOR"
     ) {
       return NextResponse.redirect(new URL("/unauthorized", request.url));
     }
@@ -32,5 +33,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/admin/:path*"],
+  matcher: ["/admin/:path*", "/gerencia-cofre/:path*"],
 };
