@@ -2,8 +2,8 @@ import { getDetailsCielo } from "@/app/api/cartao/cielo";
 import { getDetailsRede } from "@/app/api/cartao/rede";
 import { getDetailsTrier } from "@/app/api/cartao/trier";
 
-type params = {
-  date: string;
+type SearchParams = {
+  diferenca: string | number;
 };
 const cardBrands = [
   { brandCode: 1, brand: "Mastercard" },
@@ -72,22 +72,26 @@ const cardBrands = [
 
 export default async function ListDetails({
   params,
+  searchParams,
 }: {
   params: Promise<{ date: string }>;
+  searchParams: Promise<SearchParams>;
 }) {
+  const { diferenca } = await searchParams;
+
   const { date } = await params;
   const cieloDetails = await getDetailsCielo(date);
   const redeDetails = await getDetailsRede(date);
   const trierDetails = await getDetailsTrier(date);
 
-  const redeDetailsFormat = redeDetails.map((move) => ({
+  const redeDetailsFormat = redeDetails.map((move: any) => ({
     hora: move.saleHour,
     valor: move.amount,
     adq: "rede",
     modalidade: move.modality.type,
     bandeira: cardBrands.find((c) => c.brandCode === move.brandCode)?.brand,
   }));
-  const cieloDetailsFormat = cieloDetails.map((move) => {
+  const cieloDetailsFormat = cieloDetails.map((move: any) => {
     const hora = move.timeVenda.slice(0, 2);
     const min = move.timeVenda.slice(2, 4);
     const seg = move.timeVenda.slice(4, 6);
@@ -114,7 +118,7 @@ export default async function ListDetails({
   const LIMITE_DIFERENCA = 300;
 
   const conciliacaoAdq = adquirentesOrdenation.map((adq) => {
-    const trierMatch = trierDetails.find((t) => {
+    const trierMatch = trierDetails.find((t: any) => {
       if (Number(t.valor) !== adq.valor) return false;
       if (!t.hora || !adq.hora) return false;
 
@@ -126,7 +130,7 @@ export default async function ListDetails({
     });
     return { ...adq, match: trierMatch };
   });
-  const conciliacaoTrier = trierDetails.map((t) => {
+  const conciliacaoTrier = trierDetails.map((t: any) => {
     const adqMatch = adquirentesOrdenation.find((adq) => {
       if (adq.valor !== Number(t.valor)) return false;
       if (!t.hora || !adq.hora) return false;
@@ -139,97 +143,104 @@ export default async function ListDetails({
     });
     return { ...t, match: adqMatch };
   });
-  console.log(conciliacaoAdq[3], conciliacaoTrier[3]);
 
   return (
-    <div className="w-full h-[600px] overflow-y-auto border">
-      <div className="flex w-full min-w-max">
-        {/* Tabela Trier */}
-        <table className="w-full border-collapse">
-          <thead className="bg-blue-800 text-white sticky top-0 z-10">
-            <tr>
-              <th className="border border-gray-300 " colSpan={5}>
-                Trier
-              </th>
-              <th className="border border-gray-300 " colSpan={5}>
-                Adquirentes
-              </th>
-            </tr>
-            <tr>
-              <th className="border border-gray-300 ">Codigo Venda</th>
-              <th className="border border-gray-300 ">Modalidade</th>
-              <th className="border border-gray-300 ">Bandeira</th>
-              <th className="border border-gray-300 ">Hora Trier</th>
-              <th className="border border-gray-300 ">Valor Trier</th>
-              <th className="border border-gray-300 ">Hora adquirentes</th>
-              <th className="border border-gray-300 ">Valor Adquirentes</th>
+    <div className="flex flex-col justify-center items-center w-full">
+      <div className=" gap-2 w-full px-10 pt-5 bg-blue-800 text-white font-bold">
+        <p className="text-3xl">Data: {date}</p>
+        <p className="text-3xl">
+          Diferença encontrada: R${Number(diferenca).toFixed(2)}
+        </p>
+      </div>
+      <div className="w-full h-[600px] overflow-y-auto border">
+        <div className="flex w-full min-w-max">
+          {/* Tabela Trier */}
+          <table className="w-full border-collapse">
+            <thead className="bg-blue-800 text-white sticky top-0 z-10">
+              <tr>
+                <th className="border border-gray-300 " colSpan={5}>
+                  Trier
+                </th>
+                <th className="border border-gray-300 " colSpan={5}>
+                  Adquirentes
+                </th>
+              </tr>
+              <tr>
+                <th className="border border-gray-300 ">Codigo Venda</th>
+                <th className="border border-gray-300 ">Modalidade</th>
+                <th className="border border-gray-300 ">Bandeira</th>
+                <th className="border border-gray-300 ">Hora Trier</th>
+                <th className="border border-gray-300 ">Valor Trier</th>
+                <th className="border border-gray-300 ">Hora adquirentes</th>
+                <th className="border border-gray-300 ">Valor Adquirentes</th>
 
-              <th className="border border-gray-300 ">Adquirente</th>
-              <th className="border border-gray-300 ">Modalidade</th>
-              <th className="border border-gray-300 ">Bandeira</th>
-            </tr>
-          </thead>
-          <tbody>
-            {conciliacaoTrier.map((move, i) => {
-              const semMatchTrier = !move.match;
-              const semMatchAdq = !conciliacaoAdq[i]?.match;
+                <th className="border border-gray-300 ">Adquirente</th>
+                <th className="border border-gray-300 ">Modalidade</th>
+                <th className="border border-gray-300 ">Bandeira</th>
+              </tr>
+            </thead>
+            <tbody>
+              {conciliacaoTrier.map((move: any, i: any) => {
+                const semMatchTrier = !move.match;
+                const semMatchAdq = !conciliacaoAdq[i]?.match;
 
-              return (
-                <tr key={i} className="text-center">
-                  {/* Trier */}
-                  <td className={semMatchTrier ? "bg-red-500" : ""}>
-                    {move.idVenda}
-                  </td>
-                  <td className={semMatchTrier ? "bg-red-500" : ""}>
-                    {move.modalidade}
-                  </td>
-                  <td className={semMatchTrier ? "bg-red-500" : ""}>
-                    {move.bandeira}
-                  </td>
-                  <td
-                    className={`bg-blue-100 ${
-                      semMatchTrier ? "bg-red-500 text-white" : ""
-                    }`}
-                  >
-                    {move.hora}
-                  </td>
-                  <td
-                    className={`bg-blue-100 ${
-                      semMatchTrier ? "bg-red-500 text-white" : ""
-                    }`}
-                  >
-                    {move.valor}
-                  </td>
+                return (
+                  <tr key={i} className="text-center">
+                    {/* Trier */}
+                    <td className={semMatchTrier ? "bg-red-500" : ""}>
+                      {move.idVenda}
+                    </td>
+                    <td className={semMatchTrier ? "bg-red-500" : ""}>
+                      {move.modalidade}
+                    </td>
+                    <td className={semMatchTrier ? "bg-red-500" : ""}>
+                      {move.bandeira}
+                    </td>
+                    <td
+                      className={`bg-blue-100 ${
+                        semMatchTrier ? "bg-red-500 text-white" : ""
+                      }`}
+                    >
+                      {move.hora}
+                    </td>
+                    <td
+                      className={`bg-blue-100 border-r-black border ${
+                        semMatchTrier ? "bg-red-500 text-white" : ""
+                      }`}
+                    >
+                      {Number(move.valor).toFixed(2)}
+                    </td>
 
-                  {/* Adquirente */}
-                  <td
-                    className={`bg-blue-100 ${
-                      semMatchAdq ? "bg-yellow-500 text-black" : ""
-                    }`}
-                  >
-                    {conciliacaoAdq[i]?.hora}
-                  </td>
-                  <td
-                    className={`bg-blue-100 ${
-                      semMatchAdq ? "bg-yellow-500 text-black" : ""
-                    }`}
-                  >
-                    {conciliacaoAdq[i]?.valor}
-                  </td>
-                  <td className={semMatchAdq ? "bg-yellow-500" : ""}>
-                    {conciliacaoAdq[i]?.adq}
-                  </td>
-                  <td className={semMatchAdq ? "bg-yellow-500" : ""}>
-                    {conciliacaoAdq[i]?.modalidade}
-                  </td>
-                  <td className={semMatchAdq ? "bg-yellow-500" : ""}>
-                    {conciliacaoAdq[i]?.bandeira}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+                    {/* Adquirente */}
+                    <td
+                      className={`bg-blue-100  border-l-black border${
+                        semMatchAdq ? "bg-yellow-500 text-black" : ""
+                      }`}
+                    >
+                      {conciliacaoAdq[i]?.hora}
+                    </td>
+                    <td
+                      className={`bg-blue-100 ${
+                        semMatchAdq ? "bg-yellow-500 text-black" : ""
+                      }`}
+                    >
+                      {Number(conciliacaoAdq[i]?.valor).toFixed(2)}
+                    </td>
+                    <td className={semMatchAdq ? "bg-yellow-500" : ""}>
+                      {conciliacaoAdq[i]?.adq}
+                    </td>
+                    <td className={semMatchAdq ? "bg-yellow-500" : ""}>
+                      {conciliacaoAdq[i]?.modalidade}
+                    </td>
+                    <td className={semMatchAdq ? "bg-yellow-500" : ""}>
+                      {conciliacaoAdq[i]?.bandeira}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );

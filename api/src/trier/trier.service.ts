@@ -13,23 +13,22 @@ export class TrierService {
     startDate: string,
     endDate: string,
   ) {
-    // === Buscar Vendas ===
-    const resVendas = await fetch(
-      `http://${urlLocalTrier}:4647/sgfpod1/rest/integracao/parcelas-cartao/obter-todos-v1?primeiroRegistro=0&dataEmissaoInicial=${startDate}&dataEmissaoFinal=${endDate}`,
-      {
-        method: 'GET',
-        headers: { Authorization: `Bearer ${tokenLocalTrier}` },
-      },
-    );
-
-    // === Buscar Devoluções ===
-    const resDev = await fetch(
-      `http://${urlLocalTrier}:4647/sgfpod1/rest/integracao/venda/cancelamento/obter-todos-v1?primeiroRegistro=0&quantidadeRegistros=999&dataEmissaoInicial=${startDate}&dataEmissaoFinal=${endDate}`,
-      {
-        method: 'GET',
-        headers: { Authorization: `Bearer ${tokenLocalTrier}` },
-      },
-    );
+    const [resVendas, resDev] = await Promise.all([
+      fetch(
+        `http://${urlLocalTrier}:4647/sgfpod1/rest/integracao/parcelas-cartao/obter-todos-v1?primeiroRegistro=0&dataEmissaoInicial=${startDate}&dataEmissaoFinal=${endDate}`,
+        {
+          method: 'GET',
+          headers: { Authorization: `Bearer ${tokenLocalTrier}` },
+        },
+      ),
+      fetch(
+        `http://${urlLocalTrier}:4647/sgfpod1/rest/integracao/venda/cancelamento/obter-todos-v1?primeiroRegistro=0&quantidadeRegistros=999&dataEmissaoInicial=${startDate}&dataEmissaoFinal=${endDate}`,
+        {
+          method: 'GET',
+          headers: { Authorization: `Bearer ${tokenLocalTrier}` },
+        },
+      ),
+    ]);
 
     const totalsSales = await resVendas.json();
     const totalsDev = await resDev.json();
@@ -101,7 +100,6 @@ export class TrierService {
   ) {
     const headers = { Authorization: `Bearer ${tokenLocalTrier}` };
 
-    // Fetch de vendas, devoluções e parcelas
     const [resVendas, resDev, resParcelas] = await Promise.all([
       fetch(
         `http://${urlLocalTrier}:4647/sgfpod1/rest/integracao/venda/obter-todos-v1?primeiroRegistro=0&quantidadeRegistros=999&dataEmissaoInicial=${date}&dataEmissaoFinal=${date}`,
@@ -197,12 +195,6 @@ export class TrierService {
         bandeira: vendaParc.bandeira,
       };
     });
-
-    // --- Calcular total geral (opcional) ---
-    const totalGeral = listaFinal.reduce(
-      (acc, v) => acc.plus(v.valor),
-      new Decimal(0),
-    );
 
     return listaFinal;
   }

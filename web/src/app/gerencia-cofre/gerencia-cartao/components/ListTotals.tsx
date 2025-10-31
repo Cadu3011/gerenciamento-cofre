@@ -1,5 +1,6 @@
 import Decimal from "decimal.js";
 import Link from "next/link";
+import { useState } from "react";
 
 interface Props {
   totalsRede: any[];
@@ -12,6 +13,7 @@ export default function ListTotals({
   totalsTrier,
   totalsCielo,
 }: Props) {
+  const [loading, setLoading] = useState<string | null>(null);
   const datasUnicas = Array.from(
     new Set([
       ...totalsRede.map((t) => t.startDate),
@@ -76,17 +78,55 @@ export default function ListTotals({
               <td className="text-green-900 h-10">
                 {Number(item.totalsCielo?._sum.valorBruto).toFixed(2) ?? "-"}
               </td>
-              <td className="text-green-900">
+              <td
+                className={
+                  Number(item.valorTotal) > 0
+                    ? "text-red-500"
+                    : Number(item.valorTotal) < 0
+                    ? "text-yellow-500"
+                    : "text-green-600"
+                }
+              >
                 {Number(String(item.valorTotal)).toFixed(2) ?? "-"}
               </td>
 
-              <td className="">
-                <Link
-                  href={`/gerencia-cofre/gerencia-cartao/details/${item.data}`}
-                  className=""
-                >
-                  <button className=" p-3 text-center">...</button>
-                </Link>
+              <td className="flex justify-center items-center">
+                {loading === item.data ? (
+                  <svg
+                    className="animate-spin h-5 w-5 text-blue-500 "
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    ></circle>
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                    ></path>
+                  </svg>
+                ) : (
+                  <Link
+                    href={`/gerencia-cofre/gerencia-cartao/details/${item.data}?diferenca=${item.valorTotal}`}
+                    className=""
+                  >
+                    <button
+                      className=" p-3 text-center"
+                      onClick={() => {
+                        setLoading(item.data);
+                      }}
+                    >
+                      ...
+                    </button>
+                  </Link>
+                )}
               </td>
             </tr>
           ))}

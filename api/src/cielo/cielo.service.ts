@@ -86,7 +86,7 @@ export class CieloService {
   //   await this.create(vendas);
   // }
 
-  @Cron('56 7,8,9,15 * * 1-7')
+  @Cron('27 7,8,9,15 * * 1-7')
   async pipelineETL() {
     const fileList = await this.uploadExtract(
       '/home/cielo-sftp/uploads',

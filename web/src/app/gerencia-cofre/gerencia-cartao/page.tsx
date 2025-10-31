@@ -8,7 +8,7 @@ export default async function GerenciaCartao() {
   )?.value;
 
   return (
-    <div className="w-full">
+    <div className="w-full py-5">
       {token !== undefined ? <FormTotals /> : <LoginFormTrier token={token} />}
     </div>
   );
