@@ -68,8 +68,8 @@ model Filial{
   user User[] @relation("FiliaAndlUser")
   idCofreTrier Int?
   idBancoDefault Int?
-  idCielo Int?
-  idRede Int?
+  idCielo String?
+  idRede String?
   urlLocalTrier String?
   saldo DailyBalance[] @relation("FiliaAndDayBalancy")
   movements Movimentations[] @relation("FiliaAndMovimentations")

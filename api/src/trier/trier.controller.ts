@@ -75,6 +75,7 @@ export class TrierController {
     const filial = await this.prisma.filial.findUnique({
       where: { id: filialUser.filialId },
     });
+
     return {
       tokenLocalTrier: await authTrier(credentials, filial.urlLocalTrier),
     };

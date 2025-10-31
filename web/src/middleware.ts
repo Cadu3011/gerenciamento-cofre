@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { jwtDecode } from "jwt-decode";
 import { cookies } from "next/headers";
 import { jwtVerify } from "jose";
 interface UserPayload {
@@ -18,7 +17,6 @@ export async function middleware(request: NextRequest) {
 
   try {
     const { payload } = await jwtVerify(token, secret);
-    console.log(payload);
 
     // Bloquear rota /admin para não-admins
     if (
