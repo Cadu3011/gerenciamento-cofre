@@ -24,7 +24,7 @@ export class MovementService implements OnModuleInit {
   async onModuleInit() {
     // await this.getVendasCaixasTrier();
   }
-  @Cron('29 6,14 * * 1-7')
+  @Cron('5,38 6,8,9,11 * * 1-7')
   async getVendasCaixasTrier() {
     const lastDate = await this.Prisma.movimentations.findFirst({
       where: {
