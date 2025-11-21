@@ -36,7 +36,7 @@ export class CieloTransformSalesService {
       // const isFileSale = fileName.substring(0, 8);
 
       const filePath = readFileSync(
-        `C:\\Users\\Liderança\\Desktop\\gerenciamento-cofre\\api\\extractFiles\\${fileName.name}`,
+        `${process.env.PATH_LOCAL_UPLOADS}\\${fileName.name}`,
         'utf8',
       );
       try {

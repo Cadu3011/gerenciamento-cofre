@@ -31,7 +31,7 @@ export class CieloService {
     ),
   };
 
-  @Cron('14 7,8,9,11 * * 1-7')
+  @Cron('18 7,8,9,10 * * 1-7')
   async pipelineETL() {
     try {
       const fileList = await this.uploadExtract(

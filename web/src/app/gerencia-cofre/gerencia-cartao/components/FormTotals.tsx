@@ -31,12 +31,20 @@ export default function FormTotals() {
     const fetchTotalsLastDays = async () => {
       setLoading(true);
       const dataAtual = new Date();
-      const year = dataAtual.getUTCFullYear();
-      const month = dataAtual.getUTCMonth() + 1;
-      const day = dataAtual.getUTCDate();
-      const startDateFormat = `${year}-${month}-${day - 7}`;
-      const endDateFormat = `${year}-${month}-${day - 1}`;
-      console.log(startDateFormat);
+      const dataInicio = new Date(dataAtual)
+      dataInicio.setDate(dataAtual.getDate()-7)
+
+      const dataFim = new Date(dataAtual)
+      dataFim.setDate(dataAtual.getDate() -1)
+
+      const formatDate = (date:Date)=>{
+        const y = date.getFullYear()
+        const m = String(date.getMonth()+1).padStart(2, "0")
+        const d = String(date.getDate()).padStart(2, "0")
+        return `${y}-${m}-${d}`
+      }
+      const startDateFormat = formatDate(dataInicio)
+      const endDateFormat = formatDate(dataFim)
       const resTrier = await getTotalsTrier(startDateFormat, endDateFormat);
       const resRede = await getTotalsRede(startDateFormat, endDateFormat);
       const resCielo = await getTotalsCielo(startDateFormat, endDateFormat);
