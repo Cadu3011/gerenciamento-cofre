@@ -39,7 +39,7 @@ export async function authTrier(authData: authData, urlTrier?: string) {
     return token;
   } catch (error) {
     console.log(error);
-    return error;
+    throw new Error(error);
   } finally {
     await browser?.close();
   }

@@ -183,7 +183,7 @@ export class TrierService {
     }
 
     // --- Unir com vendasMenosDevs (adicionando hora) ---
-    const listaFinal = listaVendas.map((vendaParc) => {
+    const listaFinalVendasCartao = listaVendas.map((vendaParc) => {
       const match = vendasMenosDevs.find(
         (v) => String(v.idVenda) === String(vendaParc.documentoFiscal),
       );
@@ -195,7 +195,22 @@ export class TrierService {
         bandeira: vendaParc.bandeira,
       };
     });
-
-    return listaFinal;
+    const listaDevolucoes = devFormat.map((dev) => ({
+      idVenda: dev.idVenda,
+      valor: dev.valor,
+      hora: dev.hora,
+      modalidade: 'DEVOLUCAO',
+      bandeira: null,
+      tipo: 'DEVOLUCAO',
+    }));
+    console.log(listaDevolucoes);
+    const resultado = [...listaFinalVendasCartao, ...listaDevolucoes].sort(
+      (a, b) => {
+        if (!a.hora) return 1;
+        if (!b.hora) return -1;
+        return a.hora.localeCompare(b.hora);
+      },
+    );
+    return resultado;
   }
 }
