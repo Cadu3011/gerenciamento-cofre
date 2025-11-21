@@ -83,7 +83,6 @@ export default async function ListDetails({
   const cieloDetails = await getDetailsCielo(date);
   const redeDetails = await getDetailsRede(date);
   const trierDetails = await getDetailsTrier(date);
-
   const redeDetailsFormat = redeDetails.map((move: any) => ({
     hora: move.saleHour,
     valor: move.amount,
@@ -155,91 +154,115 @@ export default async function ListDetails({
       <div className="w-full h-[600px] overflow-y-auto border">
         <div className="flex w-full min-w-max">
           {/* Tabela Trier */}
-          <table className="w-full border-collapse">
-            <thead className="bg-blue-800 text-white sticky top-0 z-10">
-              <tr>
-                <th className="border border-gray-300 " colSpan={5}>
-                  Trier
-                </th>
-                <th className="border border-gray-300 " colSpan={5}>
-                  Adquirentes
-                </th>
-              </tr>
-              <tr>
-                <th className="border border-gray-300 ">Codigo Venda</th>
-                <th className="border border-gray-300 ">Modalidade</th>
-                <th className="border border-gray-300 ">Bandeira</th>
-                <th className="border border-gray-300 ">Hora Trier</th>
-                <th className="border border-gray-300 ">Valor Trier</th>
-                <th className="border border-gray-300 ">Hora adquirentes</th>
-                <th className="border border-gray-300 ">Valor Adquirentes</th>
+          <div className="flex w-full  px-4">
+            {/* ====================== TABELA TRIER ====================== */}
+            <table className="w-1/2 border-collapse border">
+              <thead className="bg-blue-800 text-white sticky top-0">
+                <tr>
+                  <th colSpan={5} className="border">
+                    Trier
+                  </th>
+                </tr>
+                <tr>
+                  <th className="border p-1">Cod Venda</th>
+                  <th className="border p-1">Modalidade</th>
+                  <th className="border p-1">Bandeira</th>
+                  <th className="border p-1">Hora</th>
+                  <th className="border p-1">Valor</th>
+                </tr>
+              </thead>
 
-                <th className="border border-gray-300 ">Adquirente</th>
-                <th className="border border-gray-300 ">Modalidade</th>
-                <th className="border border-gray-300 ">Bandeira</th>
-              </tr>
-            </thead>
-            <tbody>
-              {conciliacaoTrier.map((move: any, i: any) => {
-                const semMatchTrier = !move.match;
-                const semMatchAdq = !conciliacaoAdq[i]?.match;
+              <tbody>
+                {conciliacaoTrier.map((t: any, idx: number) => {
+                  const semMatch = !t.match;
 
-                return (
-                  <tr key={i} className="text-center">
-                    {/* Trier */}
-                    <td className={semMatchTrier ? "bg-red-500" : ""}>
-                      {move.idVenda}
-                    </td>
-                    <td className={semMatchTrier ? "bg-red-500" : ""}>
-                      {move.modalidade}
-                    </td>
-                    <td className={semMatchTrier ? "bg-red-500" : ""}>
-                      {move.bandeira}
-                    </td>
-                    <td
-                      className={`bg-blue-100 ${
-                        semMatchTrier ? "bg-red-500 text-white" : ""
-                      }`}
-                    >
-                      {move.hora}
-                    </td>
-                    <td
-                      className={`bg-blue-100 border-r-black border ${
-                        semMatchTrier ? "bg-red-500 text-white" : ""
-                      }`}
-                    >
-                      {Number(move.valor).toFixed(2)}
-                    </td>
+                  return (
+                    <tr key={idx} className="text-center">
+                      <td className={semMatch ? "bg-red-600 text-white" : ""}>
+                        {t.idVenda}
+                      </td>
+                      <td className={semMatch ? "bg-red-600 text-white" : ""}>
+                        {t.modalidade}
+                      </td>
+                      <td className={semMatch ? "bg-red-600 text-white" : ""}>
+                        {t.bandeira}
+                      </td>
+                      <td className={semMatch ? "bg-red-600 text-white" : ""}>
+                        {t.hora}
+                      </td>
+                      <td className={semMatch ? "bg-red-600 text-white" : ""}>
+                        {Number(t.valor).toFixed(2)}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
 
-                    {/* Adquirente */}
-                    <td
-                      className={`bg-blue-100  border-l-black border${
-                        semMatchAdq ? "bg-yellow-500 text-black" : ""
-                      }`}
-                    >
-                      {conciliacaoAdq[i]?.hora}
-                    </td>
-                    <td
-                      className={`bg-blue-100 ${
-                        semMatchAdq ? "bg-yellow-500 text-black" : ""
-                      }`}
-                    >
-                      {Number(conciliacaoAdq[i]?.valor).toFixed(2)}
-                    </td>
-                    <td className={semMatchAdq ? "bg-yellow-500" : ""}>
-                      {conciliacaoAdq[i]?.adq}
-                    </td>
-                    <td className={semMatchAdq ? "bg-yellow-500" : ""}>
-                      {conciliacaoAdq[i]?.modalidade}
-                    </td>
-                    <td className={semMatchAdq ? "bg-yellow-500" : ""}>
-                      {conciliacaoAdq[i]?.bandeira}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+            {/* ====================== TABELA ADQUIRENTES ====================== */}
+            <table className="w-1/2 border-collapse border">
+              <thead className="bg-blue-800 text-white sticky top-0">
+                <tr>
+                  <th colSpan={5} className="border">
+                    Adquirentes
+                  </th>
+                </tr>
+                <tr>
+                  <th className="border p-1">Hora</th>
+                  <th className="border p-1">Valor</th>
+                  <th className="border p-1">Adq</th>
+                  <th className="border p-1">Modalidade</th>
+                  <th className="border p-1">Bandeira</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {conciliacaoAdq.map((adq: any, idx: number) => {
+                  const semMatch = !adq.match;
+
+                  return (
+                    <tr key={idx} className="text-center">
+                      <td
+                        className={
+                          semMatch ? "bg-yellow-400 text-black font-bold" : ""
+                        }
+                      >
+                        {adq.hora}
+                      </td>
+                      <td
+                        className={
+                          semMatch ? "bg-yellow-400 text-black font-bold" : ""
+                        }
+                      >
+                        {Number(adq.valor).toFixed(2)}
+                      </td>
+                      <td
+                        className={
+                          semMatch ? "bg-yellow-400 text-black font-bold" : ""
+                        }
+                      >
+                        {adq.adq}
+                      </td>
+                      <td
+                        className={
+                          semMatch ? "bg-yellow-400 text-black font-bold" : ""
+                        }
+                      >
+                        {adq.modalidade}
+                      </td>
+                      <td
+                        className={
+                          semMatch ? "bg-yellow-400 text-black font-bold" : ""
+                        }
+                      >
+                        {adq.bandeira}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>

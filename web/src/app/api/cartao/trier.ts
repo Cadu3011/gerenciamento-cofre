@@ -37,7 +37,7 @@ export async function getDetailsTrier(date: string) {
   });
 
   const totalTrier = await res.json();
-  console.log(totalTrier);
+
   return totalTrier;
 }
 export async function LoginTrier(formData: FormData) {
@@ -56,7 +56,7 @@ export async function LoginTrier(formData: FormData) {
     },
     body: JSON.stringify(data),
   });
-  console.log(response.status);
+
   if (
     response.status === 500 ||
     response.status === 404 ||
