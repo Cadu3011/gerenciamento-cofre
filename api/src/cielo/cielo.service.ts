@@ -132,7 +132,6 @@ export class CieloService {
         'bandeira',
         'dataVenda',
         'taxaAdministrativa',
-        'timeVenda',
       ],
       where: {
         estabelecimento: String(estCielo.idCielo),

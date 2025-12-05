@@ -133,7 +133,11 @@ export class TrierService {
     });
 
     const devFormat = devolucoes
-      .filter((dev) => dev.condicaoPagamento.codigo === 6)
+      .filter(
+        (dev) =>
+          dev.condicaoPagamento.codigo === 6 ||
+          dev.condicaoPagamento.codigo === 8,
+      )
       .map((dev) => {
         const idDev = dev.numeroNotaOrigem;
         const hora = dev.horaEmissao.split('-')[0];
@@ -203,7 +207,7 @@ export class TrierService {
       bandeira: null,
       tipo: 'DEVOLUCAO',
     }));
-    console.log(listaDevolucoes);
+
     const resultado = [...listaFinalVendasCartao, ...listaDevolucoes].sort(
       (a, b) => {
         if (!a.hora) return 1;
