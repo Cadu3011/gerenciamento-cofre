@@ -1,6 +1,11 @@
 import { getDetailsCielo } from "@/app/api/cartao/cielo";
 import { getDetailsRede } from "@/app/api/cartao/rede";
 import { getDetailsTrier } from "@/app/api/cartao/trier";
+import ButtonPDF from "../components/ButtonPdf";
+import { UserPayload } from "../../page";
+import { jwtDecode } from "jwt-decode";
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 
 type SearchParams = {
   diferenca: string | number;
@@ -77,12 +82,23 @@ export default async function ListDetails({
   params: Promise<{ date: string }>;
   searchParams: Promise<SearchParams>;
 }) {
+  const tokenLocalTrier = (await cookies()).get("tokenLocalTrier")?.value;
+  if (!tokenLocalTrier) {
+    redirect("/gerencia-cofre/gerencia-cartao");
+  }
+  const access_token = (await cookies()).get("access_token")?.value;
+  if (!access_token) {
+    redirect("/login");
+  }
+  const user = jwtDecode<UserPayload>(access_token);
   const { diferenca } = await searchParams;
 
   const { date } = await params;
+
   const cieloDetails = await getDetailsCielo(date);
   const redeDetails = await getDetailsRede(date);
   const trierDetails = await getDetailsTrier(date);
+  console.log(trierDetails);
   const redeDetailsFormat = redeDetails.map((move: any) => ({
     hora: move.saleHour,
     valor: move.amount,
@@ -144,19 +160,27 @@ export default async function ListDetails({
   });
 
   return (
-    <div className="flex flex-col justify-center items-center w-full">
-      <div className=" gap-2 w-full px-10 pt-5 bg-blue-800 text-white font-bold">
-        <p className="text-3xl">Data: {date}</p>
-        <p className="text-3xl">
-          Diferença encontrada: R${Number(diferenca).toFixed(2)}
-        </p>
+    <div className="flex flex-col justify-center items-center w-full container-relatorio">
+      <div className="items-end gap-2 w-full px-10 pt-5 flex justify-between bg-blue-800 text-white font-bold">
+        <div>
+          <p className="text-3xl">Data: {date}</p>
+          <p className="text-3xl">
+            Diferença encontrada: R${Number(diferenca).toFixed(2)}
+          </p>
+        </div>
+        <ButtonPDF
+          fileName="relatorio"
+          tableIds={["tabela-trier", "tabela-adq"]}
+          filial={String(user.filialId)}
+          data={date}
+          dif={String(Number(diferenca).toFixed(2))}
+        />
       </div>
-      <div className="w-full h-[600px] overflow-y-auto border">
-        <div className="flex w-full min-w-max">
-          {/* Tabela Trier */}
+      <div className="w-full h-[600px] overflow-y-auto border  scroll-wrapper">
+        <div className="flex w-full ">
           <div className="flex w-full  px-4">
             {/* ====================== TABELA TRIER ====================== */}
-            <table className="w-1/2 border-collapse border">
+            <table className="tabela  w-1/2 border-collapse border">
               <thead className="bg-blue-800 text-white sticky top-0">
                 <tr>
                   <th colSpan={5} className="border">
@@ -178,19 +202,39 @@ export default async function ListDetails({
 
                   return (
                     <tr key={idx} className="text-center">
-                      <td className={semMatch ? "bg-red-600 text-white" : ""}>
+                      <td
+                        className={
+                          semMatch ? "bg-red-600 text-white text-center" : ""
+                        }
+                      >
                         {t.idVenda}
                       </td>
-                      <td className={semMatch ? "bg-red-600 text-white" : ""}>
+                      <td
+                        className={
+                          semMatch ? "bg-red-600 text-white text-center" : ""
+                        }
+                      >
                         {t.modalidade}
                       </td>
-                      <td className={semMatch ? "bg-red-600 text-white" : ""}>
+                      <td
+                        className={
+                          semMatch ? "bg-red-600 text-white text-center" : ""
+                        }
+                      >
                         {t.bandeira}
                       </td>
-                      <td className={semMatch ? "bg-red-600 text-white" : ""}>
+                      <td
+                        className={
+                          semMatch ? "bg-red-600 text-white text-center" : ""
+                        }
+                      >
                         {t.hora}
                       </td>
-                      <td className={semMatch ? "bg-red-600 text-white" : ""}>
+                      <td
+                        className={
+                          semMatch ? "bg-red-600 text-white text-center" : ""
+                        }
+                      >
                         {Number(t.valor).toFixed(2)}
                       </td>
                     </tr>
@@ -200,7 +244,7 @@ export default async function ListDetails({
             </table>
 
             {/* ====================== TABELA ADQUIRENTES ====================== */}
-            <table className="w-1/2 border-collapse border">
+            <table className="tabela  w-1/2 border-collapse border">
               <thead className="bg-blue-800 text-white sticky top-0">
                 <tr>
                   <th colSpan={5} className="border">
@@ -224,35 +268,45 @@ export default async function ListDetails({
                     <tr key={idx} className="text-center">
                       <td
                         className={
-                          semMatch ? "bg-yellow-400 text-black font-bold" : ""
+                          semMatch
+                            ? "bg-yellow-400 text-black font-bold text-center"
+                            : ""
                         }
                       >
                         {adq.hora}
                       </td>
                       <td
                         className={
-                          semMatch ? "bg-yellow-400 text-black font-bold" : ""
+                          semMatch
+                            ? "bg-yellow-400 text-black font-bold text-center"
+                            : ""
                         }
                       >
                         {Number(adq.valor).toFixed(2)}
                       </td>
                       <td
                         className={
-                          semMatch ? "bg-yellow-400 text-black font-bold" : ""
+                          semMatch
+                            ? "bg-yellow-400 text-black font-bold text-center"
+                            : ""
                         }
                       >
                         {adq.adq}
                       </td>
                       <td
                         className={
-                          semMatch ? "bg-yellow-400 text-black font-bold" : ""
+                          semMatch
+                            ? "bg-yellow-400 text-black font-bold text-center"
+                            : ""
                         }
                       >
                         {adq.modalidade}
                       </td>
                       <td
                         className={
-                          semMatch ? "bg-yellow-400 text-black font-bold" : ""
+                          semMatch
+                            ? "bg-yellow-400 text-black font-bold text-center"
+                            : ""
                         }
                       >
                         {adq.bandeira}
@@ -260,6 +314,157 @@ export default async function ListDetails({
                     </tr>
                   );
                 })}
+              </tbody>
+            </table>
+          </div>
+
+          {/* tabela pra exportação */}
+          <div className="w-full flex hidden px-4">
+            {/* ====================== TABELA TRIER ====================== */}
+            <table
+              id="tabela-trier"
+              className="tabela  w-1/2 border-collapse border"
+            >
+              <thead className="bg-blue-800 text-white sticky top-0">
+                <tr>
+                  <th colSpan={5} className="border">
+                    Trier
+                  </th>
+                </tr>
+                <tr>
+                  <th className="border p-1">Cod Venda</th>
+                  <th className="border p-1">Modalidade</th>
+                  <th className="border p-1">Bandeira</th>
+                  <th className="border p-1">Hora</th>
+                  <th className="border p-1">Valor</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {conciliacaoTrier
+                  .filter((t: any) => !t.match)
+                  .map((t: any, idx: number) => {
+                    const semMatch = !t.match;
+
+                    return (
+                      <tr key={idx} className="text-center">
+                        <td
+                          className={
+                            semMatch ? "bg-red-600 text-white text-center" : ""
+                          }
+                        >
+                          {t.idVenda}
+                        </td>
+                        <td
+                          className={
+                            semMatch ? "bg-red-600 text-white text-center" : ""
+                          }
+                        >
+                          {t.modalidade}
+                        </td>
+                        <td
+                          className={
+                            semMatch ? "bg-red-600 text-white text-center" : ""
+                          }
+                        >
+                          {t.bandeira}
+                        </td>
+                        <td
+                          className={
+                            semMatch ? "bg-red-600 text-white text-center" : ""
+                          }
+                        >
+                          {t.hora}
+                        </td>
+                        <td
+                          className={
+                            semMatch ? "bg-red-600 text-white text-center" : ""
+                          }
+                        >
+                          {Number(t.valor).toFixed(2)}
+                        </td>
+                      </tr>
+                    );
+                  })}
+              </tbody>
+            </table>
+
+            {/* ====================== TABELA ADQUIRENTES ====================== */}
+            <table
+              id="tabela-adq"
+              className="tabela  w-1/2 border-collapse border"
+            >
+              <thead className="bg-blue-800 text-white sticky top-0">
+                <tr>
+                  <th colSpan={5} className="border">
+                    Adquirentes
+                  </th>
+                </tr>
+                <tr>
+                  <th className="border p-1">Hora</th>
+                  <th className="border p-1">Valor</th>
+                  <th className="border p-1">Adq</th>
+                  <th className="border p-1">Modalidade</th>
+                  <th className="border p-1">Bandeira</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {conciliacaoAdq
+                  .filter((adq: any) => !adq.match)
+                  .map((adq: any, idx: number) => {
+                    const semMatch = !adq.match;
+
+                    return (
+                      <tr key={idx} className="text-center">
+                        <td
+                          className={
+                            semMatch
+                              ? "bg-yellow-400 text-black font-bold text-center"
+                              : ""
+                          }
+                        >
+                          {adq.hora}
+                        </td>
+                        <td
+                          className={
+                            semMatch
+                              ? "bg-yellow-400 text-black font-bold text-center"
+                              : ""
+                          }
+                        >
+                          {Number(adq.valor).toFixed(2)}
+                        </td>
+                        <td
+                          className={
+                            semMatch
+                              ? "bg-yellow-400 text-black font-bold text-center"
+                              : ""
+                          }
+                        >
+                          {adq.adq}
+                        </td>
+                        <td
+                          className={
+                            semMatch
+                              ? "bg-yellow-400 text-black font-bold text-center"
+                              : ""
+                          }
+                        >
+                          {adq.modalidade}
+                        </td>
+                        <td
+                          className={
+                            semMatch
+                              ? "bg-yellow-400 text-black font-bold text-center"
+                              : ""
+                          }
+                        >
+                          {adq.bandeira}
+                        </td>
+                      </tr>
+                    );
+                  })}
               </tbody>
             </table>
           </div>

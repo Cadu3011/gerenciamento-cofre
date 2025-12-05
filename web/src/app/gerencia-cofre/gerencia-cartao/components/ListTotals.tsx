@@ -52,7 +52,7 @@ export default function ListTotals({
             <th className="border border-gray-300">Rede</th>
             <th className="border border-gray-300">Cielo</th>
             <th className="border border-gray-300">Diferença total</th>
-            <th className="border border-gray-300 ">Actions</th>
+            <th className="border border-gray-300 ">Detalhar</th>
           </tr>
         </thead>
         <tbody className="font-bold">

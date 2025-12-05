@@ -2,7 +2,7 @@ import { LoginFormTrier } from "./components/FormLoginTrier";
 import FormTotals from "./components/FormTotals";
 import { cookies } from "next/headers";
 import { jwtDecode } from "jwt-decode";
-interface UserPayload {
+export interface UserPayload {
   sub: number;
   roles: string;
   filialId: number;
