@@ -26,14 +26,14 @@ export default function ButtonExcel({
     headerRow1.getCell(1).font = {
       bold: true,
       size: 14,
-      color: { argb: "FFFFFF" },
+      color: { argb: "000000" },
     };
     headerRow1.getCell(1).alignment = { horizontal: "left" };
     headerRow1.eachCell((cell) => {
       cell.fill = {
         type: "pattern",
         pattern: "solid",
-        fgColor: { argb: "0000FF" },
+        fgColor: { argb: "FFFFFF" },
       };
     });
     headerRow1.commit();
@@ -44,14 +44,14 @@ export default function ButtonExcel({
     headerRow2.getCell(1).font = {
       bold: true,
       size: 12,
-      color: { argb: "FFFFFF" },
+      color: { argb: "000000" },
     };
     headerRow2.getCell(1).alignment = { horizontal: "left" };
     headerRow2.eachCell((cell) => {
       cell.fill = {
         type: "pattern",
         pattern: "solid",
-        fgColor: { argb: "0000FF" },
+        fgColor: { argb: "FFFFFF" },
       };
     });
 
@@ -63,14 +63,14 @@ export default function ButtonExcel({
     headerRow3.getCell(1).font = {
       bold: true,
       size: 14,
-      color: { argb: "FFFFFF" },
+      color: { argb: "000000" },
     };
     headerRow3.getCell(1).alignment = { horizontal: "left" };
     headerRow3.eachCell((cell) => {
       cell.fill = {
         type: "pattern",
         pattern: "solid",
-        fgColor: { argb: "0000FF" },
+        fgColor: { argb: "FFFFFF" },
       };
     });
     headerRow3.commit();
@@ -115,27 +115,27 @@ export default function ButtonExcel({
             excelCell.fill = {
               type: "pattern",
               pattern: "solid",
-              fgColor: { argb: "FFDC2626" },
+              fgColor: { argb: "FFFFFF" },
             };
-            excelCell.font = { color: { argb: "FFFFFFFF" }, bold: true };
+            excelCell.font = { color: { argb: "000000" }, bold: true };
           }
 
           if (classList.contains("bg-yellow-400")) {
             excelCell.fill = {
               type: "pattern",
               pattern: "solid",
-              fgColor: { argb: "FFFACC15" },
+              fgColor: { argb: "FFFFFF" },
             };
-            excelCell.font = { color: { argb: "FF000000" }, bold: true };
+            excelCell.font = { color: { argb: "000000" }, bold: true };
           }
 
           if (classList.contains("bg-blue-800")) {
             excelCell.fill = {
               type: "pattern",
               pattern: "solid",
-              fgColor: { argb: "FF1E3A8A" },
+              fgColor: { argb: "FFFFFF" },
             };
-            excelCell.font = { color: { argb: "FFFFFFFF" }, bold: true };
+            excelCell.font = { color: { argb: "000000" }, bold: true };
             excelCell.alignment = { horizontal: "center" };
           }
 
