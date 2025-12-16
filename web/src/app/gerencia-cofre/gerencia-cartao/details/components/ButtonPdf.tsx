@@ -1,6 +1,5 @@
 "use client";
 
-import * as XLSX from "xlsx";
 import ExcelJS from "exceljs";
 import { saveAs } from "file-saver";
 interface Props {

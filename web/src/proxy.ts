@@ -10,7 +10,7 @@ interface UserPayload {
   exp: number;
 }
 const secret = new TextEncoder().encode(process.env.JWT_SECRET);
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const token = (await cookies()).get("access_token")?.value;
 
   if (!token) return NextResponse.redirect(new URL("/login", request.url));
