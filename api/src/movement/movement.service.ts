@@ -22,7 +22,7 @@ export class MovementService implements OnModuleInit {
   private readonly filial: FilialService;
   private readonly logger = new Logger(MovementService.name);
   async onModuleInit() {
-    // await this.getVendasCaixasTrier();
+    await this.getVendasCaixasTrier();
   }
   @Cron('5,38 6,8,9,11 * * 1-7')
   async getVendasCaixasTrier() {
