@@ -113,3 +113,18 @@ model DeletedMovements {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 }
+
+model excel_staging_diferenca_caixa {
+  id               BigInt    @id @default(autoincrement())
+  filial           String?   @db.VarChar(50)
+  dia              DateTime? @db.Date
+  caixa            String?   @db.VarChar(50)
+  operador         String?   @db.VarChar(100)
+  valor            Decimal?  @db.Decimal(10, 2)
+  sobra            Decimal?  @db.Decimal(10, 2)
+  falta            Decimal?  @db.Decimal(10, 2)
+  obs              String?   @db.Text
+  origem_arquivo   String?   @db.VarChar(255)
+  imported_at      DateTime? @default(now()) @db.Timestamp(0)
+  movimentation_id Int?      @unique(map: "uk_movimentation_id")
+}
