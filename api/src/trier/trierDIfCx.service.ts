@@ -1,9 +1,10 @@
 import { Injectable, Inject, OnModuleInit } from '@nestjs/common';
+import { Cron } from '@nestjs/schedule';
 import { chromium } from 'playwright';
 import { PrismaService } from 'src/database/prisma.service';
 
 @Injectable()
-export class TrierDifCxETL implements OnModuleInit {
+export class TrierDifCxETL {
   @Inject()
   private readonly prisma: PrismaService;
 
@@ -21,16 +22,16 @@ export class TrierDifCxETL implements OnModuleInit {
     const [d, m, y] = dateBR.split('/');
     return `${y}-${m}-${d}`;
   }
-
-  async onModuleInit() {
-    await this.macro(1, 'MATRIZ');
-    await this.macro(2, 'TAIRU');
-    await this.macro(3, 'ULTRA');
-    await this.macro(4, 'VASCO');
-    await this.macro(5, 'BOMDESPACHO');
-    await this.macro(6, 'LIDERANCA');
-    await this.macro(7, 'COROA');
-  }
+  // @Cron('5,38 5,7,10,12 * * 1-7')
+  // async onModuleInit() {
+  //   await this.macro(1, 'MATRIZ');
+  //   await this.macro(2, 'TAIRU');
+  //   await this.macro(3, 'ULTRA');
+  //   await this.macro(4, 'VASCO');
+  //   await this.macro(5, 'BOMDESPACHO');
+  //   await this.macro(6, 'LIDERANCA');
+  //   await this.macro(7, 'COROA');
+  // }
 
   async macro(idFilial: number, pathFilial: string) {
     let ultimoItem = 0;
@@ -163,5 +164,18 @@ export class TrierDifCxETL implements OnModuleInit {
     }
 
     await browser.close();
+  }
+  async getCaixas(initDate: string, finalDate: string, filialId: number) {
+    const filial = this.convertFiliaisId[filialId];
+    const caixas = await this.prisma.excel_staging_diferenca_caixa.findMany({
+      where: {
+        dia: { gte: new Date(initDate), lte: new Date(finalDate) },
+        filial,
+      },
+    });
+    return caixas.map((caixa) => ({
+      ...caixa,
+      id: caixa.id?.toString(),
+    }));
   }
 }

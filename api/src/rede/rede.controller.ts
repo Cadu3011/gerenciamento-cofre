@@ -25,7 +25,7 @@ export class RedeController {
   }
 
   @UseGuards(AuthGuard)
-  @Roles(Role.OPERADOR)
+  @Roles(Role.OPERADOR, Role.GESTOR)
   @Get()
   findSalesTotals(
     @Req() req: Request,
@@ -33,7 +33,7 @@ export class RedeController {
     @Query('endDate') endDate: string,
   ) {
     const filialUser = req['sub'];
-
+    console.log(filialUser, startDate, endDate);
     return this.redeService.findSalesTotals(
       filialUser.filialId,
       startDate,

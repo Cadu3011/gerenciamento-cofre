@@ -17,7 +17,7 @@ export async function getTotalsRede(startDate: string, endDate: string) {
       cache: "force-cache",
     }
   );
-  const totals = res.json();
+  const totals = await res.json();
   return totals;
 }
 export async function getDetailsRede(date: string) {

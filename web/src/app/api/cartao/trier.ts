@@ -20,6 +20,7 @@ export async function getTotalsTrier(startDate: string, endDate: string) {
   );
 
   const totalTrier = await res.json();
+  console.log(totalTrier);
   return totalTrier;
 }
 export async function getDetailsTrier(date: string) {
@@ -50,13 +51,14 @@ export async function LoginTrier(formData: FormData) {
   };
   const response = await fetch(`http://${Url}/trier`, {
     method: "POST",
+    credentials: "include",
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${tokenCookie}`,
     },
+
     body: JSON.stringify(data),
   });
-
   if (
     response.status === 500 ||
     response.status === 404 ||
@@ -65,7 +67,7 @@ export async function LoginTrier(formData: FormData) {
     return { data: "dados invalidos" };
   }
   const token = await response.json();
-
+  console.log(token);
   (await cookies()).set("tokenLocalTrier", token.tokenLocalTrier, {
     httpOnly: true,
   });

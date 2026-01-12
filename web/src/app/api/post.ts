@@ -9,6 +9,25 @@ export const apiUrl = async (): Promise<string> => {
   return url;
 };
 const Url = await apiUrl();
+
+export async function getCaixas(from: string, to: string) {
+  const tokenCookie = (await cookies()).get("access_token")?.value;
+
+  const res = await fetch(
+    `http://localhost:4000/trier/caixas?dataEmissaoInicial=${from}&dataEmissaoFinal=${to}`,
+    {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${tokenCookie}`,
+      },
+    }
+  );
+
+  const data = await res.json();
+  return data;
+}
+
 export async function handleFormSubmit(formData: FormData) {
   const descrition = formData.get("description") as string;
   const value = formData.get("value") as string;

@@ -25,7 +25,7 @@ export class CieloController {
   }
 
   @UseGuards(AuthGuard)
-  @Roles(Role.OPERADOR)
+  @Roles(Role.OPERADOR, Role.GESTOR)
   @Get()
   findSalesTotals(
     @Req() req: Request,
