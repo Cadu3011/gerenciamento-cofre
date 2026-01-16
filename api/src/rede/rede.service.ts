@@ -102,6 +102,7 @@ export class RedeService {
   }
   async findSalesTotals(idRede: number, startDate: string, endDate: string) {
     const token = await this.getAccessToken();
+    console.log(idRede);
     const estRede = await this.filial.findOne(idRede);
     const res = await fetch(
       `https://api.userede.com.br/redelabs/merchant-statement/v2/sales/${estRede.idRede}/summary?startDate=${startDate}&endDate=${endDate}`,
@@ -115,6 +116,7 @@ export class RedeService {
     );
 
     const vendas = await res.json();
+    console.log(vendas);
     return vendas.content.sales;
   }
 

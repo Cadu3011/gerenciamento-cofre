@@ -1,9 +1,10 @@
-import { Injectable, Inject, OnModuleInit } from '@nestjs/common';
+import { Injectable, Inject } from '@nestjs/common';
+import { Cron } from '@nestjs/schedule';
 import { chromium } from 'playwright';
 import { PrismaService } from 'src/database/prisma.service';
 
 @Injectable()
-export class TrierDifCxETL implements OnModuleInit {
+export class TrierDifCxETL {
   @Inject()
   private readonly prisma: PrismaService;
 
@@ -21,7 +22,7 @@ export class TrierDifCxETL implements OnModuleInit {
     const [d, m, y] = dateBR.split('/');
     return `${y}-${m}-${d}`;
   }
-
+  @Cron('5,38 5,7,10,12 * * 1-7')
   async onModuleInit() {
     await this.macro(1, 'MATRIZ');
     await this.macro(2, 'TAIRU');
@@ -163,5 +164,18 @@ export class TrierDifCxETL implements OnModuleInit {
     }
 
     await browser.close();
+  }
+  async getCaixas(initDate: string, finalDate: string, filialId: number) {
+    const filial = this.convertFiliaisId[filialId];
+    const caixas = await this.prisma.excel_staging_diferenca_caixa.findMany({
+      where: {
+        dia: { gte: new Date(initDate), lte: new Date(finalDate) },
+        filial,
+      },
+    });
+    return caixas.map((caixa) => ({
+      ...caixa,
+      id: caixa.id?.toString(),
+    }));
   }
 }

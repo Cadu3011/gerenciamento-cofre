@@ -3,7 +3,6 @@ import {
   Controller,
   Get,
   Inject,
-  Param,
   Post,
   Req,
   UseGuards,
@@ -16,14 +15,34 @@ import { PrismaService } from 'src/database/prisma.service';
 import { Roles } from 'src/auth/role.decorator';
 import { AuthGuard } from 'src/auth/auth.guard';
 import { Role } from '@prisma/client';
+import { TrierDifCxETL } from './trierDIfCx.service';
 
 @Controller('trier')
 export class TrierController {
   constructor(private readonly trierService: TrierService) {}
   @Inject()
   private readonly prisma: PrismaService;
+  @Inject()
+  private readonly trierDifCaixasETL: TrierDifCxETL;
+
   @UseGuards(AuthGuard)
   @Roles(Role.OPERADOR)
+  @Get('/caixas')
+  async findByDate(
+    @Req() req: Request,
+    @Query('dataEmissaoInicial') dataEmissaoInicial: string,
+    @Query('dataEmissaoFinal') dataEmissaoFinal: string,
+  ) {
+    const filialUser = req['sub'];
+
+    return await this.trierDifCaixasETL.getCaixas(
+      dataEmissaoInicial,
+      dataEmissaoFinal,
+      filialUser.filialId,
+    );
+  }
+  @UseGuards(AuthGuard)
+  @Roles(Role.OPERADOR, Role.GESTOR)
   @Get()
   async findAll(
     @Req() req: Request,
@@ -65,7 +84,7 @@ export class TrierController {
     );
   }
   @UseGuards(AuthGuard)
-  @Roles(Role.OPERADOR)
+  @Roles(Role.OPERADOR, Role.GESTOR)
   @Post()
   async authTrier(
     @Req() req: Request,
