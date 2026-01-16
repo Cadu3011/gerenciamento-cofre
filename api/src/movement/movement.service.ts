@@ -115,12 +115,23 @@ export class MovementService implements OnModuleInit {
             }
             const moveDetalhes = res.detalhes.reduce(
               (acc, move) => {
-                const { numCaixa, vlrRecebido, codFilial, datEmissao } = move;
+                const {
+                  numCaixa,
+                  vlrRecebido,
+                  codFilial,
+                  datEmissao,
+                  datReceb,
+                  observacao,
+                } = move;
+
                 if (!acc[numCaixa]) {
                   acc[numCaixa] = {
                     filial: codFilial,
                     caixa: numCaixa,
-                    data: datEmissao,
+                    data:
+                      observacao === 'RECEBIMENTO CREDIÁRIO'
+                        ? datReceb
+                        : datEmissao,
                     vlrRecebido: new Decimal(0),
                   };
                 }
