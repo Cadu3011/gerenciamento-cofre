@@ -1,4 +1,4 @@
-import { Injectable, Inject, OnModuleInit } from '@nestjs/common';
+import { Injectable, Inject } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { chromium } from 'playwright';
 import { PrismaService } from 'src/database/prisma.service';
@@ -22,16 +22,16 @@ export class TrierDifCxETL {
     const [d, m, y] = dateBR.split('/');
     return `${y}-${m}-${d}`;
   }
-  // @Cron('5,38 5,7,10,12 * * 1-7')
-  // async onModuleInit() {
-  //   await this.macro(1, 'MATRIZ');
-  //   await this.macro(2, 'TAIRU');
-  //   await this.macro(3, 'ULTRA');
-  //   await this.macro(4, 'VASCO');
-  //   await this.macro(5, 'BOMDESPACHO');
-  //   await this.macro(6, 'LIDERANCA');
-  //   await this.macro(7, 'COROA');
-  // }
+  @Cron('5,38 5,7,10,12 * * 1-7')
+  async onModuleInit() {
+    await this.macro(1, 'MATRIZ');
+    await this.macro(2, 'TAIRU');
+    await this.macro(3, 'ULTRA');
+    await this.macro(4, 'VASCO');
+    await this.macro(5, 'BOMDESPACHO');
+    await this.macro(6, 'LIDERANCA');
+    await this.macro(7, 'COROA');
+  }
 
   async macro(idFilial: number, pathFilial: string) {
     let ultimoItem = 0;
