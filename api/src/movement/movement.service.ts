@@ -130,7 +130,7 @@ export class MovementService implements OnModuleInit {
                     caixa: numCaixa,
                     data:
                       observacao === 'RECEBIMENTO CREDIÁRIO'
-                        ? datReceb
+                        ? `${datReceb}T00:00:00-03:00`
                         : datEmissao,
                     vlrRecebido: new Decimal(0),
                   };
