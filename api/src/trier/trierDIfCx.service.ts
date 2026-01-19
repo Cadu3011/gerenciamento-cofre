@@ -23,7 +23,7 @@ export class TrierDifCxETL {
     return `${y}-${m}-${d}`;
   }
   @Cron('5,38 5,7,10,12 * * 1-7')
-  async onModuleInit() {
+  async init() {
     await this.macro(1, 'MATRIZ');
     await this.macro(2, 'TAIRU');
     await this.macro(3, 'ULTRA');

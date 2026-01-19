@@ -50,7 +50,7 @@ export class CieloTransformSalesService {
               vendas.push(venda);
             }
           }
-          if (recordType === '8' && isFileSale === 'CIELO04D') {
+          if (recordType === '8' && isFileSale === 'CIELO16D') {
             const venda = this.parsePixRecord(line);
             if (venda) {
               vendas.push(venda);
