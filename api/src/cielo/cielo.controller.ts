@@ -1,12 +1,4 @@
-import {
-  Controller,
-  Get,
-  Param,
-  Delete,
-  UseGuards,
-  Req,
-  Query,
-} from '@nestjs/common';
+import { Controller, Get, Param, UseGuards, Req, Query } from '@nestjs/common';
 import { CieloService } from './cielo.service';
 import { Roles } from 'src/auth/role.decorator';
 import { Role } from '@prisma/client';
@@ -39,15 +31,5 @@ export class CieloController {
       startDate,
       endDate,
     );
-  }
-
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.cieloService.findOne(+id);
-  }
-
-  @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.cieloService.remove(+id);
   }
 }
