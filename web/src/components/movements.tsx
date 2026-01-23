@@ -59,7 +59,6 @@ export default function ExibirMovimentos({ type, filialId, token }: Props) {
     setMovements(filteredMovements);
     const initialValues: Record<number, string> = {};
     filteredMovements.forEach((move: any) => {
-      console.log(move.value);
       if (move.value === "0") {
         initialValues[move.id] = "";
       }

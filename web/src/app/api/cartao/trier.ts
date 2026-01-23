@@ -16,11 +16,10 @@ export async function getTotalsTrier(startDate: string, endDate: string) {
         authTrierLocal: `Bearer ${tokenTrierLocal}`,
       },
       cache: "force-cache",
-    }
+    },
   );
 
   const totalTrier = await res.json();
-  console.log(totalTrier);
   return totalTrier;
 }
 export async function getDetailsTrier(date: string) {
@@ -67,7 +66,6 @@ export async function LoginTrier(formData: FormData) {
     return { data: "dados invalidos" };
   }
   const token = await response.json();
-  console.log(token);
   (await cookies()).set("tokenLocalTrier", token.tokenLocalTrier, {
     httpOnly: true,
   });

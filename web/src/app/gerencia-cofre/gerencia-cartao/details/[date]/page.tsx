@@ -98,7 +98,6 @@ export default async function ListDetails({
   const cieloDetails = await getDetailsCielo(date);
   const redeDetails = await getDetailsRede(date);
   const trierDetails = await getDetailsTrier(date);
-  console.log(trierDetails);
   const redeDetailsFormat = redeDetails.map((move: any) => ({
     hora: move.saleHour,
     valor: move.amount,
@@ -123,7 +122,7 @@ export default async function ListDetails({
 
   const adquirentes = [...redeDetailsFormat, ...cieloDetailsFormat];
   const adquirentesOrdenation = adquirentes.sort((a, b) =>
-    a.hora.localeCompare(b.hora)
+    a.hora.localeCompare(b.hora),
   );
   function horaParaSegundos(hora: string) {
     const [h, m, s] = hora.split(":").map(Number);
@@ -138,7 +137,7 @@ export default async function ListDetails({
       if (!t.hora || !adq.hora) return false;
 
       const diff = Math.abs(
-        horaParaSegundos(t.hora) - horaParaSegundos(adq.hora)
+        horaParaSegundos(t.hora) - horaParaSegundos(adq.hora),
       );
 
       return diff <= LIMITE_DIFERENCA;
@@ -151,7 +150,7 @@ export default async function ListDetails({
       if (!t.hora || !adq.hora) return false;
 
       const diff = Math.abs(
-        horaParaSegundos(adq.hora) - horaParaSegundos(t.hora)
+        horaParaSegundos(adq.hora) - horaParaSegundos(t.hora),
       );
 
       return diff <= LIMITE_DIFERENCA;

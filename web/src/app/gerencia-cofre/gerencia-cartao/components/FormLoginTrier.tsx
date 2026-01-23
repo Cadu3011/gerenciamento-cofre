@@ -21,7 +21,6 @@ export function LoginFormTrier({ token }: Props) {
     setLoad(true);
     //pegar controller fazendo get na pagina login , e efetuar login pegando o token e setando nos cookies
     const response = await LoginTrier(formData);
-    console.log(response?.data);
     if (response?.data) {
       setResponse(response.data);
       const showToast = () => {

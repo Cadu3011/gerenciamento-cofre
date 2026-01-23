@@ -100,8 +100,6 @@ export class MovementService implements OnModuleInit {
       );
 
       if (totais) {
-        console.log('totais');
-
         const idMoveTotais = totais.map((move) => ({ id: move.id }));
 
         const moveDetalhes = await Promise.all(
@@ -189,8 +187,6 @@ export class MovementService implements OnModuleInit {
             >,
           ),
         );
-
-        console.log(result);
 
         for (const movimento of result) {
           await this.Prisma.movimentations.create({

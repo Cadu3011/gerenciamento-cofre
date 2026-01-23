@@ -33,7 +33,6 @@ export class RedeController {
     @Query('endDate') endDate: string,
   ) {
     const filialUser = req['sub'];
-    console.log(filialUser, startDate, endDate);
     return this.redeService.findSalesTotals(
       filialUser.filialId,
       startDate,
