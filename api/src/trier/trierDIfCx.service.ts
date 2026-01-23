@@ -95,6 +95,12 @@ export class TrierDifCxETL {
         (el: any) => el.value,
       );
 
+      const confirmItem = await page.$eval(
+        '#num_caixaEntrada',
+        (el: any) => (el as HTMLInputElement).value,
+      );
+      console.log(confirmItem);
+
       await page.waitForSelector('#saida3');
       await page.click('#saida3');
 
@@ -116,14 +122,13 @@ export class TrierDifCxETL {
           (el: any) => el.innerText,
         );
 
-        const novoUltimoItem = ultimoItem.toString();
-
         if (
           caixas.length > 0 &&
-          caixas[caixas.length - 1].caixa === novoUltimoItem
+          caixas[caixas.length - 1].caixa === confirmItem
         ) {
-          throw new Error('Erro: ultimoItem igual ao último item lançado');
+          throw new Error('Erro: confirmItem igual ao último item lançado');
         }
+
         if (
           this.toMySQLDate(dataValue) ===
           this.toMySQLDate(new Date().toLocaleDateString())
@@ -135,7 +140,7 @@ export class TrierDifCxETL {
         const dif = Number(valueText.replace(/\./g, '').replace(',', '.'));
         caixas.push({
           dia: new Date(this.toMySQLDate(dataValue)),
-          caixa: novoUltimoItem,
+          caixa: confirmItem,
           operador: nomeValue.split(' ')[0],
           valor: dif,
           filial,
@@ -143,7 +148,12 @@ export class TrierDifCxETL {
           falta: dif < 0 ? 0 : dif,
         });
 
-        ultimoItem++;
+        const confirmAsNumber = Number(confirmItem);
+        if (!Number.isNaN(confirmAsNumber)) {
+          ultimoItem = confirmAsNumber + 1;
+        } else {
+          ultimoItem++; // fallback, caso venha algo estranho
+        }
         await newPage.close();
       } catch (error) {
         console.log(
