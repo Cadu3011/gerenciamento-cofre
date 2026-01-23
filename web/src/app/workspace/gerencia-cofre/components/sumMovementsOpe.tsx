@@ -1,5 +1,5 @@
 import { getMovements, getMovementsExtract } from "@/app/api/post";
-import { useCofreFisic } from "@/app/gerencia-cofre/components/cofreContext";
+import { useCofreFisic } from "@/app/workspace/gerencia-cofre/components/cofreContext";
 import { useEffect, useState } from "react";
 interface Props {
   type: string;

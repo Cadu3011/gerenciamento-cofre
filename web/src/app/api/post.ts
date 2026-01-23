@@ -21,7 +21,7 @@ export async function getCaixas(from: string, to: string) {
         "Content-Type": "application/json",
         Authorization: `Bearer ${tokenCookie}`,
       },
-    }
+    },
   );
 
   const data = await res.json();
@@ -123,7 +123,7 @@ export async function handlePostLogin(formData: FormData) {
   if (userData.roles === "GESTOR") {
     redirect("/admin");
   }
-  redirect("/gerencia-cofre");
+  redirect("/workspace");
 }
 export async function handleLogut() {
   (await cookies()).delete("access_token");
@@ -183,7 +183,7 @@ export async function handleFormBalanceFisic(formData: FormData) {
 export async function getExtract(
   dateInit: string,
   dateFinal: string,
-  filialId?: string
+  filialId?: string,
 ) {
   const tokenCookie = (await cookies()).get("access_token")?.value;
   console.log(dateInit, dateFinal, filialId);
@@ -194,7 +194,7 @@ export async function getExtract(
         "Content-Type": "application/json",
         Authorization: `Bearer ${tokenCookie}`,
       },
-    }
+    },
   ).then((res) => res.json());
   return extrato;
 }
@@ -339,7 +339,7 @@ export async function getCofresTrier() {
           incluirContasCompartilhadas: true,
           situacoes: ["ATIVO"],
         }),
-      }
+      },
     );
     if (!data.ok) throw new Error("Erro na API");
 

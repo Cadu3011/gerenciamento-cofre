@@ -2,7 +2,7 @@
 import { fetchSaldos } from "@/app/api/post";
 import SumValuesFisics from "./sumValuesFisics";
 import { useEffect, useState } from "react";
-import { useCofreFisic } from "@/app/gerencia-cofre/components/cofreContext";
+import { useCofreFisic } from "@/app/workspace/gerencia-cofre/components/cofreContext";
 
 interface Props {
   filialId: string;

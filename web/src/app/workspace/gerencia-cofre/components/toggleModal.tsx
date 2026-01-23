@@ -1,7 +1,7 @@
 "use client";
 
-import FormBalanceFisic from "@/app/gerencia-cofre/components/form-balanceFisic";
-import MovementsAnt from "@/app/gerencia-cofre/components/movementsAnt";
+import FormBalanceFisic from "@/app/workspace/gerencia-cofre/components/form-balanceFisic";
+import MovementsAnt from "@/app/workspace/gerencia-cofre/components/movementsAnt";
 import { useState } from "react";
 
 export default function ToggleModalClient() {
@@ -19,7 +19,7 @@ export default function ToggleModalClient() {
       </div>
 
       {showForm && (
-        <div className="fixed top-0 left-0 w-full h-full bg-black bg-opacity-50 z-50 flex justify-center items-center">
+        <div className="fixed top-0 left-0 w-full h-full bg-black bg-opacity-50 z-30 flex justify-center items-center">
           <div className="bg-white  rounded-xl relative w-[100%] max-w-md">
             {/* Passa a função para fechar o modal */}
             <FormBalanceFisic onSuccess={() => setShowForm(false)} />

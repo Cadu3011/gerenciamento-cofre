@@ -19,7 +19,7 @@ export default function ListTotals({
       ...totalsRede.map((t) => t.startDate),
       ...totalsTrier.map((t) => t.data),
       ...totalsCielo.map((t) => t.dataVenda),
-    ])
+    ]),
   );
 
   const totais = datasUnicas.map((data) => {
@@ -30,7 +30,7 @@ export default function ListTotals({
     const amounts = new Decimal(rede?.amount ?? 0);
 
     const valorTotal = String(
-      new Decimal(trier.total).plus(-valorBrutos.plus(amounts))
+      new Decimal(trier.total).plus(-valorBrutos.plus(amounts)),
     );
 
     return {
@@ -83,8 +83,8 @@ export default function ListTotals({
                   Number(item.valorTotal) > 0
                     ? "text-red-500"
                     : Number(item.valorTotal) < 0
-                    ? "text-yellow-500"
-                    : "text-green-600"
+                      ? "text-yellow-500"
+                      : "text-green-600"
                 }
               >
                 {Number(String(item.valorTotal)).toFixed(2) ?? "-"}
@@ -114,7 +114,7 @@ export default function ListTotals({
                   </svg>
                 ) : (
                   <Link
-                    href={`/gerencia-cofre/gerencia-cartao/details/${item.data}?diferenca=${item.valorTotal}`}
+                    href={`/workspace/gerencia-cartao/details/${item.data}?diferenca=${item.valorTotal}`}
                     className=""
                   >
                     <button

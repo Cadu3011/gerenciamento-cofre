@@ -1,6 +1,6 @@
 "use client";
 import { getBalanceFisics } from "@/app/api/post";
-import { useBalanceFisic } from "@/app/gerencia-cofre/components/BalanceFisicContext";
+import { useBalanceFisic } from "@/app/workspace/gerencia-cofre/components/BalanceFisicContext";
 import { useEffect, useState } from "react";
 
 export default function SumValuesFisics() {
@@ -11,7 +11,8 @@ export default function SumValuesFisics() {
       const movement = await getBalanceFisics();
       const totalValue = Object.entries(movement[0])
         .filter(
-          ([key]) => !["filialId", "createdAt", "updatedAt", "id"].includes(key)
+          ([key]) =>
+            !["filialId", "createdAt", "updatedAt", "id"].includes(key),
         )
         .reduce((sum, [_, value]) => sum + parseFloat(value as string), 0);
       setSumMovements(totalValue);

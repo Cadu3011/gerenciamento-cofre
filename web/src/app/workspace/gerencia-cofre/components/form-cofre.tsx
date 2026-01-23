@@ -1,16 +1,16 @@
 "use client";
 
 import { useState } from "react";
-import InputComp from "./input";
+import InputComp from "../../../../components/input";
 import { handleFormSubmit } from "@/app/api/post";
 import ExibirMovimentos from "./movements";
 import SumMovements from "./sumMovements";
-import { useCofreFisic } from "@/app/gerencia-cofre/components/cofreContext";
-import CategoriasButton from "@/app/gerencia-cofre/components/categoriaButton";
+import { useCofreFisic } from "@/app/workspace/gerencia-cofre/components/cofreContext";
+import CategoriasButton from "@/app/workspace/gerencia-cofre/components/categoriaButton";
 import SumMovementsOpe from "./sumMovementsOpe";
 import ToggleDepositoTransferir, {
   Conta,
-} from "@/app/gerencia-cofre/components/interruptorDepAndTransf";
+} from "@/app/workspace/gerencia-cofre/components/interruptorDepAndTransf";
 interface Props {
   title: string;
   type: string;
@@ -52,7 +52,7 @@ export default function CardMovements({ title, type, filialId, token }: Props) {
   };
 
   return (
-    <div className="bg-slate-200 w-1/2 h-96 p-2 rounded shadow-blue-300 shadow-md flex flex-col  transition duration-500 ease-in-out transform hover:-translate-y-1 hover:scale-100 ">
+    <div className=" bg-slate-200 w-full sm:w-[48%] lg:w-[24%] h-96 p-2 rounded shadow-blue-300 shadow-md flex flex-col min-w-0">
       <div className="flex justify-center">
         <h1>{title}</h1>
       </div>

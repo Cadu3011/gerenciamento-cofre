@@ -38,7 +38,6 @@ export function LoginFormTrier({ token }: Props) {
     <div className="flex justify-center">
       {showForm && (
         <div className="fixed top-0 left-0 w-full h-full bg-black bg-opacity-50 z-10 flex justify-center items-center">
-          <div className="  rounded-xl relative w-[100%] max-w-md"></div>
           <form
             action=""
             method="post"

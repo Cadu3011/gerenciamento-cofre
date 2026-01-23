@@ -11,7 +11,7 @@ export interface UserPayload {
 }
 export default async function GerenciaCartao() {
   const token: string | undefined = (await cookies()).get(
-    "tokenLocalTrier"
+    "tokenLocalTrier",
   )?.value;
   const access_token = (await cookies()).get("access_token")?.value;
   if (!access_token) {
@@ -19,7 +19,7 @@ export default async function GerenciaCartao() {
   }
   const user = jwtDecode<UserPayload>(access_token);
   return (
-    <div className="w-full py-5">
+    <div className="w-full ">
       <div className="bg-blue-800 w-full flex justify-center items-center py-5">
         <p className="w-1/2  text-3xl text-white font-bold">
           Filial {user.filialId}

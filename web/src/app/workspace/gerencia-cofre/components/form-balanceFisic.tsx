@@ -2,7 +2,7 @@
 import { getBalanceFisics, handleFormBalanceFisic } from "@/app/api/post";
 import InputComp from "@/components/input";
 import { useEffect, useState } from "react";
-import { useBalanceFisic } from "@/app/gerencia-cofre/components/BalanceFisicContext";
+import { useBalanceFisic } from "@/app/workspace/gerencia-cofre/components/BalanceFisicContext";
 
 interface Props {
   onSuccess: () => void;

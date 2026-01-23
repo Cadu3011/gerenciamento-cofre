@@ -1,6 +1,6 @@
-import CardMovements from "@/components/form-cofre";
-import HeaderCofre from "@/components/header-cofre";
-import ToggleModalClient from "@/components/toggleModal";
+import CardMovements from "@/app/workspace/gerencia-cofre/components/form-cofre";
+import HeaderCofre from "@/app/workspace/gerencia-cofre/components/header-cofre";
+import ToggleModalClient from "@/app/workspace/gerencia-cofre/components/toggleModal";
 import { jwtDecode } from "jwt-decode";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
@@ -29,7 +29,7 @@ export default async function GerenciaCofre() {
   }
 
   return (
-    <div className="bg-gray-200 flex items-center h-full ">
+    <div className=" flex items-center  ">
       <div className="bg-gray-600 m-10 rounded-2xl">
         <CofreProvider>
           <BalanceFisicProvider>
@@ -40,7 +40,7 @@ export default async function GerenciaCofre() {
               <ToggleModalClient />
             </div>
           </BalanceFisicProvider>
-          <div className="p-8 flex items-center gap-2 ">
+          <div className="p-8 flex  flex-wrap gap-2 items-stretch ">
             <CardMovements
               title="Sangria"
               type="SANGRIA"
