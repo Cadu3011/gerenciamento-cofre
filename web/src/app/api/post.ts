@@ -29,15 +29,14 @@ export async function getCaixas(from: string, to: string) {
 }
 
 export async function handleFormSubmit(formData: FormData) {
+  const tokenCookie = (await cookies()).get("access_token")?.value;
   const descrition = formData.get("description") as string;
   const value = formData.get("value") as string;
   const type = formData.get("type") as string;
   const filialId = Number(formData.get("filialId") as string);
-  const token = formData.get("token") as string;
   const idCategoria = formData.get("categoriaId") as string;
   const category = formData.get("categoriaDesc") as string;
   const transfIdDest = formData.get("transfIdDest") as string;
-  const tokenCookie = (await cookies()).get("access_token")?.value;
   const userData = jwtDecode<UserPayload>(tokenCookie as string);
   const data = {
     descrition,
@@ -54,7 +53,7 @@ export async function handleFormSubmit(formData: FormData) {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
+        Authorization: `Bearer ${tokenCookie}`,
       },
       body: JSON.stringify(data),
     });

@@ -15,10 +15,9 @@ interface Props {
   title: string;
   type: string;
   filialId: string;
-  token: string;
 }
 
-export default function CardMovements({ title, type, filialId, token }: Props) {
+export default function CardMovements({ title, type, filialId }: Props) {
   const [value, setValue] = useState("");
   const [description, setDescription] = useState("");
   const [transf, seTransf] = useState<Conta | null>(null);
@@ -35,7 +34,6 @@ export default function CardMovements({ title, type, filialId, token }: Props) {
     formData.append("value", value);
     formData.append("type", type);
     formData.append("filialId", filialId);
-    formData.append("token", token);
     if (categoria) {
       formData.append("categoriaId", String(categoria.id));
       formData.append("categoriaDesc", categoria.descricao);
@@ -86,13 +84,13 @@ export default function CardMovements({ title, type, filialId, token }: Props) {
         )}
       </form>
       <div className="flex-1 overflow-auto">
-        <ExibirMovimentos type={type} filialId={filialId} token={token} />
+        <ExibirMovimentos type={type} />
       </div>
 
       <div className="mb-2 w-full rounded bg-gradient-to-r from-blue-500 to-blue-700 p-3 shadow-lg shadow-blue-300 flex justify-between items-center text-white text-base font-extrabold tracking-wide transition duration-200 ease-in-out hover:scale-[1.02]">
         <span>Total</span>
         <span className="text-lg font-black drop-shadow-md">
-          <SumMovementsOpe type={type} filialId={filialId} token={token} />
+          <SumMovementsOpe type={type} />
         </span>
       </div>
     </div>

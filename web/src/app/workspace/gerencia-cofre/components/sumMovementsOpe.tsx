@@ -3,10 +3,8 @@ import { useCofreFisic } from "@/app/workspace/gerencia-cofre/components/cofreCo
 import { useEffect, useState } from "react";
 interface Props {
   type: string;
-  filialId: string;
-  token: string;
 }
-export default function SumMovementsOpe({ type, filialId, token }: Props) {
+export default function SumMovementsOpe({ type }: Props) {
   const [SumMovements, setSumMovements] = useState<number>(0);
   const { updatedAt } = useCofreFisic();
   useEffect(() => {

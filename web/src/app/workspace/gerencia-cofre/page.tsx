@@ -16,17 +16,8 @@ interface UserPayload {
 }
 
 export default async function GerenciaCofre() {
-  const token = (await cookies()).get("access_token")?.value;
-  if (!token) {
-    redirect("/login");
-  }
-
-  const userData = jwtDecode<UserPayload>(token);
-  const isExpired = userData.exp * 1000 < Date.now();
-
-  if (isExpired) {
-    redirect("/login");
-  }
+  const token = (await cookies()).get("access_token");
+  const userData = jwtDecode<UserPayload>(token ? token.value : "");
 
   return (
     <div className=" flex items-center  ">
@@ -45,25 +36,21 @@ export default async function GerenciaCofre() {
               title="Sangria"
               type="SANGRIA"
               filialId={`${userData.filialId}`}
-              token={token}
             />
             <CardMovements
               title="Outras entradas"
               type="OUTRAS_ENTRADAS"
               filialId={`${userData.filialId}`}
-              token={token}
             />
             <CardMovements
               title="Despesa"
               type="DESPESA"
               filialId={`${userData.filialId}`}
-              token={token}
             />
             <CardMovements
               title="Deposito"
               type="DEPOSITO"
               filialId={`${userData.filialId}`}
-              token={token}
             />
           </div>
         </CofreProvider>

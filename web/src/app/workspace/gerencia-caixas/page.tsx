@@ -56,7 +56,6 @@ export default function GerenciaCaixas() {
             <TableHead className="text-white text-lg">Caixa</TableHead>
             <TableHead className="text-white text-lg">Dia</TableHead>
             <TableHead className="text-white text-lg">Operador</TableHead>
-            <TableHead className="text-white text-lg">Valor</TableHead>
             <TableHead className="text-white text-lg">Sobra</TableHead>
             <TableHead className="text-white text-lg">Falta</TableHead>
             <TableHead className="text-white text-lg ">Obs</TableHead>

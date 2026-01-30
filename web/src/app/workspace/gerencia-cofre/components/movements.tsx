@@ -6,11 +6,9 @@ import { useEffect, useRef, useState } from "react";
 
 interface Props {
   type: string;
-  filialId: string;
-  token: string;
 }
 
-export default function ExibirMovimentos({ type, filialId, token }: Props) {
+export default function ExibirMovimentos({ type }: Props) {
   const [movements, setMovements] = useState<any[]>([]);
   const [loadingId, setLoadingId] = useState<number | null>(null);
   const { refresh, updatedAt } = useCofreFisic();

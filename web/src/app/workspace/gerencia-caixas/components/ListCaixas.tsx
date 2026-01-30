@@ -79,9 +79,12 @@ export default function ListCaixas({
             <TableCell>{c.caixa}</TableCell>
             <TableCell>{c.dia.split("T")[0]}</TableCell>
             <TableCell>{c.operador}</TableCell>
-            <TableCell>{c.valor}</TableCell>
             <TableCell
-              className={Number(c.sobra) > 5 ? "text-yellow-500 font-bold" : ""}
+              className={
+                Number(c.sobra) > 5
+                  ? "text-yellow-700 font-bold drop-shadow-sm"
+                  : ""
+              }
             >
               {c.sobra}
             </TableCell>

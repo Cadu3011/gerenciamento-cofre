@@ -94,7 +94,7 @@ export default function Sidebar({ role }: { role: string }) {
                         Gerenciar Usuarios
                       </Link>
                       <Link
-                        href="/admin/gerencia-cartao"
+                        href="/admin/gerenciar-cartao"
                         className="hover:text-green-400"
                       >
                         Gerenciar Cartões

@@ -3,7 +3,7 @@ import Link from "next/link";
 export default function Workspace() {
   return (
     <div className="flex justify-center">
-      <div className=" w-1/2 bg-blue-300 px-10 flex gap-3 flex-col justify-center rounded-md py-10">
+      <div className=" w-1/2 bg-blue-950 px-10 flex gap-3 flex-col justify-center rounded-md py-10">
         <div className="flex justify-center w-full gap-10">
           {" "}
           <div className=" bg-white py-5 px-5 text-lg w-full font-bold rounded-md">
