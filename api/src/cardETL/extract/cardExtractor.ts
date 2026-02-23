@@ -2,6 +2,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import { TrierApiClient } from '../infra/http/trier-api.client';
 
 import {
+  isApiError,
   MoveCardsExtracted,
   TrierAuth,
   TrierExtractStrategy,
@@ -13,7 +14,7 @@ export class CardExtractor implements TrierExtractStrategy<MoveCardsExtracted> {
   @Inject()
   private trierApiClient: TrierApiClient;
 
-  async execute(ctx: TrierAuth) {
+  async execute(ctx: TrierAuth): Promise<MoveCardsExtracted> {
     const [vendas, devolucoes, vendasParcela] = await Promise.all([
       this.trierApiClient.getVendas(
         ctx.date,
@@ -31,7 +32,18 @@ export class CardExtractor implements TrierExtractStrategy<MoveCardsExtracted> {
         ctx.urlLocalTrier,
       ),
     ]);
-
+    if (isApiError(vendas)) {
+      console.error(vendas.message);
+      return;
+    }
+    if (isApiError(devolucoes)) {
+      console.error(devolucoes.message);
+      return;
+    }
+    if (isApiError(vendasParcela)) {
+      console.error(vendasParcela.message);
+      return;
+    }
     return {
       vendas: vendas,
       devolucoes: devolucoes,

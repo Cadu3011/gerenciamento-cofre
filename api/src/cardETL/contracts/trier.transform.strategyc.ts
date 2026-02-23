@@ -15,4 +15,6 @@ export interface TrierCardTransformedMovement {
   filialId: number;
   bandeira: string;
   dataEmissao: string;
+  dataVencimento: string;
+  dataPagamento: string | null;
 }

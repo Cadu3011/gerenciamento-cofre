@@ -16,6 +16,13 @@ enum Role{
   GESTOR
   OPERADOR
 }
+
+enum StatusConciliacao{
+  PENDENTE
+  CONCILIADO
+  DIVERGENTE
+  CANCELADO
+}
 enum Category{
   SANGRIA
   OUTRAS_ENTRADAS
@@ -25,6 +32,11 @@ enum Category{
 enum Status{
   SINCRONIZADO
   PENDENTE
+}
+enum StatusJob{
+  RUNNING 
+  SUCCESS
+  FAILED
 }
 model User {
   id Int @default(autoincrement()) @id
@@ -74,6 +86,10 @@ model Filial{
   saldo DailyBalance[] @relation("FiliaAndDayBalancy")
   movements Movimentations[] @relation("FiliaAndMovimentations")
   balanceFisic BalanceFisic[] @relation("FiliaAndBalancyFisic")
+  trierCartaoSales TrierCartaoVendas[] @relation("FilialAndTrierCartaoVendas")
+  redeCartaoSales RedeVenda[] @relation("FilialAndRedeCartaoVendas")
+  conciliacoes Conciliacao[]
+
 }
 
 model CartaoVendas{
@@ -89,6 +105,100 @@ model CartaoVendas{
     nsu String
     codigoAutorizacao String
     codigoTransacao String
+}
+model TrierCartaoVendas{
+  id Int @default(autoincrement()) @id
+  idempotencyKey String @unique
+  documentoFiscal Int
+  valor Decimal
+  modalidade String?
+  hora DateTime @db.Time(0)
+  tipo String
+  filialId Int
+  filial Filial @relation("FilialAndTrierCartaoVendas",fields: [filialId],references: [id])
+  bandeira String
+  dataEmissao DateTime @db.Date
+  dataVencimento DateTime? @db.Date
+  dataPagamento DateTime? @db.Date
+  statusConciliacao StatusConciliacao @default(PENDENTE)
+  conciliacaoItens ConciliacaoItem[]
+
+  @@index([filialId, dataEmissao,hora])
+  @@index([valor, dataEmissao, hora])
+}
+
+model RedeVenda {
+  id              Int      @id @default(autoincrement())
+  idempotencyKey  String   @unique
+  nsu             String?
+  autorizacao     String?
+  valor           Decimal  @db.Decimal(10,2)
+  bandeira        String?
+  modalidade      String?
+  dataAutorizacao DateTime @db.DateTime(0)
+  filialId        Int
+  filial          Filial   @relation("FilialAndRedeCartaoVendas",fields: [filialId], references: [id])
+
+  statusConciliacao StatusConciliacao @default(PENDENTE)
+   conciliacaoItens ConciliacaoItem[]
+   
+  @@index([filialId, dataAutorizacao])
+  @@index([valor, dataAutorizacao])
+}
+model Conciliacao {
+  id          Int      @id @default(autoincrement())
+  filialId    Int
+  filial      Filial   @relation(fields: [filialId], references: [id])
+
+  status      StatusConciliacao @default(CONCILIADO) // ou PENDENTE/DIVERGENTE se você quiser “propostas”
+  metodo      MetodoConciliacao
+  motivo      String?
+  createdAt   DateTime @default(now())
+  createdById Int?
+
+  itens       ConciliacaoItem[]
+
+  @@index([filialId, createdAt])
+}
+
+model ConciliacaoItem {
+  id             Int @id @default(autoincrement())
+  conciliacaoId  Int
+  conciliacao    Conciliacao @relation(fields: [conciliacaoId], references: [id])
+
+  origem         OrigemConciliacao
+  trierId        Int?
+  redeId         Int?
+
+  valor          Decimal @db.Decimal(10,2)
+
+  trier          TrierCartaoVendas? @relation(fields: [trierId], references: [id])
+  rede           RedeVenda?         @relation(fields: [redeId], references: [id])
+
+  @@index([trierId])
+  @@index([redeId])
+}
+
+enum OrigemConciliacao {
+  TRIER
+  REDE
+}
+
+enum MetodoConciliacao {
+  AUTO
+  MANUAL
+}
+
+
+model CronJobETL{
+  id Int @default(autoincrement()) @id
+  jobName String
+  message String
+  createdAt DateTime @default(now())
+  finishedAt DateTime?
+  status StatusJob
+  runDate    DateTime  @db.Date
+  @@unique([jobName,runDate])
 }
 model BalanceFisic{
   id Int @default(autoincrement()) @id

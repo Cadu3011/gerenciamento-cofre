@@ -2,12 +2,16 @@ export interface TransacoesResponseItem {
   id: string;
   codigoCartao: number;
   documentoFiscal: number;
+  idTransacao: string;
   prazoVenda: string;
   valorTotal: number | string;
   modalidadeVenda: string | null;
   nomeCartao: string | null;
+  dataVencimeno: string;
+  dataPagamento: string | null;
 }
 export interface ParcelasResponse {
+  codigoLoja: number;
   transacoes: TransacoesResponseItem[];
 }
 
@@ -29,6 +33,7 @@ export interface DevolucaoResponseItem {
 }
 
 export interface DevolucaoResponse {
+  numeroNota: number | string;
   numeroNotaOrigem: number | string;
   horaEmissao: string;
   dataEmissao: string;
