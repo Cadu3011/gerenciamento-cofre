@@ -9,7 +9,7 @@ import {
 } from '../contracts/trier.extract.strategy';
 
 @Injectable()
-export class CardExtractor implements TrierExtractStrategy<MoveCardsExtracted> {
+export class TrierCardExtractor implements TrierExtractStrategy<MoveCardsExtracted> {
   key: string;
   @Inject()
   private trierApiClient: TrierApiClient;

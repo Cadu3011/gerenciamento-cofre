@@ -131,19 +131,20 @@ model RedeVenda {
   id              Int      @id @default(autoincrement())
   idempotencyKey  String   @unique
   nsu             String?
-  autorizacao     String?
   valor           Decimal  @db.Decimal(10,2)
+  valorLiquido    Decimal  @db.Decimal(10,2)
   bandeira        String?
   modalidade      String?
-  dataAutorizacao DateTime @db.DateTime(0)
+  dataVenda DateTime @db.DateTime(0)
+  horaVenda DateTime @db.Time(0)
   filialId        Int
   filial          Filial   @relation("FilialAndRedeCartaoVendas",fields: [filialId], references: [id])
 
   statusConciliacao StatusConciliacao @default(PENDENTE)
    conciliacaoItens ConciliacaoItem[]
    
-  @@index([filialId, dataAutorizacao])
-  @@index([valor, dataAutorizacao])
+  @@index([filialId, dataVenda])
+  @@index([valor, dataVenda])
 }
 model Conciliacao {
   id          Int      @id @default(autoincrement())

@@ -11,7 +11,7 @@ import { MoveTrier } from './create-move-trier.service';
 import { FilialService } from 'src/filial/filial.service';
 
 @Injectable()
-export class MovementService implements OnModuleInit {
+export class MovementService {
   @Inject()
   private readonly Prisma: PrismaService;
   @Inject()
@@ -21,9 +21,9 @@ export class MovementService implements OnModuleInit {
   @Inject()
   private readonly filial: FilialService;
   private readonly logger = new Logger(MovementService.name);
-  async onModuleInit() {
-    await this.getVendasCaixasTrier();
-  }
+  // async onModuleInit() {
+  //   await this.getVendasCaixasTrier();
+  // }
   @Cron('5,38 6,8,9,11 * * 1-7')
   async getVendasCaixasTrier() {
     const lastDate = await this.Prisma.movimentations.findFirst({

@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { CardETLPipeline } from '../pipeline/card-etl.pipeline.ts';
+import { TrierCardETLPipeline } from '../pipeline/trier.card-etl.pipeline.ts.js';
 import { authTrier } from 'src/auth/authTrier/loginTrier';
 import { FilialService } from 'src/filial/filial.service';
 import { PrismaService } from 'src/database/prisma.service';
@@ -13,9 +13,9 @@ function sleep(ms: number) {
 }
 
 @Injectable()
-export class CardCron {
+export class TrierCardCron {
   @Inject()
-  private readonly pipeline: CardETLPipeline;
+  private readonly pipeline: TrierCardETLPipeline;
 
   @Inject()
   private readonly filialService: FilialService;
@@ -23,7 +23,7 @@ export class CardCron {
   @Inject()
   private readonly prisma: PrismaService;
 
-  @Cron('10,57 6,8,15,16 * * 1-7')
+  @Cron('20,57 6,8,9,15 * * 1-7')
   async cron() {
     const today = new Date().toISOString().split('T')[0];
     let job;
@@ -81,6 +81,7 @@ export class CardCron {
     const token = await authTrier(
       { login: '95', password: 'cadu3011' },
       filial.urlLocalTrier,
+      filial.id,
     );
 
     return { filial: filial.id, url: filial.urlLocalTrier, token };
@@ -170,6 +171,10 @@ export class CardCron {
         authOk.push(r.value);
       } else {
         authFailed.push(filial);
+        if (r.reason.code === 'ETIMEDOUT') {
+          console.error(`[IP NÃO ACESSÍVEL] ${filial.urlLocalTrier}`);
+          return { success: false, message: 'IP não acessível' };
+        }
         console.log(
           `[AUTH FAIL 1ª] filial=${filial.id} url=${filial.urlLocalTrier}`,
           r.reason,
@@ -224,7 +229,7 @@ export class CardCron {
       // se não tem nada ainda, você decide um "start" inicial
       const startBase = last._max.dataEmissao
         ? this.toISODate(new Date(last._max.dataEmissao))
-        : '2026-02-11'; // seu initDate (primeira carga)
+        : '2026-02-25'; // seu initDate (primeira carga)
 
       // datas faltantes = (startBase + 1) ... D-1
       const start = this.addDays(startBase, 1);

@@ -7,9 +7,18 @@ export interface authData {
   login: string;
   password: string;
 }
-export async function authTrier(authData: authData, urlTrier?: string) {
+export async function authTrier(
+  authData: authData,
+  urlTrier?: string,
+  idFilial?: number,
+) {
+  if (!urlTrier) {
+    urlTrier = '192.168.1.253';
+  }
+  if (!idFilial) {
+    idFilial = 99;
+  }
   const jar = new CookieJar();
-  console.log(authData, urlTrier);
   const client = wrapper(
     axios.create({
       jar,
@@ -17,11 +26,11 @@ export async function authTrier(authData: authData, urlTrier?: string) {
     }),
   );
 
-  const baseURL = 'http://192.168.1.253:4647/sgfpod1';
+  const baseURL = `http://${urlTrier}:4647/sgfpod1`;
 
   const headers = {
     'User-Agent': 'Mozilla/5.0',
-    Origin: 'http://192.168.1.253:4647',
+    Origin: `http://${urlTrier}:4647`,
     Referer: `${baseURL}/Login.pod`,
     'X-Requested-With': 'XMLHttpRequest',
   };
@@ -75,7 +84,7 @@ export async function authTrier(authData: authData, urlTrier?: string) {
     `&controller=${controller}` +
     `&action=save` +
     `&id_cod_rede=1` +
-    `&id_cod_filial=3` +
+    `&id_cod_filial=${idFilial}` +
     `&nom_filial=FILIAL%2099%20-%20CENTRAL%20CAVALCANTE` +
     `&id_cod_usuario=95` +
     `&nom_senha=cadu3011`;
@@ -104,9 +113,6 @@ export async function authTrier(authData: authData, urlTrier?: string) {
   }
 
   const token = tokenMatch[1];
-
-  console.log('TOKEN:', token);
-
   return token;
 }
 

@@ -1,29 +1,43 @@
 import { Module } from '@nestjs/common';
 
 import { TrierApiClient } from './infra/http/trier-api.client';
-import { CardETLPipeline } from './pipeline/card-etl.pipeline.ts';
-import { CardExtractor } from './extract/cardExtractor';
+import { TrierCardETLPipeline } from './pipeline/trier.card-etl.pipeline.ts';
+import { TrierCardExtractor } from './extract/trier.cardExtractor';
 import { PrismaService } from 'src/database/prisma.service';
-import { CardTransform } from './transform/cardTransform';
-import { CardLoad } from './load/cardLoad';
-import { CardCron } from './cron/trier.cron';
+import { TrierCardTransform } from './transform/trier.cardTransform';
+import { TrierCardLoad } from './load/trier.cardLoad';
+import { TrierCardCron } from './cron/trier.cron';
 import { FilialModule } from 'src/filial/filial.module';
 import { DatabaseModule } from 'src/database/database.module';
+import { RedeModule } from 'src/rede/rede.module';
+import { RedeCardETLPipeline } from './pipeline/rede.card-etl.pipeline';
+import { RedeApiClient } from './infra/http/rede-api.client';
+import { RedeCardLoad } from './load/rede.cardLoad';
+import { RedeCardTransform } from './transform/rede.cardTransform';
+import { RedeCardsExtractor } from './extract/rede.cardExtractor';
 
 // import { RedisService } from '../redis/redis.service'; futuramente
 
 @Module({
   providers: [
-    CardETLPipeline,
-    CardExtractor,
-    CardTransform,
-    CardLoad,
+    TrierCardETLPipeline,
+    TrierCardExtractor,
+    TrierCardTransform,
+    TrierCardLoad,
     TrierApiClient,
     PrismaService,
-    CardCron,
+    TrierCardCron,
+
+    RedeCardETLPipeline,
+    RedeCardsExtractor,
+    RedeCardTransform,
+    RedeCardLoad,
+    RedeApiClient,
+    PrismaService,
+
     // RedisService,  futuramente
   ],
-  exports: [CardETLPipeline, CardCron],
-  imports: [FilialModule, DatabaseModule],
+  exports: [TrierCardETLPipeline, TrierCardCron, RedeCardETLPipeline],
+  imports: [FilialModule, DatabaseModule, RedeModule],
 })
 export class CartEtlModule {}

@@ -7,5 +7,6 @@ import { FilialModule } from 'src/filial/filial.module';
   imports: [FilialModule],
   controllers: [RedeController],
   providers: [RedeService],
+  exports: [RedeService],
 })
 export class RedeModule {}

@@ -1,19 +1,19 @@
 import { Inject } from '@nestjs/common';
 import { TrierPipelineStrategy } from '../contracts/trier.pipeline.strategy';
-import { CardExtractor } from '../extract/cardExtractor';
+import { TrierCardExtractor } from '../extract/trier.cardExtractor';
 import { TrierAuth } from '../contracts/trier.extract.strategy';
-import { CardTransform } from '../transform/cardTransform';
-import { CardLoad } from '../load/cardLoad';
+import { TrierCardTransform } from '../transform/trier.cardTransform';
+import { TrierCardLoad } from '../load/trier.cardLoad';
 
-export class CardETLPipeline implements TrierPipelineStrategy {
+export class TrierCardETLPipeline implements TrierPipelineStrategy {
   @Inject()
-  private readonly extractor: CardExtractor;
-
-  @Inject()
-  private readonly transform: CardTransform;
+  private readonly extractor: TrierCardExtractor;
 
   @Inject()
-  private readonly loader: CardLoad;
+  private readonly transform: TrierCardTransform;
+
+  @Inject()
+  private readonly loader: TrierCardLoad;
 
   key = 'CARD_ETL';
   async execute(ctx: TrierAuth) {

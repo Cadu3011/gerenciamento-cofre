@@ -4,7 +4,7 @@ import { TrierCardTransformedMovement } from '../contracts/trier.transform.strat
 import { PrismaService } from 'src/database/prisma.service';
 
 @Injectable()
-export class CardLoad implements TrierLoadStrategy {
+export class TrierCardLoad implements TrierLoadStrategy {
   key: string;
   @Inject()
   private readonly prisma: PrismaService;

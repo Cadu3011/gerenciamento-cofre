@@ -7,7 +7,7 @@ import {
 import { Decimal } from '@prisma/client/runtime/library';
 
 @Injectable()
-export class CardTransform implements TrierTransformStrategy {
+export class TrierCardTransform implements TrierTransformStrategy {
   key: string;
 
   async execute(
@@ -40,23 +40,43 @@ export class CardTransform implements TrierTransformStrategy {
       });
     }
 
+    /*
+     * 0.5) BLOQUEAR CODIGO CARTAO 34
+     */
+    const docsCartao34 = new Set<string>();
+
+    for (const t of ctx.vendasParcela.transacoes) {
+      if (t.codigoCartao === 34) {
+        const documento = t.documentoFiscal
+          ? String(t.documentoFiscal)
+          : String(t.idTransacao.replace('RC:', '9000'));
+
+        docsCartao34.add(documento);
+      }
+    }
+
     /**
      * 1) DEVOLUÇÕES CARTÃO (mantém seu filtro, se você só quer devolução no cartão)
      *    - aqui continua fazendo sentido filtrar por 6/8
      */
     const devFormat = ctx.devolucoes
-      .filter(
-        (dev) =>
+      .filter((dev) => {
+        const ehCartao =
           dev.condicaoPagamento.codigo === 6 ||
-          dev.condicaoPagamento.codigo === 8,
-      )
+          dev.condicaoPagamento.codigo === 8;
+
+        const origem = String(dev.numeroNotaOrigem);
+
+        const origemEhCartao34 = docsCartao34.has(origem);
+
+        return ehCartao && !origemEhCartao34;
+      })
       .map((dev) => {
         const idDev = dev.numeroNota;
         const origemDev = dev.numeroNotaOrigem;
         const hora = dev.horaEmissao?.split('-')[0] ?? '';
         const data = dev.dataEmissao;
         const filialId = dev.codFilial;
-
         const valor = dev.itens.reduce(
           (acc, t) => acc.plus(new Decimal(t.valorTotalLiquido).mul(-1)),
           new Decimal(0),
@@ -125,7 +145,7 @@ export class CardTransform implements TrierTransformStrategy {
       listaVendas.map((vendaParc) => {
         const meta = metaByDoc.get(String(vendaParc.documentoFiscal));
 
-        const hora = meta?.hora ?? '';
+        const hora = meta?.hora ?? '00:00:00';
         const data = meta?.data ?? vendaParc.dataEmissaoParcela ?? undefined;
         const tipo = vendaParc.idTransacao.startsWith('RC:')
           ? 'RECEBIMENTO_CREDIARIO'
