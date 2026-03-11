@@ -33,10 +33,15 @@ enum Status{
   SINCRONIZADO
   PENDENTE
 }
-enum StatusJob{
+enum StatusCronJobs{
   RUNNING 
   SUCCESS
   FAILED
+}
+
+enum StatusJob{
+  ATIVO
+  INATIVO
 }
 model User {
   id Int @default(autoincrement()) @id
@@ -191,16 +196,28 @@ enum MetodoConciliacao {
 }
 
 
-model CronJobETL{
+model CronJobs{
   id Int @default(autoincrement()) @id
   jobName String
   message String
+  idJobs Int
+  jobs Jobs @relation(fields: [idJobs], references: [id])
   createdAt DateTime @default(now())
   finishedAt DateTime?
-  status StatusJob
+  status StatusCronJobs
   runDate    DateTime  @db.Date
   @@unique([jobName,runDate])
 }
+
+model Jobs{
+  id Int @default(autoincrement()) @id
+  jobName String @unique
+  cronJobs CronJobs[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  status StatusJob
+}
+
 model BalanceFisic{
   id Int @default(autoincrement()) @id
   value_100_50 Decimal  @db.Decimal(9,2) @default(0)

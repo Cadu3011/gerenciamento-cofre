@@ -28,7 +28,7 @@ export class TrierCardCron {
     const today = new Date().toISOString().split('T')[0];
     let job;
     try {
-      job = await this.prisma.cronJobETL.upsert({
+      job = await this.prisma.cronJobs.upsert({
         where: {
           jobName_runDate: { jobName: 'TrierCards', runDate: new Date(today) },
           status: 'RUNNING',
@@ -38,6 +38,7 @@ export class TrierCardCron {
           status: 'RUNNING',
           message: '',
           runDate: new Date(today),
+          jobs: { connect: { jobName: 'TrierCards' } },
         },
         update: {
           message: 'Retentativa',
@@ -52,7 +53,7 @@ export class TrierCardCron {
     try {
       await this.execute();
       const finishedAt = new Date();
-      await this.prisma.cronJobETL.update({
+      await this.prisma.cronJobs.update({
         where: { id: job.id },
         data: {
           status: 'SUCCESS',
@@ -63,7 +64,7 @@ export class TrierCardCron {
       console.log(error);
       const finishedAt = new Date();
 
-      await this.prisma.cronJobETL.update({
+      await this.prisma.cronJobs.update({
         where: { id: job.id },
         data: {
           status: 'FAILED',
