@@ -4,6 +4,7 @@ import { authTrier } from 'src/auth/authTrier/loginTrier';
 import { FilialService } from 'src/filial/filial.service';
 import { PrismaService } from 'src/database/prisma.service';
 import { Cron } from '@nestjs/schedule';
+import { JobsService } from 'src/jobs/jobs.service';
 
 type AuthOk = { filial: number; url: string; token: string };
 type AuthFail = { filial: number; url: string; error: unknown };
@@ -23,56 +24,14 @@ export class TrierCardCron {
   @Inject()
   private readonly prisma: PrismaService;
 
-  @Cron('20,57 6,8,9,15 * * 1-7')
-  async cron() {
-    const today = new Date().toISOString().split('T')[0];
-    let job;
-    try {
-      job = await this.prisma.cronJobs.upsert({
-        where: {
-          jobName_runDate: { jobName: 'TrierCards', runDate: new Date(today) },
-          status: 'RUNNING',
-        },
-        create: {
-          jobName: 'TrierCards',
-          status: 'RUNNING',
-          message: '',
-          runDate: new Date(today),
-          jobs: { connect: { jobName: 'TrierCards' } },
-        },
-        update: {
-          message: 'Retentativa',
-        },
-      });
-    } catch (error: any) {
-      if (error?.code === 'P2002') {
-        console.log('Job ja finalizado');
-        return;
-      }
-    }
-    try {
-      await this.execute();
-      const finishedAt = new Date();
-      await this.prisma.cronJobs.update({
-        where: { id: job.id },
-        data: {
-          status: 'SUCCESS',
-          finishedAt,
-        },
-      });
-    } catch (error) {
-      console.log(error);
-      const finishedAt = new Date();
+  @Inject()
+  private readonly job: JobsService;
 
-      await this.prisma.cronJobs.update({
-        where: { id: job.id },
-        data: {
-          status: 'FAILED',
-          message: error.message,
-          finishedAt,
-        },
-      });
-    }
+  @Cron('20,50 6,8,9,13 * * 1-7')
+  async run() {
+    return await this.job.runCronJob('TrierCards', async () => {
+      await this.execute();
+    });
   }
 
   private async authOnce(filial: {

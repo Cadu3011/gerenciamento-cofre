@@ -2,20 +2,47 @@ import { Inject, Injectable } from '@nestjs/common';
 import { CreateJobDto } from './dto/create-job.dto';
 import { UpdateJobDto } from './dto/update-job.dto';
 import { PrismaService } from 'src/database/prisma.service';
+import { Prisma } from '@prisma/client';
 
 @Injectable()
 export class JobsService {
   @Inject()
   private readonly prisma: PrismaService;
 
-  create(createJobDto: CreateJobDto) {
-    return this.prisma.jobs.create({
-      data: { ...createJobDto, status: 'ATIVO' },
+  async onModuleInit() {
+    await this.markStuckJobs();
+  }
+
+  async markStuckJobs() {
+    await this.prisma.cronJobs.updateMany({
+      where: {
+        status: 'RUNNING',
+      },
+      data: {
+        status: 'FAILED',
+        message: 'Servidor reiniciado durante execução',
+        finishedAt: new Date(),
+      },
     });
   }
 
+  async create(createJobDto: CreateJobDto) {
+    try {
+      return await this.prisma.jobs.create({
+        data: { ...createJobDto, status: true },
+      });
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError) {
+        if (error.code === 'P2002') {
+          return { error: 'Esta Tarefa já está cadastrada' };
+        }
+      }
+      throw error;
+    }
+  }
+
   findAll() {
-    return this.prisma.jobs.findMany();
+    return this.prisma.jobs.findMany({ include: { cronJobs: true }, take: 10 });
   }
 
   findOne(id: number) {
@@ -27,5 +54,62 @@ export class JobsService {
       where: { id },
       data: updateJobDto,
     });
+  }
+  async runCronJob(jobName: string, execute: () => Promise<void>) {
+    const today = new Date().toISOString().split('T')[0];
+
+    let job;
+
+    try {
+      job = await this.prisma.cronJobs.upsert({
+        where: {
+          jobName_runDate: { jobName, runDate: new Date(today) },
+          status: { not: 'SUCCESS' },
+        },
+        create: {
+          jobName,
+          status: 'RUNNING',
+          message: '',
+          runDate: new Date(today),
+          jobs: { connect: { jobName, status: true } },
+        },
+        update: {
+          message: 'Retentativa',
+        },
+      });
+    } catch (error: any) {
+      if (error?.code === 'P2002') {
+        console.log(`Job ${jobName} já finalizado`);
+        return { error: `Tarefa ${jobName} já finalizada hoje` };
+      }
+
+      if (error?.code === 'P2025') {
+        console.log(`Job ${jobName} não está ativo ou não existe`);
+        return { error: `Tarefa ${jobName} não está ativo ou não existe` };
+      }
+
+      throw error;
+    }
+
+    try {
+      await execute();
+
+      await this.prisma.cronJobs.update({
+        where: { id: job.id },
+        data: {
+          status: 'SUCCESS',
+          finishedAt: new Date(),
+        },
+      });
+    } catch (error: any) {
+      await this.prisma.cronJobs.update({
+        where: { id: job.id },
+        data: {
+          status: 'FAILED',
+          message: error.message,
+          finishedAt: new Date(),
+        },
+      });
+    }
   }
 }

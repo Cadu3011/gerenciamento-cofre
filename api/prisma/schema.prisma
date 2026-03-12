@@ -39,10 +39,7 @@ enum StatusCronJobs{
   FAILED
 }
 
-enum StatusJob{
-  ATIVO
-  INATIVO
-}
+
 model User {
   id Int @default(autoincrement()) @id
   login Int @unique
@@ -215,7 +212,7 @@ model Jobs{
   cronJobs CronJobs[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  status StatusJob
+  status Boolean
 }
 
 model BalanceFisic{

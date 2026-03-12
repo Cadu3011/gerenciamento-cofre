@@ -4,10 +4,11 @@ import { toggleJob } from "@/app/actions/jobs";
 import { Job } from "@/app/types/jobs";
 import { Button } from "@/components/ui/button";
 import { TableBody, TableRow, TableCell } from "@/components/ui/table";
+import DialogCronJobs from "./DialogCronJobs";
 
 export default function ListJobs({ jobs }: { jobs: Job[] }) {
   return (
-    <TableBody>
+    <TableBody className="border border-black rounded-sm">
       {jobs.map((j, index) => (
         <TableRow
           key={j.id}
@@ -19,11 +20,14 @@ export default function ListJobs({ jobs }: { jobs: Job[] }) {
         >
           <TableCell>{String(j.updatedAt).split("T")[0]}</TableCell>
           <TableCell>{j.jobName}</TableCell>
-          <TableCell>{j.status}</TableCell>
+          <TableCell>{j.status ? "Ativo" : "Inativo"}</TableCell>
           <TableCell className="border-l-2 border-black">
-            <Button onClick={() => toggleJob(j.id, !j.status)}>
-              {j.status ? "Desativar" : "Ativar"}
-            </Button>
+            <div className="flex gap-2 w-1/2">
+              <Button onClick={() => toggleJob(j.id, !j.status)}>
+                {j.status ? "Desativar" : "Ativar"}
+              </Button>
+              <DialogCronJobs jobName={j.jobName} cronJobs={j.cronJobs} />
+            </div>
           </TableCell>
         </TableRow>
       ))}

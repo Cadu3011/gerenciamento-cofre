@@ -2,7 +2,6 @@
 import { Table, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import ListJobs from "./components/ListJobs";
 import { cookies } from "next/headers";
-import { Button } from "@/components/ui/button";
 import CreateJob from "./components/CreateJob";
 
 async function getJobs() {
@@ -21,10 +20,10 @@ export default async function GerenciarTarefas() {
   const jobs = await getJobs();
 
   return (
-    <div>
+    <div className="px-5">
       <div className="bg-blue-950 flex justify-between py-2 px-20">
         <div className="p-3 bg-white rounded-md">
-          <h1>Gerenciar Tarefas</h1>
+          <h1 className="font-bold">Gerenciar Tarefas</h1>
         </div>
 
         <CreateJob />
@@ -38,7 +37,7 @@ export default async function GerenciarTarefas() {
             </TableHead>
             <TableHead className="text-white text-lg">Tarefa</TableHead>
             <TableHead className="text-white text-lg">Status</TableHead>
-            <TableHead className="text-white text-lg ">Ações</TableHead>
+            <TableHead className="text-white text-lg w-20">Ações</TableHead>
           </TableRow>
         </TableHeader>
         {jobs ? (

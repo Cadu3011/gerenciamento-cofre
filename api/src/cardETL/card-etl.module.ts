@@ -15,6 +15,7 @@ import { RedeApiClient } from './infra/http/rede-api.client';
 import { RedeCardLoad } from './load/rede.cardLoad';
 import { RedeCardTransform } from './transform/rede.cardTransform';
 import { RedeCardsExtractor } from './extract/rede.cardExtractor';
+import { JobsModule } from 'src/jobs/jobs.module';
 
 // import { RedisService } from '../redis/redis.service'; futuramente
 
@@ -38,6 +39,6 @@ import { RedeCardsExtractor } from './extract/rede.cardExtractor';
     // RedisService,  futuramente
   ],
   exports: [TrierCardETLPipeline, TrierCardCron, RedeCardETLPipeline],
-  imports: [FilialModule, DatabaseModule, RedeModule],
+  imports: [FilialModule, DatabaseModule, RedeModule, JobsModule],
 })
 export class CartEtlModule {}
