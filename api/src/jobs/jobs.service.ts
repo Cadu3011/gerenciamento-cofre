@@ -3,11 +3,22 @@ import { CreateJobDto } from './dto/create-job.dto';
 import { UpdateJobDto } from './dto/update-job.dto';
 import { PrismaService } from 'src/database/prisma.service';
 import { Prisma } from '@prisma/client';
+import { Cron } from '@nestjs/schedule';
+import { TrierCardCron } from 'src/cardETL/cron/trier.cron';
+import { MovementService } from 'src/movement/movement.service';
+import { CieloService } from 'src/cielo/cielo.service';
 
 @Injectable()
 export class JobsService {
   @Inject()
   private readonly prisma: PrismaService;
+
+  @Inject()
+  private readonly trierPipelineCard: TrierCardCron;
+  @Inject()
+  private readonly trierPipelineMovement: MovementService;
+  @Inject()
+  private readonly cieloService: CieloService;
 
   async onModuleInit() {
     await this.markStuckJobs();
@@ -42,7 +53,10 @@ export class JobsService {
   }
 
   findAll() {
-    return this.prisma.jobs.findMany({ include: { cronJobs: true }, take: 10 });
+    return this.prisma.jobs.findMany({
+      include: { cronJobs: { orderBy: { createdAt: 'desc' } } },
+      take: 10,
+    });
   }
 
   findOne(id: number) {
@@ -111,5 +125,26 @@ export class JobsService {
         },
       });
     }
+  }
+
+  @Cron('20,50 6,8,9,13 * * 1-7')
+  async runTrierCards() {
+    return await this.runCronJob('TrierCards', async () => {
+      await this.trierPipelineCard.execute();
+    });
+  }
+
+  @Cron('20,50 6,8,9,13 * * 1-7')
+  async runTrierMovements() {
+    return await this.runCronJob('TrierMovements', async () => {
+      await this.trierPipelineMovement.getVendasCaixasTrier();
+    });
+  }
+
+  @Cron('18,53 7,8,9,10,14 * * 1-7')
+  async runCieloETL() {
+    return await this.runCronJob('CieloETL', async () => {
+      await this.cieloService.pipelineETL();
+    });
   }
 }

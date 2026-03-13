@@ -39,6 +39,6 @@ import { JobsModule } from 'src/jobs/jobs.module';
     // RedisService,  futuramente
   ],
   exports: [TrierCardETLPipeline, TrierCardCron, RedeCardETLPipeline],
-  imports: [FilialModule, DatabaseModule, RedeModule, JobsModule],
+  imports: [FilialModule, DatabaseModule, RedeModule],
 })
 export class CartEtlModule {}

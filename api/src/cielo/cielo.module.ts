@@ -9,5 +9,6 @@ import { FilialModule } from 'src/filial/filial.module';
   imports: [DatabaseModule, FilialModule],
   controllers: [CieloController],
   providers: [CieloService, CieloTransformSalesService],
+  exports: [CieloService],
 })
 export class CieloModule {}

@@ -6,7 +6,6 @@ import * as path from 'path';
 import { CieloTransformSalesService } from './cielo-extratc-vendas.service';
 import { PrismaService } from 'src/database/prisma.service';
 import { Prisma } from '@prisma/client';
-import { Cron } from '@nestjs/schedule';
 import { FilialService } from 'src/filial/filial.service';
 
 @Injectable()
@@ -31,7 +30,6 @@ export class CieloService {
     ),
   };
 
-  // @Cron('18,53 7,8,9,10,14 * * 1-7')
   async pipelineETL() {
     try {
       const fileList = await this.uploadExtract(

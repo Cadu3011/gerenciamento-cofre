@@ -21,9 +21,6 @@ export class JobsController {
   @Inject()
   private readonly jobsService: JobsService;
 
-  @Inject()
-  private readonly trierCardCron: TrierCardCron;
-
   @UseGuards(AuthGuard)
   @Roles(Role.GESTOR)
   @Post()
@@ -36,7 +33,9 @@ export class JobsController {
   @Post('cron/:jobName')
   createCronJob(@Param('jobName') jobName: string) {
     const jobs = {
-      TrierCards: () => this.trierCardCron.run(),
+      TrierCards: () => this.jobsService.runTrierCards(),
+      TrierMovements: () => this.jobsService.runTrierMovements(),
+      CieloETL: () => this.jobsService.runCieloETL(),
     };
 
     const job = jobs[jobName];

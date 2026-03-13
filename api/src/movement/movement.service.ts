@@ -1,14 +1,15 @@
-import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { CreateMovementDto } from './dto/create-movement.dto';
 import { UpdateMovementDto } from './dto/update-movement.dto';
 import { PrismaService } from 'src/database/prisma.service';
 import { AmountService } from 'src/amount/amount.service';
 import { Decimal } from '@prisma/client/runtime/library';
 import { FindAllQueryDto } from './dto/query-movement.dto';
-import { Cron, Interval } from '@nestjs/schedule';
+import { Interval } from '@nestjs/schedule';
 import { authTrier } from 'src/auth/authTrier/loginTrier';
 import { MoveTrier } from './create-move-trier.service';
 import { FilialService } from 'src/filial/filial.service';
+import { JobsService } from 'src/jobs/jobs.service';
 
 @Injectable()
 export class MovementService {
@@ -20,11 +21,9 @@ export class MovementService {
   private readonly moveTrier: MoveTrier;
   @Inject()
   private readonly filial: FilialService;
+
   private readonly logger = new Logger(MovementService.name);
-  // async onModuleInit() {
-  //   await this.getVendasCaixasTrier();
-  // }
-  @Cron('5,38 6,8,9,11 * * 1-7')
+
   async getVendasCaixasTrier() {
     const lastDate = await this.Prisma.movimentations.findFirst({
       where: {

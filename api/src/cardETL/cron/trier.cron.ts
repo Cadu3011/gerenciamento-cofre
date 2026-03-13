@@ -3,8 +3,6 @@ import { TrierCardETLPipeline } from '../pipeline/trier.card-etl.pipeline.ts.js'
 import { authTrier } from 'src/auth/authTrier/loginTrier';
 import { FilialService } from 'src/filial/filial.service';
 import { PrismaService } from 'src/database/prisma.service';
-import { Cron } from '@nestjs/schedule';
-import { JobsService } from 'src/jobs/jobs.service';
 
 type AuthOk = { filial: number; url: string; token: string };
 type AuthFail = { filial: number; url: string; error: unknown };
@@ -23,16 +21,6 @@ export class TrierCardCron {
 
   @Inject()
   private readonly prisma: PrismaService;
-
-  @Inject()
-  private readonly job: JobsService;
-
-  @Cron('20,50 6,8,9,13 * * 1-7')
-  async run() {
-    return await this.job.runCronJob('TrierCards', async () => {
-      await this.execute();
-    });
-  }
 
   private async authOnce(filial: {
     id: number;
