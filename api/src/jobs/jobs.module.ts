@@ -5,11 +5,18 @@ import { DatabaseModule } from 'src/database/database.module';
 import { CartEtlModule } from 'src/cardETL/card-etl.module';
 import { MovementModule } from 'src/movement/movement.module';
 import { CieloModule } from 'src/cielo/cielo.module';
+import { TrierModule } from 'src/trier/trier.module';
 
 @Module({
   controllers: [JobsController],
   providers: [JobsService],
-  imports: [DatabaseModule, CartEtlModule, MovementModule, CieloModule],
+  imports: [
+    DatabaseModule,
+    CartEtlModule,
+    MovementModule,
+    CieloModule,
+    TrierModule,
+  ],
   exports: [JobsService],
 })
 export class JobsModule {}

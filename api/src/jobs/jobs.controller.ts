@@ -36,6 +36,7 @@ export class JobsController {
       TrierCards: () => this.jobsService.runTrierCards(),
       TrierMovements: () => this.jobsService.runTrierMovements(),
       CieloETL: () => this.jobsService.runCieloETL(),
+      TrierCaixas: () => this.jobsService.runTrierCaixas(),
     };
 
     const job = jobs[jobName];

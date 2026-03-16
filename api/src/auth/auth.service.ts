@@ -38,7 +38,6 @@ export class AuthService {
         login: String(params.login),
         password: params.password,
       });
-      console.log(this.tokenTrier);
       const payload = {
         sub: user.id,
         roles: user.role,

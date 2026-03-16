@@ -108,7 +108,6 @@ export async function authTrier(
   );
 
   if (!tokenMatch) {
-    console.log(js);
     throw new Error('Não encontrou token_integracao');
   }
 

@@ -7,6 +7,7 @@ import { Cron } from '@nestjs/schedule';
 import { TrierCardCron } from 'src/cardETL/cron/trier.cron';
 import { MovementService } from 'src/movement/movement.service';
 import { CieloService } from 'src/cielo/cielo.service';
+import { TrierDifCxETL } from 'src/trier/trierDIfCx.service';
 
 @Injectable()
 export class JobsService {
@@ -19,6 +20,9 @@ export class JobsService {
   private readonly trierPipelineMovement: MovementService;
   @Inject()
   private readonly cieloService: CieloService;
+
+  @Inject()
+  private readonly trierPipelineCaixa: TrierDifCxETL;
 
   async onModuleInit() {
     await this.markStuckJobs();
@@ -145,6 +149,13 @@ export class JobsService {
   async runCieloETL() {
     return await this.runCronJob('CieloETL', async () => {
       await this.cieloService.pipelineETL();
+    });
+  }
+
+  @Cron('5,38 5,7,10,12 * * 1-7')
+  async runTrierCaixas() {
+    return await this.runCronJob('TrierCaixas', async () => {
+      await this.trierPipelineCaixa.init();
     });
   }
 }
