@@ -1,8 +1,9 @@
 "use client";
 
-import { deleteMoves, getMovements, pushValueSangria } from "@/app/api/post";
+import { deleteMoves, getMovements } from "@/app/api/post";
 import { useCofreFisic } from "@/app/workspace/gerencia-cofre/components/cofreContext";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
+import Sangrias from "./Sangrias";
 
 interface Props {
   type: string;
@@ -12,20 +13,7 @@ export default function ExibirMovimentos({ type }: Props) {
   const [movements, setMovements] = useState<any[]>([]);
   const [loadingId, setLoadingId] = useState<number | null>(null);
   const { refresh, updatedAt } = useCofreFisic();
-  const [inputValues, setInputValues] = useState<Record<number, string>>({});
-  const debounceTimeout = useRef<Record<number, NodeJS.Timeout>>({});
 
-  const handleInputChange = (id: number, value: string) => {
-    setInputValues((prev) => ({ ...prev, [id]: value }));
-
-    // Limpa qualquer timeout anterior para esse input
-    if (debounceTimeout.current[id]) clearTimeout(debounceTimeout.current[id]);
-
-    // Cria um novo timeout de 1 segundo
-    debounceTimeout.current[id] = setTimeout(() => {
-      handleSend(id, value);
-    }, 1000);
-  };
   const deleteMovements = async (id: number) => {
     setLoadingId(id);
     try {
@@ -55,47 +43,18 @@ export default function ExibirMovimentos({ type }: Props) {
       });
 
     setMovements(filteredMovements);
-    const initialValues: Record<number, string> = {};
-    filteredMovements.forEach((move: any) => {
-      if (move.value === "0") {
-        initialValues[move.id] = "";
-      }
-      initialValues[move.id] = String(move.value ?? "");
-    });
-    setInputValues(initialValues);
   };
 
   useEffect(() => {
     fetchMovements();
   }, [type, updatedAt]);
-  const handleSend = async (id: number, value: string) => {
-    if (value === "") {
-      value = "0";
-      await pushValueSangria(id, value);
-      refresh();
-    }
-    await pushValueSangria(id, value);
-    refresh();
-  };
+
   return (
-    <div className="  max-w-full">
+    <div className="max-w-full">
+      {type === "SANGRIA" && <Sangrias />}
       <table className=" w-full border border-gray-300 border-collapse text-sm ">
         <thead>
           <tr className="bg-gray-200">
-            {type === "SANGRIA" && (
-              <>
-                <th className="border border-gray-300 px-4 py-2 text-center">
-                  Caixa
-                </th>
-
-                <th className="border border-gray-300 px-4 py-2 text-center">
-                  Total Vendas
-                </th>
-                <th className="border border-gray-300 px-4 py-2 text-center">
-                  Total Dinheiro
-                </th>
-              </>
-            )}
             {type !== "SANGRIA" && (
               <>
                 <th className="border border-gray-300 px-4 py-2 text-center">
@@ -119,34 +78,15 @@ export default function ExibirMovimentos({ type }: Props) {
         <tbody className="">
           {movements.map((move) => (
             <tr key={move.id} className="bg-white hover:bg-gray-50 ">
-              <td className="border border-gray-300 px-4 py-2 text-center">
-                {move.description}
-              </td>
-
-              {type === "SANGRIA" && (
+              {type !== "SANGRIA" && (
                 <>
                   <td className="border border-gray-300 px-4 py-2 text-center">
-                    {move.valueSangriaTrier}
+                    {move.description}
                   </td>
-
-                  <td className="border border-gray-300 px-1 py-2 text-center flex">
-                    R$
-                    <input
-                      type="number"
-                      className="w-full text-center px-1 py-1 focus:outline-none focus:ring-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                      value={inputValues[move.id] ?? ""}
-                      onChange={(e) =>
-                        handleInputChange(move.id, e.target.value)
-                      }
-                    />
+                  <td className="border border-gray-300 px-4 py-2 text-center">
+                    {move.value}
                   </td>
                 </>
-              )}
-
-              {type !== "SANGRIA" && (
-                <td className="border border-gray-300 px-4 py-2 text-center">
-                  {move.value}
-                </td>
               )}
               {type !== "OUTRAS_ENTRADAS" && type !== "SANGRIA" && (
                 <td className="border border-gray-300  py-2 text-center">

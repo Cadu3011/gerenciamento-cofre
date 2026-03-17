@@ -63,11 +63,16 @@ export async function handleFormSubmit(formData: FormData) {
   }
 }
 
-export async function pushValueSangria(id: number, value: string) {
+export async function pushValueSangria(
+  id: number,
+  value: string,
+  caixa: string,
+) {
   const tokenCookie = (await cookies()).get("access_token")?.value;
   try {
     const data = {
       value: value,
+      descrition: caixa,
     };
     const dataPost = await fetch(`http://${Url}/movement/${id}`, {
       method: "PATCH",
@@ -250,6 +255,18 @@ export async function fetchSaldos(filialId: string) {
     };
   }
 }
+
+export async function getVendasCaixas() {
+  const tokenCookie = (await cookies()).get("access_token")?.value;
+  const vendasCaixas = await fetch(`http://${Url}/movement/vendas-caixas`, {
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${tokenCookie}`,
+    },
+  }).then((res) => res.json());
+  return vendasCaixas;
+}
+
 export async function getMovements() {
   const tokenCookie = (await cookies()).get("access_token")?.value;
   const Url = await apiUrl();

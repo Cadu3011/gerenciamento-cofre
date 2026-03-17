@@ -36,6 +36,16 @@ export class MovementService {
 
   private readonly logger = new Logger(MovementService.name);
 
+  async findVendasCaixas(filialId: number) {
+    return this.Prisma.salesDin.groupBy({
+      by: ['numCaixa', 'filialId'],
+      where: { filialId, moveId: null },
+      _sum: {
+        valor: true,
+      },
+    });
+  }
+
   async getVendasCaixasTrier() {
     const lastDate = (await this.Prisma.salesDin.findFirst({
       orderBy: {
@@ -412,24 +422,34 @@ export class MovementService {
   async update(
     filialId: number,
     id: number,
-    updateMovementDto: UpdateMovementDto,
+    createMovementDto: CreateMovementDto,
   ) {
+    console.log(createMovementDto);
     const move = await this.Prisma.movimentations.findUnique({
       where: { id: id },
     });
-    const moveCreate = await this.Prisma.movimentations.update({
+    const moveCreate = await this.Prisma.movimentations.upsert({
       where: { id, filialId: filialId },
-      data: updateMovementDto,
+      update: {
+        value: Decimal(createMovementDto.value),
+      },
+      create: {
+        ...createMovementDto,
+        value: Decimal(createMovementDto.value),
+        type: 'SANGRIA',
+        descrition: String(createMovementDto.descrition),
+        filialId,
+      },
     });
     if (move.value == null) {
-      const valueSub = new Decimal(updateMovementDto.value).sub(0);
+      const valueSub = new Decimal(createMovementDto.value).sub(0);
       await this.Amont.createOrUpdate({
         filialId: moveCreate.filialId,
         balance: Number(valueSub),
       });
       return moveCreate;
     }
-    const valueSub = new Decimal(updateMovementDto.value).sub(move.value);
+    const valueSub = new Decimal(createMovementDto.value).sub(move.value);
     await this.Amont.createOrUpdate({
       filialId: moveCreate.filialId,
       balance: Number(valueSub),

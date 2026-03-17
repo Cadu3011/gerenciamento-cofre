@@ -11,6 +11,7 @@ import SumMovementsOpe from "./sumMovementsOpe";
 import ToggleDepositoTransferir, {
   Conta,
 } from "@/app/workspace/gerencia-cofre/components/interruptorDepAndTransf";
+import Sangrias from "./Sangrias";
 interface Props {
   title: string;
   type: string;
