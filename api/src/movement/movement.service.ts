@@ -9,7 +9,19 @@ import { Interval } from '@nestjs/schedule';
 import { authTrier } from 'src/auth/authTrier/loginTrier';
 import { MoveTrier } from './create-move-trier.service';
 import { FilialService } from 'src/filial/filial.service';
-import { JobsService } from 'src/jobs/jobs.service';
+import { Prisma } from '@prisma/client';
+
+interface SalesTrierDin {
+  financeiroMovimentacaoId: number;
+  codFilial: number;
+  numNota: number;
+  numCaixa: number;
+  datEmissao: string; // ISO string (pode converter pra Date depois)
+  datReceb: string;
+  vlrRecebido: number;
+  tipo: string;
+  observacao: string | null;
+}
 
 @Injectable()
 export class MovementService {
@@ -25,19 +37,16 @@ export class MovementService {
   private readonly logger = new Logger(MovementService.name);
 
   async getVendasCaixasTrier() {
-    const lastDate = await this.Prisma.movimentations.findFirst({
-      where: {
-        type: 'SANGRIA',
-      },
+    const lastDate = (await this.Prisma.salesDin.findFirst({
       orderBy: {
-        createdAt: 'desc',
+        sale_date: 'desc',
       },
       select: {
-        createdAt: true,
+        sale_date: true,
       },
-    });
+    })) ?? { sale_date: new Date('2026-03-10') };
 
-    const dateInit = new Date(lastDate.createdAt);
+    const dateInit = new Date(lastDate.sale_date);
     dateInit.setDate(dateInit.getDate() + 1);
     const dataAtual = new Date();
     const dataAtualFormat = new Date(
@@ -56,8 +65,6 @@ export class MovementService {
       login: '95',
       password: 'cadu3011',
     });
-
-    const allResults: any[] = []; // acumulador
 
     for (
       let current = new Date(dateInit);
@@ -99,112 +106,63 @@ export class MovementService {
       );
 
       if (totais) {
-        const idMoveTotais = totais.map((move) => ({ id: move.id }));
+        try {
+          const idMoveTotais = totais.map((move) => ({ id: move.id }));
+          const moveDetalhes = await Promise.all(
+            idMoveTotais.map(async ({ id }) => {
+              const res = await this.moveTrier.getVendasDetalhes(id, token);
 
-        const moveDetalhes = await Promise.all(
-          idMoveTotais.map(async ({ id }) => {
-            const res = await this.moveTrier.getVendasDetalhes(id, token);
-
-            if (!res || !Array.isArray(res.detalhes)) {
-              console.log(JSON.stringify(res, null, 2));
-              console.log(`⚠️ Nenhum detalhe encontrado para id=${id}`);
-              return []; // retorna array vazio para não quebrar
-            }
-            const moveDetalhes = res.detalhes.reduce(
-              (acc, move) => {
-                const {
-                  numCaixa,
-                  vlrRecebido,
-                  codFilial,
-                  datEmissao,
-                  datReceb,
-                  observacao,
-                } = move;
-
-                if (!acc[numCaixa]) {
-                  acc[numCaixa] = {
-                    filial: codFilial,
-                    caixa: numCaixa,
-                    data:
-                      observacao === 'RECEBIMENTO CREDIÁRIO'
-                        ? `${datReceb}T00:00:00-03:00`
-                        : datEmissao,
-                    vlrRecebido: new Decimal(0),
-                  };
-                }
-
-                acc[numCaixa].vlrRecebido =
-                  acc[numCaixa].vlrRecebido.plus(vlrRecebido);
-
-                return acc;
-              },
-              {} as Record<
-                number,
-                {
-                  filial: number;
-                  caixa: number;
-                  vlrRecebido: Decimal;
-                  data: string;
-                }
-              >,
-            );
-
-            return Object.values(moveDetalhes).map((d: any) => ({
-              filial: d.filial,
-              caixa: d.caixa,
-              data: d.data,
-              vlrRecebido: Number(d.vlrRecebido.toFixed(2)),
-            }));
-          }),
-        );
-
-        const movimentosFlat = moveDetalhes.flat();
-
-        const result: {
-          filial: number;
-          caixa: number;
-          vlrRecebido: number;
-          data: string;
-        }[] = Object.values(
-          movimentosFlat.reduce(
-            (acc, curr) => {
-              if (!acc[curr.caixa]) {
-                acc[curr.caixa] = { ...curr };
-              } else {
-                acc[curr.caixa].vlrRecebido += curr.vlrRecebido;
+              if (!res || !Array.isArray(res.detalhes)) {
+                console.log(JSON.stringify(res, null, 2));
+                console.log(`⚠️ Nenhum detalhe encontrado para id=${id}`);
+                return [];
               }
-              return acc;
-            },
-            {} as Record<
-              number,
-              {
-                filial: number;
-                caixa: number;
-                vlrRecebido: number;
-                data: string;
-              }
-            >,
-          ),
-        );
 
-        for (const movimento of result) {
-          await this.Prisma.movimentations.create({
-            data: {
-              filialId: movimento.filial,
-              descrition: String(movimento.caixa),
-              valueSangriaTrier: movimento.vlrRecebido,
-              type: 'SANGRIA',
-              createdAt: movimento.data,
-            },
+              const moveDet = res.detalhes.map(
+                (d: SalesTrierDin, index: number) => ({
+                  filialId: d.codFilial,
+                  numCaixa: d.numCaixa,
+                  numNota: d.numNota,
+                  idempotencyKey: `${d.codFilial}-${d.numCaixa}-${d.numNota}-${
+                    d.observacao === 'RECEBIMENTO CREDIÁRIO'
+                      ? 'REC_CREDIARIO'
+                      : d.observacao === 'OUTRAS FORMAS PAGTO'
+                        ? 'REC_CREDIARIO_CARTAO'
+                        : 'REC_VENDA'
+                  }-${index}`,
+                  sale_date:
+                    d.observacao === 'RECEBIMENTO CREDIÁRIO'
+                      ? new Date(`${d.datReceb}T00:00:00-03:00`)
+                      : new Date(d.datEmissao),
+                  valor: Number(d.vlrRecebido.toFixed(2)),
+                  financeiroMovimentacaoId: d.financeiroMovimentacaoId,
+                  tipo:
+                    d.observacao === 'RECEBIMENTO CREDIÁRIO'
+                      ? 'REC_CREDIARIO'
+                      : d.observacao === 'OUTRAS FORMAS PAGTO'
+                        ? 'REC_CREDIARIO_CARTAO'
+                        : 'REC_VENDA',
+                }),
+              );
+
+              return moveDet;
+            }),
+          );
+
+          const movimentosFlat = moveDetalhes.flat();
+
+          await this.Prisma.salesDin.createMany({
+            data: movimentosFlat.map((m) => ({
+              ...m,
+            })),
+            skipDuplicates: true,
           });
+        } catch (error) {
+          console.log(error);
+          throw 'Erro ao processar movimentações.';
         }
-
-        // acumula no array final
-        allResults.push(...result);
       }
     }
-
-    return allResults; // só retorna depois do loop inteiro
   }
 
   @Interval(30_000)

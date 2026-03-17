@@ -39,6 +39,11 @@ enum StatusCronJobs{
   FAILED
 }
 
+enum TypeSalesDin{
+  REC_CREDIARIO
+  REC_VENDA
+  REC_CREDIARIO_CARTAO
+}
 
 model User {
   id Int @default(autoincrement()) @id
@@ -65,9 +70,28 @@ model Movimentations{
   type Category
   filialId Int
   filial Filial @relation("FiliaAndMovimentations",fields: [filialId],references: [id])
+  cashRegister SalesDin[] @relation("MovimentationsAndSalesDin")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
+
+model SalesDin{
+  id Int @default(autoincrement()) @id
+  sale_date DateTime
+  financeiroMovimentacaoId Int
+  filialId Int
+  filial Filial @relation("FilialAndSalesDin",fields: [filialId],references: [id])
+  idempotencyKey String @unique
+  numNota Int
+  numCaixa Int
+  tipo TypeSalesDin
+  valor Decimal @db.Decimal(10,2)
+  moveId Int?
+  move Movimentations? @relation("MovimentationsAndSalesDin", fields: [moveId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 model DailyBalance {
   id        Int      @default(autoincrement()) @id
   balance   Decimal  @db.Decimal(9,2)
@@ -85,12 +109,14 @@ model Filial{
   idCielo String?
   idRede String?
   urlLocalTrier String?
+  cashRegister SalesDin[] @relation("FilialAndSalesDin")
   saldo DailyBalance[] @relation("FiliaAndDayBalancy")
   movements Movimentations[] @relation("FiliaAndMovimentations")
   balanceFisic BalanceFisic[] @relation("FiliaAndBalancyFisic")
   trierCartaoSales TrierCartaoVendas[] @relation("FilialAndTrierCartaoVendas")
   redeCartaoSales RedeVenda[] @relation("FilialAndRedeCartaoVendas")
   conciliacoes Conciliacao[]
+  diferencas DiferencaCaixa[] @relation("DiferencaCaixaAndFilial")
 
 }
 
@@ -252,4 +278,20 @@ model excel_staging_diferenca_caixa {
   origem_arquivo   String?   @db.VarChar(255)
   imported_at      DateTime? @default(now()) @db.Timestamp(0)
   movimentation_id Int?      @unique(map: "uk_movimentation_id")
+}
+
+model DiferencaCaixa {
+  id Int @default(autoincrement()) @id
+  filial Filial @relation("DiferencaCaixaAndFilial",fields: [filialId], references: [id])
+  filialId Int
+  data DateTime?
+  caixa String?
+  operador String?
+  total_vendas_dinheiro Decimal? @db.Decimal(10, 2)
+  valor_recebido Decimal?  @db.Decimal(10, 2)
+  sobra            Decimal?  @db.Decimal(10, 2)
+  falta            Decimal?  @db.Decimal(10, 2)
+  diferenca Decimal?  @db.Decimal(10, 2)
+  status String?
+  created_at DateTime @default(now())
 }
