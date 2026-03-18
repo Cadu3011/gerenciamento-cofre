@@ -14,7 +14,6 @@ import { UpdateJobDto } from './dto/update-job.dto';
 import { Roles } from 'src/auth/role.decorator';
 import { AuthGuard } from 'src/auth/auth.guard';
 import { Role } from '@prisma/client';
-import { TrierCardCron } from 'src/cardETL/cron/trier.cron';
 
 @Controller('jobs')
 export class JobsController {

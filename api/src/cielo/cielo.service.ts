@@ -7,6 +7,7 @@ import { CieloTransformSalesService } from './cielo-extratc-vendas.service';
 import { PrismaService } from 'src/database/prisma.service';
 import { Prisma } from '@prisma/client';
 import { FilialService } from 'src/filial/filial.service';
+import { readSftpKey } from './_utils';
 
 @Injectable()
 export class CieloService {
@@ -25,9 +26,7 @@ export class CieloService {
     host: '152.70.222.12',
     port: 22,
     username: 'ubuntu',
-    privateKey: fs.readFileSync(
-      path.resolve(__dirname, process.env.PATH_SFTP_KEY),
-    ),
+    privateKey: readSftpKey('PATH_SFTP_KEY'),
   };
 
   async pipelineETL() {

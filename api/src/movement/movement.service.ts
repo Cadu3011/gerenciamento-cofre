@@ -40,6 +40,7 @@ export class MovementService {
     return this.Prisma.salesDin.groupBy({
       by: ['numCaixa', 'filialId'],
       where: { filialId, moveId: null },
+      orderBy:{ numCaixa: 'asc' },
       _sum: {
         valor: true,
       },
@@ -441,6 +442,11 @@ export class MovementService {
         filialId,
       },
     });
+    await this.Prisma.salesDin.updateMany({
+      where: {numCaixa: Number(moveCreate.descrition), filialId: filialId},
+      data: {moveId: moveCreate.id},
+    })
+
     if (move.value == null) {
       const valueSub = new Decimal(createMovementDto.value).sub(0);
       await this.Amont.createOrUpdate({
