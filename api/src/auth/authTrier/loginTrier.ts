@@ -86,8 +86,8 @@ export async function authTrier(
     `&id_cod_rede=1` +
     `&id_cod_filial=${idFilial}` +
     `&nom_filial=FILIAL%2099%20-%20CENTRAL%20CAVALCANTE` +
-    `&id_cod_usuario=95` +
-    `&nom_senha=cadu3011`;
+    `&id_cod_usuario=${authData.login}` +
+    `&nom_senha=${authData.password}`;
 
   const loginResponse = await client.post(
     `${baseURL}/PodiumAction?actionId=${newActionId}`,
@@ -108,7 +108,8 @@ export async function authTrier(
   );
 
   if (!tokenMatch) {
-    throw new Error('Não encontrou token_integracao');
+    console.log('Não encontrou token_integracao');
+    return '';
   }
 
   const token = tokenMatch[1];

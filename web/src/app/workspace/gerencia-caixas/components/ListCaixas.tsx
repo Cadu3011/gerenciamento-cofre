@@ -14,9 +14,9 @@ import { Input } from "@/components/ui/input";
 interface Caixa {
   id: string;
   caixa: string;
-  dia: string;
+  data: string;
   operador: string;
-  valor: string;
+  diferenca: string;
   sobra: string;
   falta: string;
   obs: string;
@@ -77,7 +77,7 @@ export default function ListCaixas({
             }
           >
             <TableCell>{c.caixa}</TableCell>
-            <TableCell>{c.dia.split("T")[0]}</TableCell>
+            <TableCell>{c.data.split("T")[0]}</TableCell>
             <TableCell>{c.operador}</TableCell>
             <TableCell
               className={
@@ -107,8 +107,8 @@ export default function ListCaixas({
       </TableBody>
       <TableFooter>
         <TableRow>
-          <TableCell colSpan={3}>Total</TableCell>
-          <TableCell className="text-right">$2,500.00</TableCell>
+          <TableCell colSpan={3}></TableCell>
+          <TableCell className="text-right"></TableCell>
         </TableRow>
       </TableFooter>
     </>

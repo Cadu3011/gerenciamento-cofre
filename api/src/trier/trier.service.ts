@@ -1,5 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { Decimal } from '@prisma/client/runtime/library';
+import { authTrier } from 'src/auth/authTrier/loginTrier';
 import { PrismaService } from 'src/database/prisma.service';
 
 interface DiferencaCaixaDataDto {
@@ -231,9 +232,46 @@ export class TrierService {
     return resultado;
   }
 
+  async getSellersTrier(filialId: number, caixa: number) {
+    const filial = await this.prisma.filial.findUnique({
+      where: { id: filialId },
+    });
+    const token = await authTrier(
+      { login: '95', password: 'cadu3011' },
+      filial.urlLocalTrier,
+      filialId,
+    );
+    const docSale = await this.prisma.salesDin.findFirst({
+      where: { numCaixa: caixa, filialId, tipo: 'REC_VENDA' },
+    });
+
+    const resSale = await fetch(
+      `${filial.urlLocalTrier}/rest/integracao/venda/obter-v1?primeiroRegistro=0&quantidadeRegistros=1&numeroNota=${docSale.numNota}`,
+      {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      },
+    );
+    const sellerId = (await resSale.json()).codigoVendedor;
+
+    const resSeller = await fetch(
+      `${filial.urlLocalTrier}/rest/integracao/vendedor/obter-v1?primeiroRegistro=0&quantidadeRegistros=1&codigo=${sellerId}`,
+      {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      },
+    );
+    return (await resSeller.json()).nome;
+  }
+
   async createDifCaixa(data: DiferencaCaixaDataDto) {
     const { filialId, ...restData } = data;
-
+    const operador = await this.getSellersTrier(filialId, Number(data.caixa));
+    console.log(operador);
     return await this.prisma.diferencaCaixa.upsert({
       where: { idempotencyKey: data.idempotencyKey },
       update: {

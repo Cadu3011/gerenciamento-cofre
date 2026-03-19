@@ -35,7 +35,7 @@ export class TrierController {
   ) {
     const filialUser = req['sub'];
 
-    return await this.trierDifCaixasETL.getCaixas(
+    return await this.trierService.getCaixas(
       dataEmissaoInicial,
       dataEmissaoFinal,
       filialUser.filialId,

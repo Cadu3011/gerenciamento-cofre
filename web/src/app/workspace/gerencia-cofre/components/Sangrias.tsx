@@ -43,7 +43,6 @@ export default function Sangrias() {
   useEffect(() => {
     const fetchVendas = async () => {
       const resVendasDin = await getVendasCaixas();
-      console.log(resVendasDin);
       setVendas(resVendasDin);
     };
 
