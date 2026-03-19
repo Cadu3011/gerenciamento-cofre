@@ -144,7 +144,6 @@ export class MovementService {
               const res = await this.moveTrier.getVendasDetalhes(id, token);
 
               if (!res || !Array.isArray(res.detalhes)) {
-                console.log(JSON.stringify(res, null, 2));
                 console.log(`⚠️ Nenhum detalhe encontrado para id=${id}`);
                 return [];
               }
@@ -440,10 +439,10 @@ export class MovementService {
       orderBy: { updatedAt: 'asc' }, // opcional
     });
   }
+
   async update(filialId: number, createMovementDto: CreateMovementDto) {
     let move = null;
     let moveCreate;
-    console.log(createMovementDto);
     if (createMovementDto.id) {
       move = await this.Prisma.movimentations.findUnique({
         where: { id: createMovementDto.id },
@@ -472,7 +471,6 @@ export class MovementService {
 
     if (move !== null && move.value == null) {
       const valueSub = new Decimal(createMovementDto.value).sub(0);
-      console.log(valueSub);
       await this.Amont.createOrUpdate({
         filialId: moveCreate.filialId,
         balance: Number(valueSub),
@@ -482,7 +480,6 @@ export class MovementService {
     const valueSub = new Decimal(createMovementDto.value).sub(
       move !== null ? move.value : 0,
     );
-    console.log(valueSub);
     await this.Amont.createOrUpdate({
       filialId: moveCreate.filialId,
       balance: Number(valueSub),

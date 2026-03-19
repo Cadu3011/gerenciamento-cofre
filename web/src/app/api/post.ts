@@ -69,10 +69,15 @@ export async function pushValueSangria(
   moveId?: number,
 ) {
   const tokenCookie = (await cookies()).get("access_token")?.value;
-
+  const parseBRL = (value: string) => {
+    return Number(
+      value.replace(",", "."), // troca decimal
+    );
+  };
+  const finalValue = parseBRL(value);
   try {
     const data = {
-      value: value,
+      value: finalValue,
       descrition: caixa,
       id: moveId,
     };

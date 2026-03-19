@@ -78,6 +78,19 @@ export default function Sangrias() {
 
               <TableCell>
                 <Input
+                  onKeyDown={(e) => {
+                    const allowed = [
+                      "Backspace",
+                      "Tab",
+                      "ArrowLeft",
+                      "ArrowRight",
+                      "Delete",
+                    ];
+
+                    if (!/[0-9.,]/.test(e.key) && !allowed.includes(e.key)) {
+                      e.preventDefault();
+                    }
+                  }}
                   onChange={(e) => {
                     handleInputChange(
                       e.target.value,
