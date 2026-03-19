@@ -15,25 +15,28 @@ import { useCofreFisic } from "./cofreContext";
 
 export default function Sangrias() {
   const [vendas, setVendas] = useState<any[]>([]);
-  const [inputValues, setInputValues] = useState<Record<number, string>>({});
+  const [inputValues, setInputValues] = useState<Record<string, string>>({});
   const { refresh, updatedAt } = useCofreFisic();
 
-  const debounceTimeout = useRef<Record<number, NodeJS.Timeout>>({});
+  const debounceTimeout = useRef<Record<string, NodeJS.Timeout>>({});
 
-  const handleInputChange = (id: number, value: string, caixa: string) => {
-    setInputValues((prev) => ({ ...prev, [id]: value }));
+  const handleInputChange = (value: string, caixa: number, moveId?: number) => {
+    const key = `${caixa}-${moveId ?? "null"}`;
 
-    if (debounceTimeout.current[id]) clearTimeout(debounceTimeout.current[id]);
+    setInputValues((prev) => ({ ...prev, [key]: value }));
 
-    debounceTimeout.current[id] = setTimeout(() => {
-      handleSend(id, value, caixa);
+    if (debounceTimeout.current[key]) {
+      clearTimeout(debounceTimeout.current[key]);
+    }
+
+    debounceTimeout.current[key] = setTimeout(() => {
+      handleSend(value, caixa, moveId);
     }, 1000);
   };
 
-  const handleSend = async (id: number, value: string, caixa: string) => {
+  const handleSend = async (value: string, caixa: number, moveId?: number) => {
     const finalValue = value === "" ? "0" : value;
-
-    await pushValueSangria(id, finalValue, caixa);
+    await pushValueSangria(finalValue, String(caixa), moveId);
     refresh();
   };
 
@@ -43,6 +46,7 @@ export default function Sangrias() {
       console.log(resVendasDin);
       setVendas(resVendasDin);
     };
+
     fetchVendas();
   }, [updatedAt]);
 
@@ -55,32 +59,40 @@ export default function Sangrias() {
           <TableHead className="text-black text-md">Total Contado</TableHead>
         </TableRow>
       </TableHeader>
-      <TableBody className="border  rounded-sm">
-        {vendas.map((venda, index) => (
-          <TableRow
-            key={venda.numCaixa}
-            className={
-              index % 2 === 0
-                ? "bg-white hover:bg-zinc-400"
-                : "bg-gray-300 hover:bg-zinc-400 "
-            }
-          >
-            <TableCell>{venda.numCaixa}</TableCell>
-            <TableCell>{venda._sum.valor}</TableCell>
-            <TableCell>
-              <Input
-                onChange={(e) => {
-                  handleInputChange(
-                    venda.numCaixa,
-                    e.target.value,
-                    venda.numCaixa,
-                  );
-                }}
-                value={inputValues[venda.numCaixa] ?? ""}
-              />
-            </TableCell>
-          </TableRow>
-        ))}
+
+      <TableBody className="border rounded-sm">
+        {vendas.map((venda, index) => {
+          const rowKey = `${venda.numCaixa}-${venda.moveId ?? "null"}`;
+
+          return (
+            <TableRow
+              key={rowKey}
+              className={
+                index % 2 === 0
+                  ? "bg-white hover:bg-zinc-400"
+                  : "bg-gray-300 hover:bg-zinc-400"
+              }
+            >
+              <TableCell>{venda.numCaixa}</TableCell>
+              <TableCell>{venda.total}</TableCell>
+
+              <TableCell>
+                <Input
+                  onChange={(e) => {
+                    handleInputChange(
+                      e.target.value,
+                      venda.numCaixa,
+                      venda.moveId,
+                    );
+                  }}
+                  value={
+                    inputValues[rowKey] ?? venda.moveValue?.toString() ?? ""
+                  }
+                />
+              </TableCell>
+            </TableRow>
+          );
+        })}
       </TableBody>
     </Table>
   );

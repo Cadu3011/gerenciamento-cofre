@@ -64,18 +64,23 @@ export async function handleFormSubmit(formData: FormData) {
 }
 
 export async function pushValueSangria(
-  id: number,
   value: string,
   caixa: string,
+  moveId?: number,
 ) {
   const tokenCookie = (await cookies()).get("access_token")?.value;
+
   try {
     const data = {
       value: value,
       descrition: caixa,
+      id: moveId,
     };
-    const dataPost = await fetch(`http://${Url}/movement/${id}`, {
-      method: "PATCH",
+    console.log(data);
+
+    console.log(moveId);
+    const dataPost = await fetch(`http://${Url}/movement/sangria`, {
+      method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${tokenCookie}`,

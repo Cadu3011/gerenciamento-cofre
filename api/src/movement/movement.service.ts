@@ -37,14 +37,34 @@ export class MovementService {
   private readonly logger = new Logger(MovementService.name);
 
   async findVendasCaixas(filialId: number) {
-    return this.Prisma.salesDin.groupBy({
-      by: ['numCaixa', 'filialId'],
-      where: { filialId, moveId: null },
-      orderBy:{ numCaixa: 'asc' },
-      _sum: {
-        valor: true,
-      },
-    });
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+
+    const endOfDay = new Date();
+    endOfDay.setHours(23, 59, 59, 999);
+
+    return this.Prisma.$queryRaw`
+  SELECT 
+    sd.numCaixa,
+    sd.filialId,
+    m.id as moveId,
+    m.value as moveValue,
+    SUM(sd.valor) as total
+  FROM SalesDin sd
+  LEFT JOIN Movimentations m ON m.id = sd.moveId
+  WHERE 
+    sd.filialId = ${filialId}
+    AND (
+      sd.moveId IS NULL
+      OR sd.updatedAt BETWEEN ${startOfDay} AND ${endOfDay}
+    )
+  GROUP BY 
+    sd.numCaixa, 
+    sd.filialId, 
+    m.id, 
+    m.value
+  ORDER BY sd.numCaixa ASC
+`;
   }
 
   async getVendasCaixasTrier() {
@@ -55,7 +75,7 @@ export class MovementService {
       select: {
         sale_date: true,
       },
-    })) ?? { sale_date: new Date('2026-03-10') };
+    })) ?? { sale_date: new Date('2026-03-16') };
 
     const dateInit = new Date(lastDate.sale_date);
     dateInit.setDate(dateInit.getDate() + 1);
@@ -420,46 +440,54 @@ export class MovementService {
       orderBy: { updatedAt: 'asc' }, // opcional
     });
   }
-  async update(
-    filialId: number,
-    id: number,
-    createMovementDto: CreateMovementDto,
-  ) {
+  async update(filialId: number, createMovementDto: CreateMovementDto) {
+    let move = null;
+    let moveCreate;
     console.log(createMovementDto);
-    const move = await this.Prisma.movimentations.findUnique({
-      where: { id: id },
-    });
-    const moveCreate = await this.Prisma.movimentations.upsert({
-      where: { id, filialId: filialId },
-      update: {
-        value: Decimal(createMovementDto.value),
-      },
-      create: {
-        ...createMovementDto,
-        value: Decimal(createMovementDto.value),
-        type: 'SANGRIA',
-        descrition: String(createMovementDto.descrition),
-        filialId,
-      },
-    });
-    await this.Prisma.salesDin.updateMany({
-      where: {numCaixa: Number(moveCreate.descrition), filialId: filialId},
-      data: {moveId: moveCreate.id},
-    })
+    if (createMovementDto.id) {
+      move = await this.Prisma.movimentations.findUnique({
+        where: { id: createMovementDto.id },
+      });
+      moveCreate = await this.Prisma.movimentations.update({
+        where: { id: createMovementDto.id },
+        data: {
+          value: Decimal(createMovementDto.value),
+        },
+      });
+    } else {
+      moveCreate = await this.Prisma.movimentations.create({
+        data: {
+          value: Decimal(createMovementDto.value),
+          type: 'SANGRIA',
+          descrition: String(createMovementDto.descrition),
+          filial: { connect: { id: filialId } },
+        },
+      });
+    }
 
-    if (move.value == null) {
+    await this.Prisma.salesDin.updateMany({
+      where: { numCaixa: Number(moveCreate.descrition), filialId: filialId },
+      data: { moveId: moveCreate.id },
+    });
+
+    if (move !== null && move.value == null) {
       const valueSub = new Decimal(createMovementDto.value).sub(0);
+      console.log(valueSub);
       await this.Amont.createOrUpdate({
         filialId: moveCreate.filialId,
         balance: Number(valueSub),
       });
       return moveCreate;
     }
-    const valueSub = new Decimal(createMovementDto.value).sub(move.value);
+    const valueSub = new Decimal(createMovementDto.value).sub(
+      move !== null ? move.value : 0,
+    );
+    console.log(valueSub);
     await this.Amont.createOrUpdate({
       filialId: moveCreate.filialId,
       balance: Number(valueSub),
     });
+
     return moveCreate;
   }
 

@@ -129,18 +129,11 @@ export class MovementController {
 
   @UseGuards(AuthGuard)
   @Roles(Role.OPERADOR)
-  @Patch(':id')
-  update(
-    @Req() req: Request,
-    @Param('id') id: string,
-    @Body() createMovementDto: CreateMovementDto,
-  ) {
+  @Post('sangria')
+  update(@Req() req: Request, @Body() createMovementDto: CreateMovementDto) {
     const filialUser = req['sub'];
-    return this.movementService.update(
-      filialUser.filialId,
-      +id,
-      createMovementDto,
-    );
+
+    return this.movementService.update(filialUser.filialId, createMovementDto);
   }
 
   @UseGuards(AuthGuard)
