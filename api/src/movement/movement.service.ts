@@ -10,6 +10,7 @@ import { authTrier } from 'src/auth/authTrier/loginTrier';
 import { MoveTrier } from './create-move-trier.service';
 import { FilialService } from 'src/filial/filial.service';
 import { Prisma } from '@prisma/client';
+import { TrierService } from 'src/trier/trier.service';
 
 interface SalesTrierDin {
   financeiroMovimentacaoId: number;
@@ -33,6 +34,9 @@ export class MovementService {
   private readonly moveTrier: MoveTrier;
   @Inject()
   private readonly filial: FilialService;
+
+  @Inject()
+  private readonly trierService: TrierService;
 
   private readonly logger = new Logger(MovementService.name);
 
@@ -75,7 +79,7 @@ export class MovementService {
       select: {
         sale_date: true,
       },
-    })) ?? { sale_date: new Date('2026-03-16') };
+    })) ?? { sale_date: new Date('2026-03-17') };
 
     const dateInit = new Date(lastDate.sale_date);
     dateInit.setDate(dateInit.getDate() + 1);
@@ -467,6 +471,25 @@ export class MovementService {
     await this.Prisma.salesDin.updateMany({
       where: { numCaixa: Number(moveCreate.descrition), filialId: filialId },
       data: { moveId: moveCreate.id },
+    });
+    const vendaTotal = await this.Prisma.salesDin.groupBy({
+      by: ['numCaixa', 'filialId', 'sale_date'],
+      where: { numCaixa: Number(moveCreate.descrition), filialId: filialId },
+      _sum: { valor: true },
+    });
+    console.log(vendaTotal);
+    const diferenca = vendaTotal[0]?._sum.valor.sub(moveCreate.value);
+    this.trierService.createDifCaixa({
+      data: vendaTotal[0]?.sale_date,
+      caixa: String(vendaTotal[0]?.numCaixa),
+      operador: null,
+      diferenca,
+      filialId: filialId,
+      sobra: diferenca.lessThan(0) ? diferenca.mul(-1) : new Decimal(0),
+      falta: diferenca.greaterThan(0) ? diferenca : new Decimal(0),
+      total_vendas_dinheiro: vendaTotal[0]?._sum.valor,
+      valor_recebido: moveCreate.value,
+      idempotencyKey: `${vendaTotal[0]?.numCaixa}-${filialId}`,
     });
 
     if (move !== null && move.value == null) {

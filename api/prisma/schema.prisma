@@ -284,7 +284,7 @@ model DiferencaCaixa {
   id Int @default(autoincrement()) @id
   filial Filial @relation("DiferencaCaixaAndFilial",fields: [filialId], references: [id])
   filialId Int
-  data DateTime?
+  data DateTime? @db.Date
   caixa String?
   operador String?
   total_vendas_dinheiro Decimal? @db.Decimal(10, 2)
@@ -294,4 +294,7 @@ model DiferencaCaixa {
   diferenca Decimal?  @db.Decimal(10, 2)
   status String?
   created_at DateTime @default(now())
+  obsConf String?
+  obsFinal String?
+  idempotencyKey String @unique
 }

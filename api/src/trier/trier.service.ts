@@ -2,11 +2,24 @@ import { Inject, Injectable } from '@nestjs/common';
 import { Decimal } from '@prisma/client/runtime/library';
 import { PrismaService } from 'src/database/prisma.service';
 
+interface DiferencaCaixaDataDto {
+  data: Date;
+  caixa?: string;
+  operador?: string;
+  diferenca?: Decimal;
+  filialId: number;
+  sobra?: Decimal;
+  falta?: Decimal;
+  total_vendas_dinheiro: Decimal;
+  valor_recebido: Decimal;
+  idempotencyKey: string;
+}
+
 @Injectable()
 export class TrierService {
   @Inject()
   private readonly prisma: PrismaService;
-
+  //apagar esses dois metodos , são da versao anterior dos cartôes
   async findSalesTotals(
     urlLocalTrier: string,
     tokenLocalTrier: string,
@@ -216,5 +229,36 @@ export class TrierService {
       },
     );
     return resultado;
+  }
+
+  async createDifCaixa(data: DiferencaCaixaDataDto) {
+    const { filialId, ...restData } = data;
+
+    return await this.prisma.diferencaCaixa.upsert({
+      where: { idempotencyKey: data.idempotencyKey },
+      update: {
+        ...restData,
+        data: new Date(data.data),
+        filial: { connect: { id: filialId } },
+      },
+      create: {
+        ...restData,
+        data: new Date(data.data),
+        filial: { connect: { id: filialId } },
+      },
+    });
+  }
+
+  async getCaixas(initDate: string, finalDate: string, filialId: number) {
+    const caixas = await this.prisma.diferencaCaixa.findMany({
+      where: {
+        data: { gte: new Date(initDate), lte: new Date(finalDate) },
+        filial: { id: filialId },
+      },
+    });
+    return caixas.map((caixa) => ({
+      ...caixa,
+      id: caixa.id?.toString(),
+    }));
   }
 }

@@ -1,5 +1,4 @@
 import { Injectable, Inject } from '@nestjs/common';
-import { Cron } from '@nestjs/schedule';
 import { chromium } from 'playwright';
 import { PrismaService } from 'src/database/prisma.service';
 

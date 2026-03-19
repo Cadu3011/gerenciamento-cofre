@@ -6,6 +6,7 @@ import { AmountModule } from 'src/amount/amount.module';
 import { MoveTrier } from './create-move-trier.service';
 import { AuthModule } from 'src/auth/auth.module';
 import { FilialModule } from 'src/filial/filial.module';
+import { TrierModule } from 'src/trier/trier.module';
 
 @Module({
   imports: [
@@ -13,6 +14,7 @@ import { FilialModule } from 'src/filial/filial.module';
     forwardRef(() => AmountModule),
     AuthModule,
     FilialModule,
+    TrierModule,
   ],
   controllers: [MovementController],
   providers: [MovementService, MoveTrier],
