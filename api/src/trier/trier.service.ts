@@ -244,9 +244,8 @@ export class TrierService {
     const docSale = await this.prisma.salesDin.findFirst({
       where: { numCaixa: caixa, filialId, tipo: 'REC_VENDA' },
     });
-
     const resSale = await fetch(
-      `${filial.urlLocalTrier}/rest/integracao/venda/obter-v1?primeiroRegistro=0&quantidadeRegistros=1&numeroNota=${docSale.numNota}`,
+      `http://${filial.urlLocalTrier}:4647/sgfpod1/rest/integracao/venda/obter-v1?primeiroRegistro=0&quantidadeRegistros=1&numeroNota=${docSale.numNota}`,
       {
         method: 'GET',
         headers: {
@@ -254,10 +253,9 @@ export class TrierService {
         },
       },
     );
-    const sellerId = (await resSale.json()).codigoVendedor;
-
+    const sellerId = (await resSale.json())[0].codigoVendedor;
     const resSeller = await fetch(
-      `${filial.urlLocalTrier}/rest/integracao/vendedor/obter-v1?primeiroRegistro=0&quantidadeRegistros=1&codigo=${sellerId}`,
+      `http://${filial.urlLocalTrier}:4647/sgfpod1/rest/integracao/vendedor/obter-v1?primeiroRegistro=0&quantidadeRegistros=1&codigo=${sellerId}`,
       {
         method: 'GET',
         headers: {
@@ -265,22 +263,24 @@ export class TrierService {
         },
       },
     );
-    return (await resSeller.json()).nome;
+    const sellerName = (await resSeller.json())[0].nome;
+    return sellerName;
   }
 
   async createDifCaixa(data: DiferencaCaixaDataDto) {
     const { filialId, ...restData } = data;
     const operador = await this.getSellersTrier(filialId, Number(data.caixa));
-    console.log(operador);
     return await this.prisma.diferencaCaixa.upsert({
       where: { idempotencyKey: data.idempotencyKey },
       update: {
         ...restData,
+        operador,
         data: new Date(data.data),
         filial: { connect: { id: filialId } },
       },
       create: {
         ...restData,
+        operador,
         data: new Date(data.data),
         filial: { connect: { id: filialId } },
       },

@@ -477,7 +477,6 @@ export class MovementService {
       where: { numCaixa: Number(moveCreate.descrition), filialId: filialId },
       _sum: { valor: true },
     });
-    console.log(vendaTotal);
     const diferenca = vendaTotal[0]?._sum.valor.sub(moveCreate.value);
     this.trierService.createDifCaixa({
       data: vendaTotal[0]?.sale_date,
