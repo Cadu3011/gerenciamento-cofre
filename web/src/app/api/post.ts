@@ -405,3 +405,18 @@ export async function postUser(formData: FormData) {
   });
   return;
 }
+
+export async function postObsConf(id: number, obs: string) {
+  const tokenCookie = (await cookies()).get("access_token")?.value;
+
+  const res = await fetch(`http://localhost:4000/trier/caixas/${id}`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${tokenCookie}`,
+    },
+    body: JSON.stringify({ obs }),
+  });
+  const updatedCaixa = await res.json();
+  console.log(updatedCaixa);
+}

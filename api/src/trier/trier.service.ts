@@ -241,10 +241,11 @@ export class TrierService {
       filial.urlLocalTrier,
       filialId,
     );
-    const docSale = await this.prisma.salesDin.findFirst({
+    const docSales = await this.prisma.salesDin.findMany({
       where: { numCaixa: caixa, filialId, tipo: 'REC_VENDA' },
     });
-    const resSale = await fetch(
+    /*{
+     const resSale = await fetch(
       `http://${filial.urlLocalTrier}:4647/sgfpod1/rest/integracao/venda/obter-v1?primeiroRegistro=0&quantidadeRegistros=1&numeroNota=${docSale.numNota}`,
       {
         method: 'GET',
@@ -254,8 +255,48 @@ export class TrierService {
       },
     );
     const sellerId = (await resSale.json())[0].codigoVendedor;
+    }*/
+
+    // 1. Buscar vendas na Trier em paralelo
+    const vendasTrier = await Promise.all(
+      docSales.map(async (sale) => {
+        const res = await fetch(
+          `http://${filial.urlLocalTrier}:4647/sgfpod1/rest/integracao/venda/obter-v1?primeiroRegistro=0&quantidadeRegistros=1&numeroNota=${sale.numNota}`,
+          {
+            method: 'GET',
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          },
+        );
+
+        const data = await res.json();
+        return data[0]?.codigoVendedor;
+      }),
+    );
+
+    // 2. Filtrar códigos válidos
+    const sellers = vendasTrier.filter(Boolean);
+
+    // 3. Contar frequência
+    const countMap: Record<string, number> = {};
+
+    for (const seller of sellers) {
+      countMap[seller] = (countMap[seller] || 0) + 1;
+    }
+
+    // 4. Encontrar o mais frequente
+    const mostFrequentSellerId = Object.entries(countMap).reduce(
+      (prev, curr) => (curr[1] > prev[1] ? curr : prev),
+      ['', 0],
+    )[0];
+
+    if (!mostFrequentSellerId) {
+      throw new Error('Nenhum vendedor encontrado');
+    }
+
     const resSeller = await fetch(
-      `http://${filial.urlLocalTrier}:4647/sgfpod1/rest/integracao/vendedor/obter-v1?primeiroRegistro=0&quantidadeRegistros=1&codigo=${sellerId}`,
+      `http://${filial.urlLocalTrier}:4647/sgfpod1/rest/integracao/vendedor/obter-v1?primeiroRegistro=0&quantidadeRegistros=1&codigo=${mostFrequentSellerId}`,
       {
         method: 'GET',
         headers: {
@@ -269,7 +310,14 @@ export class TrierService {
 
   async createDifCaixa(data: DiferencaCaixaDataDto) {
     const { filialId, ...restData } = data;
-    const operador = await this.getSellersTrier(filialId, Number(data.caixa));
+    const operadorJaExiste = await this.prisma.diferencaCaixa.findUnique({
+      where: { idempotencyKey: data.idempotencyKey },
+      select: { operador: true },
+    });
+    const operador = !operadorJaExiste
+      ? await this.getSellersTrier(filialId, Number(data.caixa))
+      : operadorJaExiste.operador;
+
     return await this.prisma.diferencaCaixa.upsert({
       where: { idempotencyKey: data.idempotencyKey },
       update: {
@@ -293,10 +341,18 @@ export class TrierService {
         data: { gte: new Date(initDate), lte: new Date(finalDate) },
         filial: { id: filialId },
       },
+      orderBy: { caixa: 'asc' },
     });
     return caixas.map((caixa) => ({
       ...caixa,
       id: caixa.id?.toString(),
     }));
+  }
+
+  async caixasObsConf(obs: string, id: number) {
+    return await this.prisma.diferencaCaixa.update({
+      where: { id },
+      data: { obsConf: obs },
+    });
   }
 }

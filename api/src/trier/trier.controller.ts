@@ -8,6 +8,8 @@ import {
   UseGuards,
   Headers,
   Query,
+  Param,
+  Patch,
 } from '@nestjs/common';
 import { TrierService } from './trier.service';
 import { authTrier } from 'src/auth/authTrier/loginTrier';
@@ -83,6 +85,7 @@ export class TrierController {
       date,
     );
   }
+
   @UseGuards(AuthGuard)
   @Roles(Role.OPERADOR, Role.GESTOR)
   @Post()
@@ -98,5 +101,12 @@ export class TrierController {
     return {
       tokenLocalTrier: await authTrier(credentials, filial.urlLocalTrier),
     };
+  }
+
+  @UseGuards(AuthGuard)
+  @Roles(Role.OPERADOR)
+  @Patch('caixas/:id')
+  async caixasObsConf(@Param('id') id: number, @Body('obs') obs: string) {
+    return await this.trierService.caixasObsConf(obs, +id);
   }
 }
