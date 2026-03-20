@@ -1,4 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
 import { authTrier } from 'src/auth/authTrier/loginTrier';
 import { PrismaService } from 'src/database/prisma.service';
@@ -304,31 +305,33 @@ export class TrierService {
         },
       },
     );
-    const sellerName = (await resSeller.json())[0].nome;
-    return sellerName;
+    const seller = (await resSeller.json())[0];
+    return { operador: seller.nome, idOperador: seller.codigo };
   }
 
   async createDifCaixa(data: DiferencaCaixaDataDto) {
     const { filialId, ...restData } = data;
     const operadorJaExiste = await this.prisma.diferencaCaixa.findUnique({
       where: { idempotencyKey: data.idempotencyKey },
-      select: { operador: true },
+      select: { operador: true, idOperador: true },
     });
     const operador = !operadorJaExiste
       ? await this.getSellersTrier(filialId, Number(data.caixa))
-      : operadorJaExiste.operador;
+      : operadorJaExiste;
 
     return await this.prisma.diferencaCaixa.upsert({
       where: { idempotencyKey: data.idempotencyKey },
       update: {
         ...restData,
-        operador,
+        operador: operador.operador,
+        idOperador: operador.idOperador,
         data: new Date(data.data),
         filial: { connect: { id: filialId } },
       },
       create: {
         ...restData,
-        operador,
+        operador: operador.operador,
+        idOperador: operador.idOperador,
         data: new Date(data.data),
         filial: { connect: { id: filialId } },
       },
@@ -354,5 +357,31 @@ export class TrierService {
       where: { id },
       data: { obsConf: obs },
     });
+  }
+
+  async cardsDifCaixa(
+    startDate: string,
+    endDate: string,
+    filialId: number,
+    operadorId?: number,
+  ) {
+    const cards: { total_sobra: number; total_falta: number } = await this
+      .prisma.$queryRaw`
+  SELECT
+    SUM(CASE WHEN sobra > 5 THEN sobra ELSE 0 END) AS total_sobra,
+    SUM(CASE WHEN falta > 5 THEN falta ELSE 0 END) AS total_falta
+  FROM cash_management_db.diferencacaixa
+  WHERE filialId = ${filialId}
+    AND data >= ${startDate}
+    AND data < ${endDate}
+    ${operadorId ? Prisma.sql`AND idOperador = ${operadorId}` : Prisma.empty}
+`;
+
+    return {
+      cards: {
+        totalFalta: cards[0].total_falta,
+        totalSobra: cards[0].total_sobra,
+      },
+    };
   }
 }

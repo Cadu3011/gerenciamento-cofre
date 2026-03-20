@@ -406,6 +406,22 @@ export async function postUser(formData: FormData) {
   return;
 }
 
+export async function getCardsCaixas(query: string) {
+  const tokenCookie = (await cookies()).get("access_token")?.value;
+
+  const resCard = await fetch(
+    `http://localhost:4000/trier/dashboard/caixas?${query}`,
+    {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${tokenCookie}`,
+      },
+    },
+  );
+  return await resCard.json();
+}
+
 export async function postObsConf(id: number, obs: string) {
   const tokenCookie = (await cookies()).get("access_token")?.value;
 

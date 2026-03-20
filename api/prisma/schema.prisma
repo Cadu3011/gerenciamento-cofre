@@ -287,6 +287,7 @@ model DiferencaCaixa {
   data DateTime? @db.Date
   caixa String?
   operador String?
+  idOperador Int?
   total_vendas_dinheiro Decimal? @db.Decimal(10, 2)
   valor_recebido Decimal?  @db.Decimal(10, 2)
   sobra            Decimal?  @db.Decimal(10, 2)
@@ -297,4 +298,7 @@ model DiferencaCaixa {
   obsConf String?
   obsFinal String?
   idempotencyKey String @unique
+
+  @@index([filialId, data, operador], name: "idx_dashboard")
+  @@index([filialId, data])
 }

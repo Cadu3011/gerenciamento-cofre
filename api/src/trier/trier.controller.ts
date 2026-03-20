@@ -109,4 +109,21 @@ export class TrierController {
   async caixasObsConf(@Param('id') id: number, @Body('obs') obs: string) {
     return await this.trierService.caixasObsConf(obs, +id);
   }
+
+  @UseGuards(AuthGuard)
+  @Roles(Role.GESTOR)
+  @Get('dashboard/caixas')
+  async getCardsDashboard(
+    @Query('filialId') filialId: number,
+    @Query('startDate') startDate: string,
+    @Query('endDate') endDate: string,
+    @Query('operadorId') operadorId?: number,
+  ) {
+    return await this.trierService.cardsDifCaixa(
+      startDate,
+      endDate,
+      filialId,
+      operadorId,
+    );
+  }
 }
