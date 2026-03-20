@@ -72,18 +72,33 @@ export class MovementService {
   }
 
   async getVendasCaixasTrier() {
-    const lastDate = (await this.Prisma.salesDin.findFirst({
-      orderBy: {
-        sale_date: 'desc',
-      },
-      select: {
-        sale_date: true,
-      },
-    })) ?? { sale_date: new Date('2026-03-17') };
+    // const lastDate = (await this.Prisma.salesDin.findFirst({
+    //   orderBy: {
+    //     sale_date: 'desc',
+    //   },
+    //   select: {
+    //     sale_date: true,
+    //   },
+    // })) ?? { sale_date: new Date('2026-03-17') };
 
-    const dateInit = new Date(lastDate.sale_date);
-    dateInit.setDate(dateInit.getDate() + 1);
+    // const dateInit = new Date(lastDate.sale_date);
+    // dateInit.setDate(dateInit.getDate() + 1);
+    // const dataAtual = new Date();
+    // const dataAtualFormat = new Date(
+    //   Date.UTC(
+    //     dataAtual.getUTCFullYear(),
+    //     dataAtual.getUTCMonth(),
+    //     dataAtual.getUTCDate(),
+    //     0,
+    //     0,
+    //     0,
+    //     0,
+    //   ),
+    // );
+    const diasReprocessar = 3;
+
     const dataAtual = new Date();
+
     const dataAtualFormat = new Date(
       Date.UTC(
         dataAtual.getUTCFullYear(),
@@ -95,6 +110,10 @@ export class MovementService {
         0,
       ),
     );
+
+    // 🔥 começa 3 dias atrás
+    const dateInit = new Date(dataAtualFormat);
+    dateInit.setUTCDate(dateInit.getUTCDate() - diasReprocessar);
 
     const token = await authTrier({
       login: '95',
