@@ -72,16 +72,16 @@ export class MovementService {
   }
 
   async getVendasCaixasTrier() {
-    // const lastDate = (await this.Prisma.salesDin.findFirst({
-    //   orderBy: {
-    //     sale_date: 'desc',
-    //   },
-    //   select: {
-    //     sale_date: true,
-    //   },
-    // })) ?? { sale_date: new Date('2026-03-17') };
+    const lastDate = (await this.Prisma.salesDin.findFirst({
+      orderBy: {
+        sale_date: 'desc',
+      },
+      select: {
+        sale_date: true,
+      },
+    })) ?? { sale_date: new Date('2026-03-17') };
 
-    // const dateInit = new Date(lastDate.sale_date);
+    const dateInit = new Date(lastDate.sale_date);
     // dateInit.setDate(dateInit.getDate() + 1);
     // const dataAtual = new Date();
     // const dataAtualFormat = new Date(
@@ -112,7 +112,7 @@ export class MovementService {
     );
 
     // 🔥 começa 3 dias atrás
-    const dateInit = new Date(dataAtualFormat);
+
     dateInit.setUTCDate(dateInit.getUTCDate() - diasReprocessar);
 
     const token = await authTrier({
@@ -173,9 +173,11 @@ export class MovementService {
 
               const moveDet = res.detalhes.map(
                 (d: SalesTrierDin, index: number) => ({
-                  filialId: d.codFilial,
+                  filialId: res.movimentacao.filial.codFilial,
                   numCaixa: d.numCaixa,
-                  numNota: d.numNota,
+                  numNota: d.numNota
+                    ? d.numNota
+                    : Number(`${d.codFilial}${d.numCaixa}${index}`),
                   idempotencyKey: `${d.codFilial}-${d.numCaixa}-${d.numNota}-${
                     d.observacao === 'RECEBIMENTO CREDIÁRIO'
                       ? 'REC_CREDIARIO'
@@ -204,12 +206,43 @@ export class MovementService {
 
           const movimentosFlat = moveDetalhes.flat();
 
-          await this.Prisma.salesDin.createMany({
-            data: movimentosFlat.map((m) => ({
-              ...m,
-            })),
-            skipDuplicates: true,
-          });
+          // await this.Prisma.salesDin.createMany({
+          //   data: movimentosFlat.map((m) => ({
+          //     ...m,
+          //   })),
+          //   skipDuplicates: true,
+          // });
+
+          const BATCH_SIZE = 1000;
+
+          for (let i = 0; i < movimentosFlat.length; i += BATCH_SIZE) {
+            const chunk = movimentosFlat.slice(i, i + BATCH_SIZE);
+
+            try {
+              await this.Prisma.salesDin.createMany({
+                data: chunk,
+                skipDuplicates: true,
+              });
+            } catch (batchError) {
+              console.error(
+                `❌ Erro no batch ${i}-${i + BATCH_SIZE}, tentando individual...`,
+              );
+
+              // 🔥 fallback item por item
+              for (const item of chunk) {
+                try {
+                  await this.Prisma.salesDin.create({
+                    data: item,
+                  });
+                } catch (itemError: any) {
+                  console.error(`❌ Erro ao inserir item:`, {
+                    idempotencyKey: item.idempotencyKey,
+                    erro: itemError.message,
+                  });
+                }
+              }
+            }
+          }
         } catch (error) {
           console.log(error);
           throw 'Erro ao processar movimentações.';
@@ -492,13 +525,14 @@ export class MovementService {
       data: { moveId: moveCreate.id },
     });
     const vendaTotal = await this.Prisma.salesDin.groupBy({
-      by: ['numCaixa', 'filialId', 'sale_date'],
+      by: ['numCaixa', 'filialId'],
       where: { numCaixa: Number(moveCreate.descrition), filialId: filialId },
       _sum: { valor: true },
+      _min: { sale_date: true },
     });
     const diferenca = vendaTotal[0]?._sum.valor.sub(moveCreate.value);
     this.trierService.createDifCaixa({
-      data: vendaTotal[0]?.sale_date,
+      data: vendaTotal[0]?._min.sale_date,
       caixa: String(vendaTotal[0]?.numCaixa),
       operador: null,
       diferenca,
