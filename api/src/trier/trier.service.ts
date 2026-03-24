@@ -476,4 +476,22 @@ export class TrierService {
 
     return result;
   }
+
+  async chartColunmsDifs(filialId: number, startDate: string, endDate: string) {
+    const startDateFormat = new Date(startDate);
+    startDateFormat.setHours(0, 0, 0, 0);
+    const endDateFormat = new Date(endDate);
+    endDateFormat.setHours(23, 59, 59, 999);
+    return this.prisma.$queryRawUnsafe(`
+    SELECT 
+      idOperador,
+      MAX(operador) as operador, -- 👈 pega um nome (qualquer um válido)
+      SUM(falta) as falta,
+      SUM(sobra) as sobra
+    FROM diferencaCaixa
+    WHERE filialId = ${Number(filialId)}
+      AND data BETWEEN '${startDate}' AND '${endDate}'
+    GROUP BY idOperador
+  `);
+  }
 }

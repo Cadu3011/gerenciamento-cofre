@@ -3,6 +3,8 @@ import { FilterDateRange } from "./_components/FilterDateRange";
 import FilterFilial from "./_components/FilterFilial";
 import CardTotals from "./_components/CardTotals";
 import ChartLineDifs from "./_components/ChartLineDifs";
+import ChartColumnsDifs from "./_components/ChartColunmsDifs";
+import SidebarFilter from "./_components/SideBarFilter";
 
 type Props = {
   searchParams: {
@@ -42,7 +44,8 @@ export default async function Dashboard({ searchParams }: Props) {
   const data = await getCardsCaixas(query);
   return (
     <div>
-      <div className="w-full py-3 flex gap-4 px-5 bg-blue-950">
+      <div className="w-full py-3 flex gap-4 px-5 bg-blue-950 justify-center">
+        <SidebarFilter />
         <FilterDateRange />
         <FilterFilial />
       </div>
@@ -66,8 +69,12 @@ export default async function Dashboard({ searchParams }: Props) {
             />
           </div>
         </div>
-        <div className="w-1/2 px-5 h-[30vh]">
+        <div className="w-2/3 px-5 pt-2 h-[30vh]">
+          <p>TOTAIS FALTAS E SOBRAS ANUAIS</p>
           <ChartLineDifs data={data.chartAnualDifs} />
+        </div>
+        <div className="w-2/3 h-[30vh] my-12">
+          <ChartColumnsDifs data={data.chartColunmsDifs} />
         </div>
       </div>
     </div>

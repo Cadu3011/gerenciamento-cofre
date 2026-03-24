@@ -129,6 +129,11 @@ export class TrierController {
       filialId,
       operadorId,
     );
-    return { cards, chartAnualDifs };
+    const chartColunmsDifs = await this.trierService.chartColunmsDifs(
+      filialId,
+      startDate,
+      endDate,
+    );
+    return { cards, chartAnualDifs, chartColunmsDifs };
   }
 }

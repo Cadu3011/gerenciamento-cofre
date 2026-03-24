@@ -44,6 +44,7 @@ export default function ChartLineDifs({ data }: Props) {
         <XAxis
           tickFormatter={(value) => value.slice(0, 10)}
           dataKey="periodo"
+          tickMargin={10}
           tick={({ x, y, payload }) => {
             const [inicio, fim] = payload.value.split(" a ");
 
