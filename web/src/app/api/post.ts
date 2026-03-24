@@ -408,7 +408,7 @@ export async function postUser(formData: FormData) {
 
 export async function getCardsCaixas(query: string) {
   const tokenCookie = (await cookies()).get("access_token")?.value;
-
+  console.log(query);
   const resCard = await fetch(
     `http://localhost:4000/trier/dashboard/caixas?${query}`,
     {

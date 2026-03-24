@@ -119,11 +119,16 @@ export class TrierController {
     @Query('endDate') endDate: string,
     @Query('operadorId') operadorId?: number,
   ) {
-    return await this.trierService.cardsDifCaixa(
+    const { cards } = await this.trierService.cardsDifCaixa(
       startDate,
       endDate,
       filialId,
       operadorId,
     );
+    const chartAnualDifs = await this.trierService.chartAnualDifs(
+      filialId,
+      operadorId,
+    );
+    return { cards, chartAnualDifs };
   }
 }

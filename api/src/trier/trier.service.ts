@@ -1,6 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
+import { prev } from 'cheerio/dist/commonjs/api/traversing';
 import { authTrier } from 'src/auth/authTrier/loginTrier';
 import { PrismaService } from 'src/database/prisma.service';
 
@@ -365,23 +366,114 @@ export class TrierService {
     filialId: number,
     operadorId?: number,
   ) {
+    function subMonthSafe(date: string) {
+      const d = new Date(`${date}T00:00:00`);
+      const day = d.getDate();
+
+      d.setHours(0, 0, 0, 0); // 🔥 zera horário
+
+      d.setDate(1);
+      d.setMonth(d.getMonth() - 1);
+
+      const lastDay = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+
+      d.setDate(Math.min(day, lastDay));
+
+      return d.toISOString().split('T')[0];
+    }
+
+    const prevStart = subMonthSafe(startDate);
+    const prevEnd = subMonthSafe(endDate);
     const cards: { total_sobra: number; total_falta: number } = await this
       .prisma.$queryRaw`
   SELECT
-    SUM(CASE WHEN sobra > 5 THEN sobra ELSE 0 END) AS total_sobra,
-    SUM(CASE WHEN falta > 5 THEN falta ELSE 0 END) AS total_falta
+    SUM(CASE 
+      WHEN data >= ${startDate} AND data <= ${endDate}
+      THEN sobra ELSE 0 END) AS total_sobra_atual,
+
+    SUM(CASE 
+      WHEN data >= ${startDate} AND data <= ${endDate}
+      THEN falta ELSE 0 END) AS total_falta_atual,
+
+    SUM(CASE 
+      WHEN data >= ${prevStart} AND data <= ${prevEnd}
+      THEN sobra ELSE 0 END) AS total_sobra_anterior,
+
+    SUM(CASE 
+      WHEN data >= ${prevStart} AND data <= ${prevEnd}
+      THEN falta ELSE 0 END) AS total_falta_anterior
+
   FROM cash_management_db.diferencacaixa
   WHERE filialId = ${filialId}
-    AND data >= ${startDate}
-    AND data < ${endDate}
-    ${operadorId ? Prisma.sql`AND idOperador = ${operadorId}` : Prisma.empty}
+  ${operadorId ? Prisma.sql`AND idOperador = ${operadorId}` : Prisma.empty}
 `;
 
     return {
       cards: {
-        totalFalta: cards[0].total_falta,
-        totalSobra: cards[0].total_sobra,
+        totalFalta: cards[0].total_falta_atual,
+        totalSobra: cards[0].total_sobra_atual,
+        totalSobraAnt: cards[0].total_sobra_anterior,
+        totalFaltaAnt: cards[0].total_falta_anterior,
       },
     };
+  }
+
+  async chartAnualDifs(filialId: number, operadorId?: number) {
+    const operadorFilter = operadorId
+      ? Prisma.sql`AND dc.idOperador = ${operadorId}`
+      : Prisma.empty;
+
+    const filialFilter = filialId
+      ? Prisma.sql`AND dc.filialId = ${filialId}`
+      : Prisma.empty;
+
+    const result = await this.prisma.$queryRaw<
+      { periodo: string; total_falta: number; total_sobra: number }[]
+    >(Prisma.sql`
+   WITH RECURSIVE periodos AS (
+    SELECT 
+      DATE_FORMAT(
+        CASE 
+          WHEN DAY(CURDATE()) >= 26 
+            THEN DATE_FORMAT(CURDATE(), '%Y-%m-26')
+          ELSE DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL 1 MONTH), '%Y-%m-26')
+        END,
+        '%Y-%m-%d'
+      ) AS inicio_periodo,
+      1 AS n
+
+    UNION ALL
+
+    SELECT 
+      DATE_SUB(inicio_periodo, INTERVAL 1 MONTH),
+      n + 1
+    FROM periodos
+    WHERE n < 12
+  )
+
+  SELECT 
+    CONCAT(
+      DATE_FORMAT(p.inicio_periodo, '%Y-%m-%d'),
+      ' a ',
+      DATE_FORMAT(DATE_SUB(DATE_ADD(p.inicio_periodo, INTERVAL 1 MONTH), INTERVAL 1 DAY), '%Y-%m-%d')
+    ) AS periodo,
+
+    COALESCE(SUM(dc.falta), 0) AS total_falta,
+    COALESCE(SUM(dc.sobra), 0) AS total_sobra
+
+  FROM periodos p
+
+  LEFT JOIN diferencacaixa dc
+    ON dc.data >= p.inicio_periodo
+    AND dc.data < DATE_ADD(p.inicio_periodo, INTERVAL 1 MONTH)
+
+    ${operadorFilter}
+    ${filialFilter}
+
+  GROUP BY p.inicio_periodo
+  ORDER BY p.inicio_periodo ASC
+`);
+
+    return result;
   }
 }
