@@ -8,6 +8,7 @@ import {
 } from "@/components/ui/table";
 import DialogCronJobs from "../../gerenciar-tarefas/components/DialogCronJobs";
 import { Button } from "@/components/ui/button";
+import { formatDate } from "../utils";
 
 interface Props {
   data: {
@@ -44,7 +45,7 @@ export default function TableDifs({ data }: Props) {
               }
             >
               <TableCell className="text-nowrap">
-                {String(d.data).split("T")[0]}
+                {formatDate(String(d.data).split("T")[0])}
               </TableCell>
               <TableCell className=" ">
                 {d.operador.split(" ").slice(0, 2).join(" ")}

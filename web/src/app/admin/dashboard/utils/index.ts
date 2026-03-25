@@ -10,3 +10,8 @@ export function calculateDynamicMax(data: any[], margin = 0.15) {
 
   return rounded;
 }
+
+export function formatDate(date: string) {
+  const [year, month, day] = date.split("-");
+  return `${day}/${month}/${year}`;
+}

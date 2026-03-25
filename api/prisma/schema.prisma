@@ -295,7 +295,7 @@ model DiferencaCaixa {
   diferenca Decimal?  @db.Decimal(10, 2)
   status String?
   created_at DateTime @default(now())
-  obsConf String?
+  obsConf String? @db.VarChar(450)
   obsFinal String?
   idempotencyKey String @unique
 

@@ -16,6 +16,7 @@ import {
   YAxis,
 } from "recharts";
 import { calculateDynamicMax } from "../utils";
+import { useRouter, useSearchParams } from "next/navigation";
 
 const chartConfig = {
   falta: {
@@ -29,15 +30,47 @@ const chartConfig = {
 } satisfies ChartConfig;
 
 export interface Props {
-  data: { operador: string; falta: number; sobra: number }[];
+  data: {
+    idOperador: string;
+    operador: string;
+    falta: number;
+    sobra: number;
+  }[];
 }
 
 export default function ChartColumnsDifs({ data }: Props) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
   const values = data.flatMap((item) => [item.falta, item.sobra]);
   const yAxisMax = calculateDynamicMax(values, 0.15);
+
+  const setIdOperatorOnUrl = (operadorId: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    const current = searchParams.get("operadorId");
+    if (String(operadorId) === current) {
+      params.delete("operadorId");
+    } else {
+      params.set("operadorId", operadorId);
+    }
+
+    router.replace(`?${params.toString()}`, { scroll: false });
+  };
   return (
     <ChartContainer config={chartConfig} className="h-full w-full">
-      <BarChart accessibilityLayer data={data}>
+      <BarChart
+        accessibilityLayer
+        data={data}
+        onClick={(state) => {
+          if (!state || !state.activePayload?.length) return;
+
+          const item = state.activePayload[0].payload;
+
+          if (item?.idOperador) {
+            setIdOperatorOnUrl(item.idOperador);
+          }
+        }}
+      >
         <CartesianGrid vertical={false} />
         <XAxis
           dataKey="operador"
@@ -47,6 +80,7 @@ export default function ChartColumnsDifs({ data }: Props) {
           tick={{ fill: "#000" }}
           tickFormatter={(value) => value.slice(0, 10)}
         />
+
         <YAxis domain={[0, yAxisMax]} tickCount={6} />
         <ChartTooltip content={<ChartTooltipContent />} />
         <ChartLegend content={<ChartLegendContent />} />

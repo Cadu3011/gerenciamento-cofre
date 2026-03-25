@@ -122,15 +122,15 @@ export class TrierController {
     const { cards } = await this.trierService.cardsDifCaixa(
       startDate,
       endDate,
-      filialId,
-      operadorId,
+      +filialId,
+      +operadorId,
     );
     const chartAnualDifs = await this.trierService.chartAnualDifs(
-      filialId,
-      operadorId,
+      +filialId,
+      +operadorId,
     );
     const chartColunmsDifs = await this.trierService.chartColunmsDifs(
-      filialId,
+      +filialId,
       startDate,
       endDate,
     );
@@ -138,7 +138,7 @@ export class TrierController {
       +filialId,
       startDate,
       endDate,
-      operadorId,
+      +operadorId,
     );
     return { cards, chartAnualDifs, chartColunmsDifs, tableDifs };
   }

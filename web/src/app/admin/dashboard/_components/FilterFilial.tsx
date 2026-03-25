@@ -12,22 +12,16 @@ import { useEffect, useState } from "react";
 import { getFiliais } from "@/app/api/post";
 import { Button } from "@/components/ui/button";
 
-interface Filial {
+export interface Filial {
   id: number;
   name: string;
 }
 
-export default function FilterFilial() {
+export default function FilterFilial({ filiais }: { filiais: Filial[] }) {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const [filiais, setFiliais] = useState<Filial[]>([]);
-
   const filialId = searchParams.get("filialId") || "";
-
-  useEffect(() => {
-    getFiliais().then(setFiliais);
-  }, []);
 
   function handleChange(value: string) {
     const params = new URLSearchParams(searchParams.toString());
@@ -38,29 +32,27 @@ export default function FilterFilial() {
   }
 
   return (
-    <Select value={filialId} onValueChange={handleChange}>
-      <SelectTrigger className="w-56 bg-zinc-900">
-        <Button
-          className="w-full border border-y border-x-0 rounded-none border-zinc-300 bg-zinc-900"
-          variant={"default"}
-        >
+    <div>
+      <p>Filtrar Filiais</p>
+      <Select value={filialId} onValueChange={handleChange}>
+        <SelectTrigger className="w-56 bg-zinc-900 border border-none">
           <SelectValue
             placeholder={
               filialId
                 ? filiais.find((f) => f.id === Number(filialId))?.name
-                : "Filial"
+                : "Selecione uma Filial"
             }
           />
-        </Button>
-      </SelectTrigger>
+        </SelectTrigger>
 
-      <SelectContent>
-        {filiais.map((f) => (
-          <SelectItem key={f.id} value={f.id.toString()}>
-            {f.name}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
+        <SelectContent className="bg-white">
+          {filiais.map((f) => (
+            <SelectItem key={f.id} value={f.id.toString()}>
+              {f.name}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
   );
 }

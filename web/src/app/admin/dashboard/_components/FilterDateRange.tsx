@@ -59,6 +59,7 @@ export function FilterDateRange() {
 
   return (
     <div>
+      <p>Filtrar Período</p>
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <Button

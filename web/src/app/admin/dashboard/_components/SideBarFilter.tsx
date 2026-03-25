@@ -6,9 +6,9 @@ import { Filter, Menu, X } from "lucide-react";
 
 import { handleLogut } from "@/app/api/post";
 import { FilterDateRange } from "./FilterDateRange";
-import FilterFilial from "./FilterFilial";
+import FilterFilial, { Filial } from "./FilterFilial";
 
-export default function SidebarFilter() {
+export default function SidebarFilter({ filiais }: { filiais: Filial[] }) {
   const [open, setOpen] = useState(false);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -66,8 +66,11 @@ export default function SidebarFilter() {
                 </div>
 
                 <nav className="mt-8 flex flex-col gap-4">
+                  <div className=" text-center text-2xl ">
+                    <p>Filtros</p>
+                  </div>
                   <FilterDateRange />
-                  <FilterFilial />
+                  <FilterFilial filiais={filiais} />
                 </nav>
               </div>
             </motion.aside>
