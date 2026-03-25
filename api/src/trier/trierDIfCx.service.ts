@@ -1,5 +1,4 @@
 import { Injectable, Inject } from '@nestjs/common';
-import { Cron } from '@nestjs/schedule';
 import { chromium } from 'playwright';
 import { PrismaService } from 'src/database/prisma.service';
 
@@ -22,7 +21,7 @@ export class TrierDifCxETL {
     const [d, m, y] = dateBR.split('/');
     return `${y}-${m}-${d}`;
   }
-  @Cron('5,38 5,7,10,12 * * 1-7')
+
   async init() {
     await this.macro(1, 'MATRIZ');
     await this.macro(2, 'TAIRU');

@@ -105,6 +105,14 @@ export class MovementController {
 
   @UseGuards(AuthGuard)
   @Roles(Role.OPERADOR)
+  @Get('vendas-caixas')
+  findVendasCaixas(@Req() req: Request) {
+    const filialUser = req['sub'];
+    return this.movementService.findVendasCaixas(Number(filialUser.filialId));
+  }
+
+  @UseGuards(AuthGuard)
+  @Roles(Role.OPERADOR)
   @Get('ant')
   findByFilialMoveAnt(@Req() req: Request) {
     const filialUser = req['sub'];
@@ -118,20 +126,14 @@ export class MovementController {
     const filialUser = req['sub'];
     return this.movementService.findByFilialOperator(filialUser.filialId);
   }
+
   @UseGuards(AuthGuard)
   @Roles(Role.OPERADOR)
-  @Patch(':id')
-  update(
-    @Req() req: Request,
-    @Param('id') id: string,
-    @Body() updateMovementDto: UpdateMovementDto,
-  ) {
+  @Post('sangria')
+  update(@Req() req: Request, @Body() createMovementDto: CreateMovementDto) {
     const filialUser = req['sub'];
-    return this.movementService.update(
-      filialUser.filialId,
-      +id,
-      updateMovementDto,
-    );
+
+    return this.movementService.update(filialUser.filialId, createMovementDto);
   }
 
   @UseGuards(AuthGuard)

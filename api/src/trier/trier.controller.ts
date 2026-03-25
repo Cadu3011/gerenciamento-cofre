@@ -8,6 +8,8 @@ import {
   UseGuards,
   Headers,
   Query,
+  Param,
+  Patch,
 } from '@nestjs/common';
 import { TrierService } from './trier.service';
 import { authTrier } from 'src/auth/authTrier/loginTrier';
@@ -35,7 +37,7 @@ export class TrierController {
   ) {
     const filialUser = req['sub'];
 
-    return await this.trierDifCaixasETL.getCaixas(
+    return await this.trierService.getCaixas(
       dataEmissaoInicial,
       dataEmissaoFinal,
       filialUser.filialId,
@@ -83,6 +85,7 @@ export class TrierController {
       date,
     );
   }
+
   @UseGuards(AuthGuard)
   @Roles(Role.OPERADOR, Role.GESTOR)
   @Post()
@@ -98,5 +101,45 @@ export class TrierController {
     return {
       tokenLocalTrier: await authTrier(credentials, filial.urlLocalTrier),
     };
+  }
+
+  @UseGuards(AuthGuard)
+  @Roles(Role.OPERADOR)
+  @Patch('caixas/:id')
+  async caixasObsConf(@Param('id') id: number, @Body('obs') obs: string) {
+    return await this.trierService.caixasObsConf(obs, +id);
+  }
+
+  @UseGuards(AuthGuard)
+  @Roles(Role.GESTOR)
+  @Get('dashboard/caixas')
+  async getCardsDashboard(
+    @Query('filialId') filialId: number,
+    @Query('startDate') startDate: string,
+    @Query('endDate') endDate: string,
+    @Query('operadorId') operadorId?: number,
+  ) {
+    const { cards } = await this.trierService.cardsDifCaixa(
+      startDate,
+      endDate,
+      +filialId,
+      +operadorId,
+    );
+    const chartAnualDifs = await this.trierService.chartAnualDifs(
+      +filialId,
+      +operadorId,
+    );
+    const chartColunmsDifs = await this.trierService.chartColunmsDifs(
+      +filialId,
+      startDate,
+      endDate,
+    );
+    const tableDifs = await this.trierService.tableDifs(
+      +filialId,
+      startDate,
+      endDate,
+      +operadorId,
+    );
+    return { cards, chartAnualDifs, chartColunmsDifs, tableDifs };
   }
 }
