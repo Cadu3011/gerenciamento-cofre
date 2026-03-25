@@ -99,7 +99,11 @@ export class TrierController {
     });
 
     return {
-      tokenLocalTrier: await authTrier(credentials, filial.urlLocalTrier),
+      tokenLocalTrier: await authTrier(
+        credentials,
+        filial.urlLocalTrier,
+        filial.id,
+      ),
     };
   }
 

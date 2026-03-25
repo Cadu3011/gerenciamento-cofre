@@ -14,8 +14,6 @@ export async function authTrier(
 ) {
   if (!urlTrier) {
     urlTrier = '192.168.1.253';
-  }
-  if (!idFilial) {
     idFilial = 99;
   }
   const jar = new CookieJar();
