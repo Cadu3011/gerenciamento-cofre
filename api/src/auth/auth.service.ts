@@ -25,7 +25,7 @@ export class AuthService {
       where: { login: params.login },
       include: {
         filial: {
-          select: { idCofreTrier: true },
+          select: { idCofreTrier: true, id: true },
         },
       },
     });
@@ -33,11 +33,20 @@ export class AuthService {
     if (!user) throw new NotFoundException('user not found');
     const passwordMatch = await bcrypt.compare(params.password, user.password);
     if (!passwordMatch) throw new UnauthorizedException('Invalid credentials');
+
     if (user.role === 'OPERADOR') {
-      this.tokenTrier = await authTrier({
-        login: String(params.login),
-        password: params.password,
+      const filial = await this.prisma.filial.findFirst({
+        where: { id: user.filialId },
       });
+
+      this.tokenTrier = await authTrier(
+        {
+          login: String(params.login),
+          password: params.password,
+        },
+        filial.urlLocalTrier,
+        filial.id,
+      );
       const payload = {
         sub: user.id,
         roles: user.role,

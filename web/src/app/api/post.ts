@@ -21,7 +21,7 @@ export async function getCaixas(from: string, to: string) {
         "Content-Type": "application/json",
         Authorization: `Bearer ${tokenCookie}`,
       },
-    }
+    },
   );
 
   const data = await res.json();
@@ -29,15 +29,14 @@ export async function getCaixas(from: string, to: string) {
 }
 
 export async function handleFormSubmit(formData: FormData) {
+  const tokenCookie = (await cookies()).get("access_token")?.value;
   const descrition = formData.get("description") as string;
   const value = formData.get("value") as string;
   const type = formData.get("type") as string;
   const filialId = Number(formData.get("filialId") as string);
-  const token = formData.get("token") as string;
   const idCategoria = formData.get("categoriaId") as string;
   const category = formData.get("categoriaDesc") as string;
   const transfIdDest = formData.get("transfIdDest") as string;
-  const tokenCookie = (await cookies()).get("access_token")?.value;
   const userData = jwtDecode<UserPayload>(tokenCookie as string);
   const data = {
     descrition,
@@ -54,7 +53,7 @@ export async function handleFormSubmit(formData: FormData) {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
+        Authorization: `Bearer ${tokenCookie}`,
       },
       body: JSON.stringify(data),
     });
@@ -64,14 +63,29 @@ export async function handleFormSubmit(formData: FormData) {
   }
 }
 
-export async function pushValueSangria(id: number, value: string) {
+export async function pushValueSangria(
+  value: string,
+  caixa: string,
+  moveId?: number,
+) {
   const tokenCookie = (await cookies()).get("access_token")?.value;
+  const parseBRL = (value: string) => {
+    return Number(
+      value.replace(",", "."), // troca decimal
+    );
+  };
+  const finalValue = parseBRL(value);
   try {
     const data = {
-      value: value,
+      value: finalValue,
+      descrition: caixa,
+      id: moveId,
     };
-    const dataPost = await fetch(`http://${Url}/movement/${id}`, {
-      method: "PATCH",
+    console.log(data);
+
+    console.log(moveId);
+    const dataPost = await fetch(`http://${Url}/movement/sangria`, {
+      method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${tokenCookie}`,
@@ -123,7 +137,7 @@ export async function handlePostLogin(formData: FormData) {
   if (userData.roles === "GESTOR") {
     redirect("/admin");
   }
-  redirect("/gerencia-cofre");
+  redirect("/workspace");
 }
 export async function handleLogut() {
   (await cookies()).delete("access_token");
@@ -183,7 +197,7 @@ export async function handleFormBalanceFisic(formData: FormData) {
 export async function getExtract(
   dateInit: string,
   dateFinal: string,
-  filialId?: string
+  filialId?: string,
 ) {
   const tokenCookie = (await cookies()).get("access_token")?.value;
   console.log(dateInit, dateFinal, filialId);
@@ -194,7 +208,7 @@ export async function getExtract(
         "Content-Type": "application/json",
         Authorization: `Bearer ${tokenCookie}`,
       },
-    }
+    },
   ).then((res) => res.json());
   return extrato;
 }
@@ -251,6 +265,18 @@ export async function fetchSaldos(filialId: string) {
     };
   }
 }
+
+export async function getVendasCaixas() {
+  const tokenCookie = (await cookies()).get("access_token")?.value;
+  const vendasCaixas = await fetch(`http://${Url}/movement/vendas-caixas`, {
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${tokenCookie}`,
+    },
+  }).then((res) => res.json());
+  return vendasCaixas;
+}
+
 export async function getMovements() {
   const tokenCookie = (await cookies()).get("access_token")?.value;
   const Url = await apiUrl();
@@ -339,7 +365,7 @@ export async function getCofresTrier() {
           incluirContasCompartilhadas: true,
           situacoes: ["ATIVO"],
         }),
-      }
+      },
     );
     if (!data.ok) throw new Error("Erro na API");
 
@@ -378,4 +404,35 @@ export async function postUser(formData: FormData) {
     body: JSON.stringify(data),
   });
   return;
+}
+
+export async function getCardsCaixas(query: string) {
+  const tokenCookie = (await cookies()).get("access_token")?.value;
+  console.log(query);
+  const resCard = await fetch(
+    `http://localhost:4000/trier/dashboard/caixas?${query}`,
+    {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${tokenCookie}`,
+      },
+    },
+  );
+  return await resCard.json();
+}
+
+export async function postObsConf(id: number, obs: string) {
+  const tokenCookie = (await cookies()).get("access_token")?.value;
+
+  const res = await fetch(`http://localhost:4000/trier/caixas/${id}`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${tokenCookie}`,
+    },
+    body: JSON.stringify({ obs }),
+  });
+  const updatedCaixa = await res.json();
+  console.log(updatedCaixa);
 }

@@ -12,6 +12,8 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { RedeModule } from './rede/rede.module';
 import { CieloModule } from './cielo/cielo.module';
 import { TrierModule } from './trier/trier.module';
+import { CartEtlModule } from './cardETL/card-etl.module';
+import { JobsModule } from './jobs/jobs.module';
 
 @Module({
   imports: [
@@ -26,6 +28,8 @@ import { TrierModule } from './trier/trier.module';
     RedeModule,
     CieloModule,
     TrierModule,
+    CartEtlModule,
+    JobsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

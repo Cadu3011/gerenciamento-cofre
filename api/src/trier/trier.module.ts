@@ -8,5 +8,6 @@ import { TrierDifCxETL } from './trierDIfCx.service';
   imports: [DatabaseModule],
   controllers: [TrierController],
   providers: [TrierService, TrierDifCxETL],
+  exports: [TrierService, TrierDifCxETL],
 })
 export class TrierModule {}

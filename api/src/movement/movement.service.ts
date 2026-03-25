@@ -1,17 +1,31 @@
-import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { CreateMovementDto } from './dto/create-movement.dto';
 import { UpdateMovementDto } from './dto/update-movement.dto';
 import { PrismaService } from 'src/database/prisma.service';
 import { AmountService } from 'src/amount/amount.service';
 import { Decimal } from '@prisma/client/runtime/library';
 import { FindAllQueryDto } from './dto/query-movement.dto';
-import { Cron, Interval } from '@nestjs/schedule';
+import { Interval } from '@nestjs/schedule';
 import { authTrier } from 'src/auth/authTrier/loginTrier';
 import { MoveTrier } from './create-move-trier.service';
 import { FilialService } from 'src/filial/filial.service';
+import { Prisma } from '@prisma/client';
+import { TrierService } from 'src/trier/trier.service';
+
+interface SalesTrierDin {
+  financeiroMovimentacaoId: number;
+  codFilial: number;
+  numNota: number;
+  numCaixa: number;
+  datEmissao: string; // ISO string (pode converter pra Date depois)
+  datReceb: string;
+  vlrRecebido: number;
+  tipo: string;
+  observacao: string | null;
+}
 
 @Injectable()
-export class MovementService implements OnModuleInit {
+export class MovementService {
   @Inject()
   private readonly Prisma: PrismaService;
   @Inject()
@@ -20,27 +34,71 @@ export class MovementService implements OnModuleInit {
   private readonly moveTrier: MoveTrier;
   @Inject()
   private readonly filial: FilialService;
+
+  @Inject()
+  private readonly trierService: TrierService;
+
   private readonly logger = new Logger(MovementService.name);
-  async onModuleInit() {
-    await this.getVendasCaixasTrier();
+
+  async findVendasCaixas(filialId: number) {
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+
+    const endOfDay = new Date();
+    endOfDay.setHours(23, 59, 59, 999);
+
+    return this.Prisma.$queryRaw`
+  SELECT 
+    sd.numCaixa,
+    sd.filialId,
+    m.id as moveId,
+    m.value as moveValue,
+    SUM(sd.valor) as total
+  FROM SalesDin sd
+  LEFT JOIN Movimentations m ON m.id = sd.moveId
+  WHERE 
+    sd.filialId = ${filialId}
+    AND (
+      sd.moveId IS NULL
+      OR sd.updatedAt BETWEEN ${startOfDay} AND ${endOfDay}
+    )
+  GROUP BY 
+    sd.numCaixa, 
+    sd.filialId, 
+    m.id, 
+    m.value
+  ORDER BY sd.numCaixa ASC
+`;
   }
-  @Cron('5,38 6,8,9,11 * * 1-7')
+
   async getVendasCaixasTrier() {
-    const lastDate = await this.Prisma.movimentations.findFirst({
-      where: {
-        type: 'SANGRIA',
-      },
+    const lastDate = (await this.Prisma.salesDin.findFirst({
       orderBy: {
-        createdAt: 'desc',
+        sale_date: 'desc',
       },
       select: {
-        createdAt: true,
+        sale_date: true,
       },
-    });
+    })) ?? { sale_date: new Date('2026-03-17') };
 
-    const dateInit = new Date(lastDate.createdAt);
-    dateInit.setDate(dateInit.getDate() + 1);
+    const dateInit = new Date(lastDate.sale_date);
+    // dateInit.setDate(dateInit.getDate() + 1);
+    // const dataAtual = new Date();
+    // const dataAtualFormat = new Date(
+    //   Date.UTC(
+    //     dataAtual.getUTCFullYear(),
+    //     dataAtual.getUTCMonth(),
+    //     dataAtual.getUTCDate(),
+    //     0,
+    //     0,
+    //     0,
+    //     0,
+    //   ),
+    // );
+    const diasReprocessar = 3;
+
     const dataAtual = new Date();
+
     const dataAtualFormat = new Date(
       Date.UTC(
         dataAtual.getUTCFullYear(),
@@ -53,12 +111,14 @@ export class MovementService implements OnModuleInit {
       ),
     );
 
+    // 🔥 começa 3 dias atrás
+
+    dateInit.setUTCDate(dateInit.getUTCDate() - diasReprocessar);
+
     const token = await authTrier({
       login: '95',
       password: 'cadu3011',
     });
-
-    const allResults: any[] = []; // acumulador
 
     for (
       let current = new Date(dateInit);
@@ -100,116 +160,95 @@ export class MovementService implements OnModuleInit {
       );
 
       if (totais) {
-        console.log('totais');
+        try {
+          const idMoveTotais = totais.map((move) => ({ id: move.id }));
+          const moveDetalhes = await Promise.all(
+            idMoveTotais.map(async ({ id }) => {
+              const res = await this.moveTrier.getVendasDetalhes(id, token);
 
-        const idMoveTotais = totais.map((move) => ({ id: move.id }));
+              if (!res || !Array.isArray(res.detalhes)) {
+                console.log(`⚠️ Nenhum detalhe encontrado para id=${id}`);
+                return [];
+              }
 
-        const moveDetalhes = await Promise.all(
-          idMoveTotais.map(async ({ id }) => {
-            const res = await this.moveTrier.getVendasDetalhes(id, token);
+              const moveDet = res.detalhes.map(
+                (d: SalesTrierDin, index: number) => ({
+                  filialId: res.movimentacao.filial.codFilial,
+                  numCaixa: d.numCaixa,
+                  numNota: d.numNota
+                    ? d.numNota
+                    : Number(`${d.codFilial}${d.numCaixa}${index}`),
+                  idempotencyKey: `${d.codFilial}-${d.numCaixa}-${d.numNota}-${
+                    d.observacao === 'RECEBIMENTO CREDIÁRIO'
+                      ? 'REC_CREDIARIO'
+                      : d.observacao === 'OUTRAS FORMAS PAGTO'
+                        ? 'REC_CREDIARIO_CARTAO'
+                        : 'REC_VENDA'
+                  }-${index}`,
+                  sale_date:
+                    d.observacao === 'RECEBIMENTO CREDIÁRIO'
+                      ? new Date(`${d.datReceb}T00:00:00-03:00`)
+                      : new Date(d.datEmissao),
+                  valor: Number(d.vlrRecebido.toFixed(2)),
+                  financeiroMovimentacaoId: d.financeiroMovimentacaoId,
+                  tipo:
+                    d.observacao === 'RECEBIMENTO CREDIÁRIO'
+                      ? 'REC_CREDIARIO'
+                      : d.observacao === 'OUTRAS FORMAS PAGTO'
+                        ? 'REC_CREDIARIO_CARTAO'
+                        : 'REC_VENDA',
+                }),
+              );
 
-            if (!res || !Array.isArray(res.detalhes)) {
-              console.log(JSON.stringify(res, null, 2));
-              console.log(`⚠️ Nenhum detalhe encontrado para id=${id}`);
-              return []; // retorna array vazio para não quebrar
+              return moveDet;
+            }),
+          );
+
+          const movimentosFlat = moveDetalhes.flat();
+
+          // await this.Prisma.salesDin.createMany({
+          //   data: movimentosFlat.map((m) => ({
+          //     ...m,
+          //   })),
+          //   skipDuplicates: true,
+          // });
+
+          const BATCH_SIZE = 1000;
+
+          for (let i = 0; i < movimentosFlat.length; i += BATCH_SIZE) {
+            const chunk = movimentosFlat.slice(i, i + BATCH_SIZE);
+
+            try {
+              await this.Prisma.salesDin.createMany({
+                data: chunk,
+                skipDuplicates: true,
+              });
+            } catch (batchError) {
+              console.error(
+                `❌ Erro no batch ${i}-${i + BATCH_SIZE}, tentando individual...`,
+              );
+
+              // 🔥 fallback item por item
+              for (const item of chunk) {
+                try {
+                  await this.Prisma.salesDin.create({
+                    data: item,
+                  });
+                } catch (itemError: any) {
+                  console.error(`❌ Erro ao inserir item:`, {
+                    idempotencyKey: item.idempotencyKey,
+                    erro: itemError.message,
+                  });
+                }
+              }
             }
-            const moveDetalhes = res.detalhes.reduce(
-              (acc, move) => {
-                const {
-                  numCaixa,
-                  vlrRecebido,
-                  codFilial,
-                  datEmissao,
-                  datReceb,
-                  observacao,
-                } = move;
-
-                if (!acc[numCaixa]) {
-                  acc[numCaixa] = {
-                    filial: codFilial,
-                    caixa: numCaixa,
-                    data:
-                      observacao === 'RECEBIMENTO CREDIÁRIO'
-                        ? `${datReceb}T00:00:00-03:00`
-                        : datEmissao,
-                    vlrRecebido: new Decimal(0),
-                  };
-                }
-
-                acc[numCaixa].vlrRecebido =
-                  acc[numCaixa].vlrRecebido.plus(vlrRecebido);
-
-                return acc;
-              },
-              {} as Record<
-                number,
-                {
-                  filial: number;
-                  caixa: number;
-                  vlrRecebido: Decimal;
-                  data: string;
-                }
-              >,
-            );
-
-            return Object.values(moveDetalhes).map((d: any) => ({
-              filial: d.filial,
-              caixa: d.caixa,
-              data: d.data,
-              vlrRecebido: Number(d.vlrRecebido.toFixed(2)),
-            }));
-          }),
-        );
-
-        const movimentosFlat = moveDetalhes.flat();
-
-        const result: {
-          filial: number;
-          caixa: number;
-          vlrRecebido: number;
-          data: string;
-        }[] = Object.values(
-          movimentosFlat.reduce(
-            (acc, curr) => {
-              if (!acc[curr.caixa]) {
-                acc[curr.caixa] = { ...curr };
-              } else {
-                acc[curr.caixa].vlrRecebido += curr.vlrRecebido;
-              }
-              return acc;
-            },
-            {} as Record<
-              number,
-              {
-                filial: number;
-                caixa: number;
-                vlrRecebido: number;
-                data: string;
-              }
-            >,
-          ),
-        );
-
-        console.log(result);
-
-        for (const movimento of result) {
-          await this.Prisma.movimentations.create({
-            data: {
-              filialId: movimento.filial,
-              descrition: String(movimento.caixa),
-              valueSangriaTrier: movimento.vlrRecebido,
-              type: 'SANGRIA',
-              createdAt: movimento.data,
-            },
-          });
+          }
+        } catch (error) {
+          console.log(error);
+          throw 'Erro ao processar movimentações.';
         }
-
-        // acumula no array final
-        allResults.push(...result);
       }
     }
-
-    return allResults; // só retorna depois do loop inteiro
   }
 
   @Interval(30_000)
@@ -456,31 +495,71 @@ export class MovementService implements OnModuleInit {
       orderBy: { updatedAt: 'asc' }, // opcional
     });
   }
-  async update(
-    filialId: number,
-    id: number,
-    updateMovementDto: UpdateMovementDto,
-  ) {
-    const move = await this.Prisma.movimentations.findUnique({
-      where: { id: id },
+
+  async update(filialId: number, createMovementDto: CreateMovementDto) {
+    let move = null;
+    let moveCreate;
+    if (createMovementDto.id) {
+      move = await this.Prisma.movimentations.findUnique({
+        where: { id: createMovementDto.id },
+      });
+      moveCreate = await this.Prisma.movimentations.update({
+        where: { id: createMovementDto.id },
+        data: {
+          value: Decimal(createMovementDto.value),
+        },
+      });
+    } else {
+      moveCreate = await this.Prisma.movimentations.create({
+        data: {
+          value: Decimal(createMovementDto.value),
+          type: 'SANGRIA',
+          descrition: String(createMovementDto.descrition),
+          filial: { connect: { id: filialId } },
+        },
+      });
+    }
+
+    await this.Prisma.salesDin.updateMany({
+      where: { numCaixa: Number(moveCreate.descrition), filialId: filialId },
+      data: { moveId: moveCreate.id },
     });
-    const moveCreate = await this.Prisma.movimentations.update({
-      where: { id, filialId: filialId },
-      data: updateMovementDto,
+    const vendaTotal = await this.Prisma.salesDin.groupBy({
+      by: ['numCaixa', 'filialId'],
+      where: { numCaixa: Number(moveCreate.descrition), filialId: filialId },
+      _sum: { valor: true },
+      _min: { sale_date: true },
     });
-    if (move.value == null) {
-      const valueSub = new Decimal(updateMovementDto.value).sub(0);
+    const diferenca = vendaTotal[0]?._sum.valor.sub(moveCreate.value);
+    this.trierService.createDifCaixa({
+      data: vendaTotal[0]?._min.sale_date,
+      caixa: String(vendaTotal[0]?.numCaixa),
+      operador: null,
+      diferenca,
+      filialId: filialId,
+      sobra: diferenca.lessThan(0) ? diferenca.mul(-1) : new Decimal(0),
+      falta: diferenca.greaterThan(0) ? diferenca : new Decimal(0),
+      total_vendas_dinheiro: vendaTotal[0]?._sum.valor,
+      valor_recebido: moveCreate.value,
+      idempotencyKey: `${vendaTotal[0]?.numCaixa}-${filialId}`,
+    });
+
+    if (move !== null && move.value == null) {
+      const valueSub = new Decimal(createMovementDto.value).sub(0);
       await this.Amont.createOrUpdate({
         filialId: moveCreate.filialId,
         balance: Number(valueSub),
       });
       return moveCreate;
     }
-    const valueSub = new Decimal(updateMovementDto.value).sub(move.value);
+    const valueSub = new Decimal(createMovementDto.value).sub(
+      move !== null ? move.value : 0,
+    );
     await this.Amont.createOrUpdate({
       filialId: moveCreate.filialId,
       balance: Number(valueSub),
     });
+
     return moveCreate;
   }
 

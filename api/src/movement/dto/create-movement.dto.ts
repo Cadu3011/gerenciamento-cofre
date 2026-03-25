@@ -1,6 +1,7 @@
 import { Category, Status } from '@prisma/client';
 
 export class CreateMovementDto {
+  id?: number;
   descrition: string;
   value: number;
   type: Category;

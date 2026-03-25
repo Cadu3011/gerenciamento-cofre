@@ -1,13 +1,13 @@
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import * as Client from 'ssh2-sftp-client';
 import * as fs from 'fs';
 import * as path from 'path';
 import { CieloTransformSalesService } from './cielo-extratc-vendas.service';
 import { PrismaService } from 'src/database/prisma.service';
 import { Prisma } from '@prisma/client';
-import { Cron } from '@nestjs/schedule';
 import { FilialService } from 'src/filial/filial.service';
+import { readSftpKey } from './_utils';
 
 @Injectable()
 export class CieloService {
@@ -26,12 +26,9 @@ export class CieloService {
     host: '152.70.222.12',
     port: 22,
     username: 'ubuntu',
-    privateKey: fs.readFileSync(
-      path.resolve(__dirname, process.env.PATH_SFTP_KEY),
-    ),
+    privateKey: readSftpKey('PATH_SFTP_KEY'),
   };
 
-  @Cron('18,53 7,8,9,10,14 * * 1-7')
   async pipelineETL() {
     try {
       const fileList = await this.uploadExtract(

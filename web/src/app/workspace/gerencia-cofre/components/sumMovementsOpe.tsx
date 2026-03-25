@@ -1,0 +1,27 @@
+import { getMovements, getMovementsExtract } from "@/app/api/post";
+import { useCofreFisic } from "@/app/workspace/gerencia-cofre/components/cofreContext";
+import { useEffect, useState } from "react";
+interface Props {
+  type: string;
+}
+export default function SumMovementsOpe({ type }: Props) {
+  const [SumMovements, setSumMovements] = useState<number>(0);
+  const { updatedAt } = useCofreFisic();
+  useEffect(() => {
+    const fetchMovements = async () => {
+      const movement = await getMovements();
+      const totalValue = movement
+        .filter((move: { type: string }) => move.type === type)
+        .reduce(
+          (acumulador: number, valorAtual: { value: number }) =>
+            acumulador + Number(valorAtual.value),
+          0,
+        );
+
+      setSumMovements(totalValue);
+    };
+
+    fetchMovements();
+  }, [type, updatedAt]);
+  return <>{SumMovements}</>;
+}
