@@ -494,4 +494,31 @@ export class TrierService {
     GROUP BY idOperador
   `);
   }
+
+  async tableDifs(
+    filialId: number,
+    startDate: string,
+    endDate: string,
+    operadorId?: number,
+  ) {
+    const startDateFormat = new Date(startDate);
+    startDateFormat.setHours(0, 0, 0, 0);
+    const endDateFormat = new Date(endDate);
+    endDateFormat.setHours(23, 59, 59, 999);
+    return this.prisma.diferencaCaixa.findMany({
+      where: {
+        data: { gte: startDateFormat, lte: endDateFormat },
+        filialId: filialId,
+        ...(operadorId ? { idOperador: operadorId } : {}),
+      },
+      orderBy: { falta: 'desc' },
+      select: {
+        data: true,
+        operador: true,
+        falta: true,
+        sobra: true,
+        caixa: true,
+      },
+    });
+  }
 }

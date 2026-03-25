@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/select";
 import { useEffect, useState } from "react";
 import { getFiliais } from "@/app/api/post";
+import { Button } from "@/components/ui/button";
 
 interface Filial {
   id: number;
@@ -38,14 +39,19 @@ export default function FilterFilial() {
 
   return (
     <Select value={filialId} onValueChange={handleChange}>
-      <SelectTrigger className="w-56 bg-white">
-        <SelectValue
-          placeholder={
-            filialId
-              ? filiais.find((f) => f.id === Number(filialId))?.name
-              : "Filial"
-          }
-        />
+      <SelectTrigger className="w-56 bg-zinc-900">
+        <Button
+          className="w-full border border-y border-x-0 rounded-none border-zinc-300 bg-zinc-900"
+          variant={"default"}
+        >
+          <SelectValue
+            placeholder={
+              filialId
+                ? filiais.find((f) => f.id === Number(filialId))?.name
+                : "Filial"
+            }
+          />
+        </Button>
       </SelectTrigger>
 
       <SelectContent>

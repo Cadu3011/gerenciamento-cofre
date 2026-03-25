@@ -5,6 +5,8 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Filter, Menu, X } from "lucide-react";
 
 import { handleLogut } from "@/app/api/post";
+import { FilterDateRange } from "./FilterDateRange";
+import FilterFilial from "./FilterFilial";
 
 export default function SidebarFilter() {
   const [open, setOpen] = useState(false);
@@ -63,7 +65,10 @@ export default function SidebarFilter() {
                   </button>
                 </div>
 
-                <nav className="mt-8 flex flex-col gap-4"></nav>
+                <nav className="mt-8 flex flex-col gap-4">
+                  <FilterDateRange />
+                  <FilterFilial />
+                </nav>
               </div>
             </motion.aside>
           </>

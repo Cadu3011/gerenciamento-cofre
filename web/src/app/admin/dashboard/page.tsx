@@ -5,6 +5,7 @@ import CardTotals from "./_components/CardTotals";
 import ChartLineDifs from "./_components/ChartLineDifs";
 import ChartColumnsDifs from "./_components/ChartColunmsDifs";
 import SidebarFilter from "./_components/SideBarFilter";
+import TableDifs from "./_components/TableDifs";
 
 type Props = {
   searchParams: {
@@ -43,14 +44,12 @@ export default async function Dashboard({ searchParams }: Props) {
 
   const data = await getCardsCaixas(query);
   return (
-    <div>
-      <div className="w-full py-3 flex gap-4 px-5 bg-blue-950 justify-center">
+    <div className="flex gap-2">
+      <div className="w-15 py-3 flex gap-4 px-5 bg-blue-950 justify-center">
         <SidebarFilter />
-        <FilterDateRange />
-        <FilterFilial />
       </div>
 
-      <div className="py-3">
+      <div className="py-3 w-full">
         <div className="w-full ">
           <div className="w-1/2 px-8 flex gap-3">
             <CardTotals
@@ -69,13 +68,16 @@ export default async function Dashboard({ searchParams }: Props) {
             />
           </div>
         </div>
-        <div className="w-2/3 px-5 pt-2 h-[30vh]">
+        <div className="w-full px-5 pt-2 h-[30vh]">
           <p>TOTAIS FALTAS E SOBRAS ANUAIS</p>
           <ChartLineDifs data={data.chartAnualDifs} />
         </div>
-        <div className="w-2/3 h-[30vh] my-12">
+        <div className="w-full h-[30vh] my-12">
           <ChartColumnsDifs data={data.chartColunmsDifs} />
         </div>
+      </div>
+      <div className="w-2/3 h-[80vh] overflow-y-auto border my-3 border-black">
+        <TableDifs data={data.tableDifs} />
       </div>
     </div>
   );

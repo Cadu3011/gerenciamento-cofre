@@ -134,6 +134,12 @@ export class TrierController {
       startDate,
       endDate,
     );
-    return { cards, chartAnualDifs, chartColunmsDifs };
+    const tableDifs = await this.trierService.tableDifs(
+      +filialId,
+      startDate,
+      endDate,
+      operadorId,
+    );
+    return { cards, chartAnualDifs, chartColunmsDifs, tableDifs };
   }
 }

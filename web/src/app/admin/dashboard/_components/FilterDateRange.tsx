@@ -9,7 +9,6 @@ import {
 } from "@/components/ui/popover";
 import { ChevronDownIcon } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
-import * as React from "react";
 import { useEffect, useState } from "react";
 import { type DateRange } from "react-day-picker";
 
@@ -63,7 +62,7 @@ export function FilterDateRange() {
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <Button
-            variant="outline"
+            variant="default"
             id="date"
             className="w-48 justify-between font-normal"
           >
