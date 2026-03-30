@@ -88,6 +88,12 @@ export default function Sidebar({ role }: { role: string }) {
                         Gerenciar Filiais
                       </Link>
                       <Link
+                        href="/admin/conferir-caixas"
+                        className="hover:text-green-400"
+                      >
+                        Conferir Caixas
+                      </Link>
+                      <Link
                         href="/admin/gerencia-usuario"
                         className="hover:text-green-400"
                       >
@@ -129,6 +135,12 @@ export default function Sidebar({ role }: { role: string }) {
                         className="hover:text-green-400"
                       >
                         Gerenciar Cofre
+                      </Link>
+                      <Link
+                        href="/workspace/dashboard"
+                        className="hover:text-green-400"
+                      >
+                        Dashboard
                       </Link>
                     </div>
                   )}

@@ -8,9 +8,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useEffect, useState } from "react";
-import { getFiliais } from "@/app/api/post";
-import { Button } from "@/components/ui/button";
 
 export interface Filial {
   id: number;

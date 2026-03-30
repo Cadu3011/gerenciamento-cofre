@@ -42,7 +42,7 @@ export function LoginFormTrier({
       setShowForm(false);
       return;
     }
-    console.log(startDate, endDate);
+
     const resTrier = await getTotalsTrier(startDate, endDate);
     const resRede = await getTotalsRede(startDate, endDate);
     const resCielo = await getTotalsCielo(startDate, endDate);

@@ -4,6 +4,7 @@ import { Decimal } from '@prisma/client/runtime/library';
 import { prev } from 'cheerio/dist/commonjs/api/traversing';
 import { authTrier } from 'src/auth/authTrier/loginTrier';
 import { PrismaService } from 'src/database/prisma.service';
+import { UpdateTrierCaixaDTO } from './dto/use-trier-caixa.dto';
 
 interface DiferencaCaixaDataDto {
   data: Date;
@@ -345,7 +346,7 @@ export class TrierService {
         data: { gte: new Date(initDate), lte: new Date(finalDate) },
         filial: { id: filialId },
       },
-      orderBy: { caixa: 'asc' },
+      orderBy: { caixa: 'desc' },
     });
     return caixas.map((caixa) => ({
       ...caixa,
@@ -353,10 +354,37 @@ export class TrierService {
     }));
   }
 
-  async caixasObsConf(obs: string, id: number) {
+  async getCaixasAdmin(initDate: string, finalDate: string, filialId: number) {
+    const caixas = await this.prisma.diferencaCaixa.findMany({
+      where: {
+        data: { gte: new Date(initDate), lte: new Date(finalDate) },
+        filial: { id: filialId },
+      },
+      orderBy: { caixa: 'desc' },
+    });
+    return caixas.map((caixa) => ({
+      ...caixa,
+      id: caixa.id?.toString(),
+    }));
+  }
+
+  async updateCaixas(dataCaixa: UpdateTrierCaixaDTO, id: number) {
+    const parseBRL = (value: string) => {
+      return Number(
+        value.replace(',', '.'), // troca decimal
+      );
+    };
     return await this.prisma.diferencaCaixa.update({
       where: { id },
-      data: { obsConf: obs },
+      data: {
+        ...dataCaixa,
+        ...(dataCaixa.sobra
+          ? { sobra: parseBRL(String(dataCaixa.sobra)) }
+          : {}),
+        ...(dataCaixa.falta
+          ? { falta: parseBRL(String(dataCaixa.falta)) }
+          : {}),
+      },
     });
   }
 

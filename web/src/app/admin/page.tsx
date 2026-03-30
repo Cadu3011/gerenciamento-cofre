@@ -53,6 +53,12 @@ export default async function Admin() {
             Gerenciar Cartões
           </Link>
           <Link
+            href="/admin/conferir-caixas"
+            className="hover:bg-green-400 bg-white py-5 px-5 rounded-md"
+          >
+            Conferir Caixas
+          </Link>
+          <Link
             href="/admin/gerenciar-tarefas"
             className="hover:bg-green-400 bg-white py-5 px-5 rounded-md"
           >

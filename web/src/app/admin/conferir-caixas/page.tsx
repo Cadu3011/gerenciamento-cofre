@@ -11,14 +11,24 @@ import {
 import { Button } from "@/components/ui/button";
 import { ChevronDownIcon } from "lucide-react";
 import ListCaixas from "./components/ListCaixas";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Filial } from "../dashboard/_components/FilterFilial";
+import { getFiliais } from "@/app/api/post";
 
 export default function GerenciaCaixas() {
   const [open, setOpen] = useState(false);
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
-
+  const [filialId, setFilialId] = useState<string>("");
+  const [filiais, setFiliais] = useState<Filial[]>([]);
   return (
     <div className="flex flex-col justify-center mx-10 border  border-black relative max-h-[620px] overflow-auto">
-      <div className="flex justify-center py-3 bg-blue-950">
+      <div className="flex justify-center py-3 gap-3 bg-blue-950">
         <Popover open={open} onOpenChange={setOpen}>
           <PopoverTrigger asChild>
             <Button
@@ -49,6 +59,33 @@ export default function GerenciaCaixas() {
             />
           </PopoverContent>
         </Popover>
+        <div>
+          <Select
+            value={filialId}
+            onValueChange={setFilialId}
+            onOpenChange={async () => {
+              setFiliais(await getFiliais());
+            }}
+          >
+            <SelectTrigger className="w-56 bg-white border border-none">
+              <SelectValue
+                placeholder={
+                  filialId
+                    ? filiais.find((f) => f.id === Number(filialId))?.name
+                    : "Selecione uma Filial"
+                }
+              />
+            </SelectTrigger>
+
+            <SelectContent className="bg-white">
+              {filiais.map((f) => (
+                <SelectItem key={f.id} value={f.id.toString()}>
+                  {f.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
       <Table>
         <TableHeader className="bg-blue-950 sticky top-0 z-10">
@@ -63,7 +100,7 @@ export default function GerenciaCaixas() {
             <TableHead className="text-white text-lg ">Obs Final</TableHead>
           </TableRow>
         </TableHeader>
-        <ListCaixas dateRange={dateRange} />
+        <ListCaixas dateRange={dateRange} filialId={filialId} />
       </Table>
     </div>
   );
