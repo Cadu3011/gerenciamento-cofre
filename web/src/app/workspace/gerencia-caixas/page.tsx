@@ -54,11 +54,13 @@ export default function GerenciaCaixas() {
         <TableHeader className="bg-blue-950 sticky top-0 z-10">
           <TableRow className="sticky top-0 z-10">
             <TableHead className="text-white text-lg">Caixa</TableHead>
-            <TableHead className="text-white text-lg">Dia</TableHead>
+            <TableHead className="text-white text-lg">Data</TableHead>
             <TableHead className="text-white text-lg">Operador</TableHead>
+            <TableHead className="text-white text-lg">Diferença</TableHead>
             <TableHead className="text-white text-lg">Sobra</TableHead>
             <TableHead className="text-white text-lg">Falta</TableHead>
             <TableHead className="text-white text-lg ">Obs</TableHead>
+            <TableHead className="text-white text-lg ">Obs Final</TableHead>
           </TableRow>
         </TableHeader>
         <ListCaixas dateRange={dateRange} />

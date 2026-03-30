@@ -81,9 +81,7 @@ export async function pushValueSangria(
       descrition: caixa,
       id: moveId,
     };
-    console.log(data);
 
-    console.log(moveId);
     const dataPost = await fetch(`http://${Url}/movement/sangria`, {
       method: "POST",
       headers: {
@@ -119,7 +117,7 @@ export async function handlePostLogin(formData: FormData) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   });
-  console.log(response.status);
+
   if (
     response.status === 500 ||
     response.status === 404 ||
@@ -200,7 +198,6 @@ export async function getExtract(
   filialId?: string,
 ) {
   const tokenCookie = (await cookies()).get("access_token")?.value;
-  console.log(dateInit, dateFinal, filialId);
   const extrato = await fetch(
     `http://${Url}/amount?dateInit=${dateInit}&dateFinal=${dateFinal}&filialId=${filialId}`,
     {
@@ -408,7 +405,6 @@ export async function postUser(formData: FormData) {
 
 export async function getCardsCaixas(query: string) {
   const tokenCookie = (await cookies()).get("access_token")?.value;
-  console.log(query);
   const resCard = await fetch(
     `http://localhost:4000/trier/dashboard/caixas?${query}`,
     {
@@ -434,5 +430,4 @@ export async function postObsConf(id: number, obs: string) {
     body: JSON.stringify({ obs }),
   });
   const updatedCaixa = await res.json();
-  console.log(updatedCaixa);
 }

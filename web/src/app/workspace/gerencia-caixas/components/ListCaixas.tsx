@@ -10,6 +10,7 @@ import { useEffect, useRef, useState } from "react";
 import { DateRange } from "react-day-picker";
 import { getCaixas, postObsConf } from "@/app/api/post";
 import { Input } from "@/components/ui/input";
+import { formatDate } from "../../../admin/dashboard/utils/index";
 
 interface Caixa {
   id: number;
@@ -20,6 +21,7 @@ interface Caixa {
   sobra: string;
   falta: string;
   obsConf: string;
+  obsFinal: string;
 }
 export default function ListCaixas({
   dateRange,
@@ -37,7 +39,7 @@ export default function ListCaixas({
 
     return { from, to };
   }
-  function formatDate(date: Date): string {
+  function formatDateCalendar(date: Date): string {
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, "0");
     const day = String(date.getDate()).padStart(2, "0");
@@ -56,9 +58,8 @@ export default function ListCaixas({
         from = currentMonth.from;
         to = currentMonth.to;
       }
-      console.log(from, to);
-      const formatFrom = formatDate(from);
-      const formatTo = formatDate(to);
+      const formatFrom = formatDateCalendar(from);
+      const formatTo = formatDateCalendar(to);
       const res = await getCaixas(formatFrom, formatTo);
       if (dateRange && (!dateRange.from || !dateRange.to)) return;
       setCaixas(res);
@@ -96,9 +97,13 @@ export default function ListCaixas({
                 : "bg-gray-300 hover:bg-zinc-400 "
             }
           >
-            <TableCell>{c.caixa}</TableCell>
-            <TableCell>{c.data.split("T")[0]}</TableCell>
-            <TableCell>{c.operador}</TableCell>
+            <TableCell className="">{c.caixa}</TableCell>
+            <TableCell className="">
+              {formatDate(c.data.split("T")[0])}
+            </TableCell>
+            <TableCell className="">{c.operador}</TableCell>
+            <TableCell className="">{c.diferenca}</TableCell>
+
             <TableCell
               className={`
                 ${
@@ -106,7 +111,7 @@ export default function ListCaixas({
                     ? "text-yellow-700 font-bold drop-shadow-sm"
                     : ""
                 }
-                  text-md
+                  text-md  bg-yellow-200 border-l-2 border-black  
                 `}
             >
               {c.sobra}
@@ -115,12 +120,12 @@ export default function ListCaixas({
             <TableCell
               className={`
                 ${Number(c.falta) > 5 ? "text-red-600 font-bold" : ""}
-                  text-md
+                  text-md bg-yellow-200 
                 `}
             >
               {c.falta}
             </TableCell>
-            <TableCell className="border-l-2 border-black">
+            <TableCell className="border-l-2 border-black w-3/12">
               {
                 <Input
                   defaultValue={c.obsConf ?? ""}
@@ -131,6 +136,9 @@ export default function ListCaixas({
                   }}
                 />
               }
+            </TableCell>
+            <TableCell className="border-l-2 border-black w-3/12">
+              {c.obsFinal}
             </TableCell>
           </TableRow>
         ))}
