@@ -136,6 +136,12 @@ export default function Sidebar({ role }: { role: string }) {
                       >
                         Gerenciar Cofre
                       </Link>
+                      <Link
+                        href="/workspace/dashboard"
+                        className="hover:text-green-400"
+                      >
+                        Dashboard
+                      </Link>
                     </div>
                   )}
                 </nav>

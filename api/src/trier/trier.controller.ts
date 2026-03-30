@@ -159,14 +159,20 @@ export class TrierController {
   }
 
   @UseGuards(AuthGuard)
-  @Roles(Role.GESTOR)
+  @Roles(Role.GESTOR, Role.OPERADOR)
   @Get('dashboard/caixas')
-  async getCardsDashboard(
+  async getDashboard(
+    @Req() req: Request,
     @Query('filialId') filialId: number,
     @Query('startDate') startDate: string,
     @Query('endDate') endDate: string,
     @Query('operadorId') operadorId?: number,
   ) {
+    const user = req['sub'];
+    if (user.roles.includes('OPERADOR')) {
+      filialId = user.filialId;
+    }
+
     const { cards } = await this.trierService.cardsDifCaixa(
       startDate,
       endDate,
