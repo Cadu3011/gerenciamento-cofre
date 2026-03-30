@@ -18,6 +18,7 @@ import { Roles } from 'src/auth/role.decorator';
 import { AuthGuard } from 'src/auth/auth.guard';
 import { Role } from '@prisma/client';
 import { TrierDifCxETL } from './trierDIfCx.service';
+import { UpdateTrierCaixaDTO } from './dto/use-trier-caixa.dto';
 
 @Controller('trier')
 export class TrierController {
@@ -26,6 +27,22 @@ export class TrierController {
   private readonly prisma: PrismaService;
   @Inject()
   private readonly trierDifCaixasETL: TrierDifCxETL;
+
+  private filterByRole(dto: any, roles: string) {
+    const permissions: Record<string, string[]> = {
+      OPERADOR: ['obsConf'],
+      GESTOR: ['obsFinal', 'falta', 'sobra'],
+    };
+
+    const allowedFields = permissions[roles] || [];
+
+    return Object.keys(dto)
+      .filter((key) => allowedFields.includes(key))
+      .reduce((acc, key) => {
+        acc[key] = dto[key];
+        return acc;
+      }, {});
+  }
 
   @UseGuards(AuthGuard)
   @Roles(Role.OPERADOR)
@@ -43,6 +60,22 @@ export class TrierController {
       filialUser.filialId,
     );
   }
+
+  @UseGuards(AuthGuard)
+  @Roles(Role.GESTOR)
+  @Get('/admin/caixas')
+  async findByDateAdmin(
+    @Query('dataEmissaoInicial') dataEmissaoInicial: string,
+    @Query('dataEmissaoFinal') dataEmissaoFinal: string,
+    @Query('filialId') filialId: number,
+  ) {
+    return await this.trierService.getCaixasAdmin(
+      dataEmissaoInicial,
+      dataEmissaoFinal,
+      +filialId,
+    );
+  }
+
   @UseGuards(AuthGuard)
   @Roles(Role.OPERADOR, Role.GESTOR)
   @Get()
@@ -108,10 +141,21 @@ export class TrierController {
   }
 
   @UseGuards(AuthGuard)
-  @Roles(Role.OPERADOR)
+  @Roles(Role.OPERADOR, Role.GESTOR)
   @Patch('caixas/:id')
-  async caixasObsConf(@Param('id') id: number, @Body('obs') obs: string) {
-    return await this.trierService.caixasObsConf(obs, +id);
+  async caixasUpdate(
+    @Param('id') id: number,
+    @Body() updateTrierCaixaDTO: UpdateTrierCaixaDTO,
+    @Req() req: Request,
+  ) {
+    const user = req['sub'] as any;
+    const filteredData = this.filterByRole(updateTrierCaixaDTO, user.roles);
+    const updatedCaixa = await this.trierService.updateCaixas(
+      filteredData,
+      +id,
+    );
+
+    return updatedCaixa;
   }
 
   @UseGuards(AuthGuard)

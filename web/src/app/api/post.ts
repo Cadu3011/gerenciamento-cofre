@@ -3,6 +3,8 @@
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { jwtDecode } from "jwt-decode";
+import { ca } from "date-fns/locale";
+import { Caixa } from "../admin/conferir-caixas/components/ListCaixas";
 
 export const apiUrl = async (): Promise<string> => {
   const url = "localhost:4000";
@@ -15,6 +17,28 @@ export async function getCaixas(from: string, to: string) {
 
   const res = await fetch(
     `http://localhost:4000/trier/caixas?dataEmissaoInicial=${from}&dataEmissaoFinal=${to}`,
+    {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${tokenCookie}`,
+      },
+    },
+  );
+
+  const data = await res.json();
+  return data;
+}
+
+export async function getCaixasAdmin(
+  from: string,
+  to: string,
+  filialId: number,
+) {
+  const tokenCookie = (await cookies()).get("access_token")?.value;
+
+  const res = await fetch(
+    `http://localhost:4000/trier/admin/caixas?dataEmissaoInicial=${from}&dataEmissaoFinal=${to}&filialId=${filialId}`,
     {
       method: "GET",
       headers: {
@@ -371,8 +395,6 @@ export async function getCofresTrier() {
     if (!cofres?.content || !Array.isArray(cofres.content)) {
       throw new Error("Resposta inválida da API");
     }
-
-    return cofres.content;
   } catch (error) {
     const data = contasMock(userData);
     return data;
@@ -418,16 +440,17 @@ export async function getCardsCaixas(query: string) {
   return await resCard.json();
 }
 
-export async function postObsConf(id: number, obs: string) {
+export async function patchCaixa(id: number, data: Partial<Caixa>) {
   const tokenCookie = (await cookies()).get("access_token")?.value;
-
   const res = await fetch(`http://localhost:4000/trier/caixas/${id}`, {
     method: "PATCH",
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${tokenCookie}`,
     },
-    body: JSON.stringify({ obs }),
+    body: JSON.stringify({ ...data }),
   });
-  const updatedCaixa = await res.json();
+  if (!res.ok) {
+    throw new Error("Erro ao atualizar caixa");
+  }
 }

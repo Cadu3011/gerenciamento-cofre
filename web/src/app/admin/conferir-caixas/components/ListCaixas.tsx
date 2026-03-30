@@ -8,11 +8,12 @@ import {
 } from "@/components/ui/table";
 import { useEffect, useRef, useState } from "react";
 import { DateRange } from "react-day-picker";
-import { getCaixas, patchCaixa } from "@/app/api/post";
+import { getCaixasAdmin, patchCaixa } from "@/app/api/post";
 import { Input } from "@/components/ui/input";
-import { formatDate } from "../../../admin/dashboard/utils/index";
+import { formatDate } from "../../dashboard/utils/index";
+import { toast, ToastContainer } from "react-toastify";
 
-interface Caixa {
+export interface Caixa {
   id: number;
   caixa: string;
   data: string;
@@ -25,8 +26,10 @@ interface Caixa {
 }
 export default function ListCaixas({
   dateRange,
+  filialId,
 }: {
   dateRange: DateRange | undefined;
+  filialId: string;
 }) {
   const [caixas, setCaixas] = useState<Caixa[]>([]);
   const [inputValues, setInputValues] = useState<Record<string, string>>({});
@@ -60,35 +63,41 @@ export default function ListCaixas({
       }
       const formatFrom = formatDateCalendar(from);
       const formatTo = formatDateCalendar(to);
-      const res = await getCaixas(formatFrom, formatTo);
+      const res = await getCaixasAdmin(formatFrom, formatTo, Number(filialId));
       if (dateRange && (!dateRange.from || !dateRange.to)) return;
       setCaixas(res);
     };
 
     fetchCaixas();
-  }, [dateRange]);
+  }, [dateRange, filialId]);
 
   const debounceTimeout = useRef<Record<string, NodeJS.Timeout>>({});
 
-  const handleInputChange = (obs: string, id: number) => {
-    setInputValues((prev) => ({ ...prev, [id]: obs }));
+  const handleInputChange = (field: keyof Caixa, value: string, id: number) => {
+    const key = `${id}-${field}`;
 
-    if (debounceTimeout.current[id]) {
-      clearTimeout(debounceTimeout.current[id]);
+    setInputValues((prev) => ({ ...prev, [key]: value }));
+
+    if (debounceTimeout.current[key]) {
+      clearTimeout(debounceTimeout.current[key]);
     }
 
-    debounceTimeout.current[id] = setTimeout(() => {
-      handleObs(id, obs);
+    debounceTimeout.current[key] = setTimeout(() => {
+      handleUpdate(id, { [field]: value });
     }, 1000);
   };
 
-  async function handleObs(id: number, obs: string) {
+  async function handleUpdate(id: number, data: Partial<Caixa>) {
     try {
-      await patchCaixa(id, { obsConf: obs });
+      await patchCaixa(id, data);
     } catch (err) {
-      console.error("Erro ao atualizar:", err);
+      const showToast = () => {
+        toast.error((err as Error).message);
+      };
+      showToast();
     }
   }
+
   return (
     <>
       <TableBody>
@@ -118,7 +127,28 @@ export default function ListCaixas({
                   text-md  bg-yellow-200 border-l-2 border-black  
                 `}
             >
-              {c.sobra}
+              {
+                <Input
+                  defaultValue={c.sobra ?? ""}
+                  className=" border-none bg-transparent"
+                  onKeyDown={(e) => {
+                    const allowed = [
+                      "Backspace",
+                      "Tab",
+                      "ArrowLeft",
+                      "ArrowRight",
+                      "Delete",
+                    ];
+
+                    if (!/[0-9.,]/.test(e.key) && !allowed.includes(e.key)) {
+                      e.preventDefault();
+                    }
+                  }}
+                  onChange={(e) => {
+                    handleInputChange("sobra", e.target.value, c.id);
+                  }}
+                />
+              }
             </TableCell>
 
             <TableCell
@@ -127,22 +157,46 @@ export default function ListCaixas({
                   text-md bg-yellow-200 
                 `}
             >
-              {c.falta}
-            </TableCell>
-            <TableCell className="border-l-2 border-black w-3/12">
+              <div className="flex justify-center">
+                <ToastContainer />
+              </div>
               {
                 <Input
-                  defaultValue={c.obsConf ?? ""}
+                  defaultValue={c.falta ?? ""}
                   className=" border-none bg-transparent"
-                  placeholder="Insira a Observação"
+                  onKeyDown={(e) => {
+                    const allowed = [
+                      "Backspace",
+                      "Tab",
+                      "ArrowLeft",
+                      "ArrowRight",
+                      "Delete",
+                    ];
+
+                    if (!/[0-9.,]/.test(e.key) && !allowed.includes(e.key)) {
+                      e.preventDefault();
+                    }
+                  }}
                   onChange={(e) => {
-                    handleInputChange(e.target.value, c.id);
+                    handleInputChange("falta", e.target.value, c.id);
                   }}
                 />
               }
             </TableCell>
             <TableCell className="border-l-2 border-black w-3/12">
-              {c.obsFinal}
+              {c.obsConf}
+            </TableCell>
+            <TableCell className="border-l-2 border-black w-3/12">
+              {
+                <Input
+                  defaultValue={c.obsFinal ?? ""}
+                  className=" border-none bg-transparent"
+                  placeholder="Insira a Observação"
+                  onChange={(e) => {
+                    handleInputChange("obsFinal", e.target.value, c.id);
+                  }}
+                />
+              }
             </TableCell>
           </TableRow>
         ))}
