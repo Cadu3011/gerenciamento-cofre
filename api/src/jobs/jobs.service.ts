@@ -83,6 +83,7 @@ export class JobsService {
         where: {
           jobName_runDate: { jobName, runDate: new Date(today) },
           status: { not: 'SUCCESS' },
+          jobs: { status: { equals: true } },
         },
         create: {
           jobName,
