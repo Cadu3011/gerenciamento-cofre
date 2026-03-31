@@ -12,8 +12,8 @@ export interface CronJob {
   jobName: string;
   message: string;
   idJobs: number;
-  createdAt: string;
-  finishedAt: string;
+  createdAt: Date;
+  finishedAt: Date;
   status: string;
   runDate: string;
 }

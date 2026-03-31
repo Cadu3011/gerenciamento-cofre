@@ -77,7 +77,8 @@ export default function DialogCronJobs({
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Data</TableHead>
+              <TableHead>Inicio</TableHead>
+              <TableHead>Fim</TableHead>
               <TableHead>Nome da Tarefa</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Mensagem</TableHead>
