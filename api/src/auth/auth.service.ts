@@ -45,7 +45,6 @@ export class AuthService {
           password: params.password,
         },
         filial.urlLocalTrier,
-        filial.id,
       );
       const payload = {
         sub: user.id,
