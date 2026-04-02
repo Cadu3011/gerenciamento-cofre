@@ -26,14 +26,23 @@ export class RedeCardTransform implements RedeTransformStrategy<
       )?.brand;
       movements.push({
         idempotencyKey: `|${item.nsu}|${item.saleDate}|${item.saleHour}|${filial.id}`,
-        nsu: item.nsu,
-        valor: String(item.amount),
-        valorLiquido: String(item.netAmount),
+        nsu: String(item.nsu),
+        valor:
+          item.status === 'REVERSED'
+            ? String(item.tracking.find((t) => t.status === 'REVERSED')?.amount)
+            : String(item.amount),
+        valorLiquido:
+          item.status === 'REVERSED'
+            ? String(item.tracking.find((t) => t.status === 'REVERSED')?.amount)
+            : String(item.netAmount),
         modalidade: item.modality.type,
-        hora: item.saleHour,
+        horaVenda: item.saleHour
+          ? new Date(`1970-01-01T${item.saleHour}`)
+          : null,
+        dataVenda: new Date(`${item.saleDate}T00:00:00`),
         filialId: filial.id,
         bandeira: brand,
-        dataVenda: item.saleDate,
+        status: item.status,
       });
     }
     return movements;

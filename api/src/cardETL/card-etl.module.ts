@@ -16,6 +16,7 @@ import { RedeCardLoad } from './load/rede.cardLoad';
 import { RedeCardTransform } from './transform/rede.cardTransform';
 import { RedeCardsExtractor } from './extract/rede.cardExtractor';
 import { JobsModule } from 'src/jobs/jobs.module';
+import { RedeCardCron } from './cron/rede.cron';
 
 // import { RedisService } from '../redis/redis.service'; futuramente
 
@@ -28,7 +29,7 @@ import { JobsModule } from 'src/jobs/jobs.module';
     TrierApiClient,
     PrismaService,
     TrierCardCron,
-
+    RedeCardCron,
     RedeCardETLPipeline,
     RedeCardsExtractor,
     RedeCardTransform,
@@ -38,7 +39,12 @@ import { JobsModule } from 'src/jobs/jobs.module';
 
     // RedisService,  futuramente
   ],
-  exports: [TrierCardETLPipeline, TrierCardCron, RedeCardETLPipeline],
+  exports: [
+    TrierCardETLPipeline,
+    TrierCardCron,
+    RedeCardETLPipeline,
+    RedeCardCron,
+  ],
   imports: [FilialModule, DatabaseModule, RedeModule],
 })
 export class CartEtlModule {}

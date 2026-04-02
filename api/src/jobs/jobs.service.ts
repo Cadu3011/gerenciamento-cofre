@@ -8,12 +8,15 @@ import { TrierCardCron } from 'src/cardETL/cron/trier.cron';
 import { MovementService } from 'src/movement/movement.service';
 import { CieloService } from 'src/cielo/cielo.service';
 import { TrierDifCxETL } from 'src/trier/trierDIfCx.service';
+import { RedeCardCron } from 'src/cardETL/cron/rede.cron';
 
 @Injectable()
 export class JobsService {
   @Inject()
   private readonly prisma: PrismaService;
 
+  @Inject()
+  private readonly redePipelineCard: RedeCardCron;
   @Inject()
   private readonly trierPipelineCard: TrierCardCron;
   @Inject()
@@ -83,6 +86,7 @@ export class JobsService {
         where: {
           jobName_runDate: { jobName, runDate: new Date(today) },
           status: { not: 'SUCCESS' },
+          jobs: { status: { equals: true } },
         },
         create: {
           jobName,
@@ -135,6 +139,13 @@ export class JobsService {
   async runTrierCards() {
     return await this.runCronJob('TrierCards', async () => {
       await this.trierPipelineCard.execute();
+    });
+  }
+
+  @Cron('20,50 6,8,9,13 * * 1-7')
+  async runRedeCards() {
+    return await this.runCronJob('RedeCards', async () => {
+      await this.redePipelineCard.execute();
     });
   }
 

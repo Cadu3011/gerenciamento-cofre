@@ -14,9 +14,7 @@ export class RedeCardETLPipeline implements RedePipelineStrategy {
 
   @Inject()
   private readonly loader: RedeCardLoad;
-  // async onModuleInit() {
-  //   await this.execute({ date: '2025-03-01', idRede: 3 });
-  // }
+
   key = 'CARD_ETL';
   async execute(ctx: RedeAuth) {
     const rawData = await this.extractor.execute(ctx);

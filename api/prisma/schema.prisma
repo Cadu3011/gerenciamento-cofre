@@ -63,7 +63,7 @@ model Movimentations{
   category String?
   idCategoria Int?
   idContaDest Int?
-  
+  idempotencyKey String? @unique
   valueSangriaTrier Decimal? @db.Decimal(9,2)
   descrition String
   value Decimal?  @db.Decimal(9,2)
@@ -163,7 +163,8 @@ model RedeVenda {
   valorLiquido    Decimal  @db.Decimal(10,2)
   bandeira        String?
   modalidade      String?
-  dataVenda DateTime @db.DateTime(0)
+  status String
+  dataVenda DateTime @db.Date
   horaVenda DateTime @db.Time(0)
   filialId        Int
   filial          Filial   @relation("FilialAndRedeCartaoVendas",fields: [filialId], references: [id])
@@ -179,33 +180,51 @@ model Conciliacao {
   filialId    Int
   filial      Filial   @relation(fields: [filialId], references: [id])
 
-  status      StatusConciliacao @default(CONCILIADO) // ou PENDENTE/DIVERGENTE se você quiser “propostas”
+  status      StatusConciliacao @default(CONCILIADO)
   metodo      MetodoConciliacao
   motivo      String?
   createdAt   DateTime @default(now())
   createdById Int?
 
-  itens       ConciliacaoItem[]
+  grupos      ConciliacaoGrupo[]
 
   @@index([filialId, createdAt])
 }
 
-model ConciliacaoItem {
+model ConciliacaoGrupo {
   id             Int @id @default(autoincrement())
   conciliacaoId  Int
   conciliacao    Conciliacao @relation(fields: [conciliacaoId], references: [id])
 
-  origem         OrigemConciliacao
-  trierId        Int?
-  redeId         Int?
+  status         StatusConciliacao
+  metodo         MetodoConciliacao
 
-  valor          Decimal @db.Decimal(10,2)
+  valorTrier     Decimal? @db.Decimal(10,2)
+  valorRede      Decimal? @db.Decimal(10,2)
+  valorFinal     Decimal? @db.Decimal(10,2)
 
-  trier          TrierCartaoVendas? @relation(fields: [trierId], references: [id])
-  rede           RedeVenda?         @relation(fields: [redeId], references: [id])
+  motivo         String?
+
+  itens          ConciliacaoItem[]
+}
+
+model ConciliacaoItem {
+  id        Int @id @default(autoincrement())
+
+  grupoId   Int
+  grupo     ConciliacaoGrupo @relation(fields: [grupoId], references: [id])
+
+  origem    OrigemConciliacao
+  trierId   Int?
+  redeId    Int?
+  valor     Decimal @db.Decimal(10,2)
+
+  trier     TrierCartaoVendas? @relation(fields: [trierId], references: [id])
+  rede      RedeVenda?         @relation(fields: [redeId], references: [id])
 
   @@index([trierId])
   @@index([redeId])
+  @@index([grupoId])
 }
 
 enum OrigemConciliacao {

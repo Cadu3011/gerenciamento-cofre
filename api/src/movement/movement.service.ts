@@ -497,10 +497,13 @@ export class MovementService {
   }
 
   async update(filialId: number, createMovementDto: CreateMovementDto) {
-    let move = null;
     let moveCreate;
+
+    const nowDate = new Date().toLocaleDateString('en-CA');
+    const idempotencyKey = `|${filialId}|${nowDate}|${createMovementDto.descrition}|`;
+
     if (createMovementDto.id) {
-      move = await this.Prisma.movimentations.findUnique({
+      const move = await this.Prisma.movimentations.findUnique({
         where: { id: createMovementDto.id },
       });
       moveCreate = await this.Prisma.movimentations.update({
@@ -509,6 +512,14 @@ export class MovementService {
           value: Decimal(createMovementDto.value),
         },
       });
+
+      const valueSub = new Decimal(createMovementDto.value).sub(
+        move !== null ? move.value : 0,
+      );
+      await this.Amont.createOrUpdate({
+        filialId: moveCreate.filialId,
+        balance: Number(valueSub),
+      });
     } else {
       moveCreate = await this.Prisma.movimentations.create({
         data: {
@@ -516,8 +527,19 @@ export class MovementService {
           type: 'SANGRIA',
           descrition: String(createMovementDto.descrition),
           filial: { connect: { id: filialId } },
+          idempotencyKey,
         },
       });
+      if (moveCreate) {
+        const valueSub = new Decimal(createMovementDto.value).sub(0);
+        await this.Amont.createOrUpdate({
+          filialId: moveCreate.filialId,
+          balance: Number(valueSub),
+        });
+      } else {
+        console.log('tentou duplicar');
+        return;
+      }
     }
 
     await this.Prisma.salesDin.updateMany({
@@ -542,22 +564,6 @@ export class MovementService {
       total_vendas_dinheiro: vendaTotal[0]?._sum.valor,
       valor_recebido: moveCreate.value,
       idempotencyKey: `${vendaTotal[0]?.numCaixa}-${filialId}`,
-    });
-
-    if (move !== null && move.value == null) {
-      const valueSub = new Decimal(createMovementDto.value).sub(0);
-      await this.Amont.createOrUpdate({
-        filialId: moveCreate.filialId,
-        balance: Number(valueSub),
-      });
-      return moveCreate;
-    }
-    const valueSub = new Decimal(createMovementDto.value).sub(
-      move !== null ? move.value : 0,
-    );
-    await this.Amont.createOrUpdate({
-      filialId: moveCreate.filialId,
-      balance: Number(valueSub),
     });
 
     return moveCreate;

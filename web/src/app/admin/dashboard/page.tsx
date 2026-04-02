@@ -16,7 +16,9 @@ type Props = {
   };
 };
 
-function getDefaultStartDate() {
+
+export default async function Dashboard({ searchParams }: Props) {
+  function getDefaultStartDate() {
   const date = new Date();
   date.setDate(26);
   date.setMonth(date.getMonth() - 1);
@@ -31,7 +33,6 @@ function getDefaultEndDate() {
 }
 const filiais = await getFiliais();
 
-export default async function Dashboard({ searchParams }: Props) {
   const {
     startDate = getDefaultStartDate(),
     endDate = getDefaultEndDate(),

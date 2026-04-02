@@ -38,7 +38,7 @@ export class CieloService {
 
       if (fileList.length === 0) {
         this.logger.log('Nenhum arquivo encontrado. Processo encerrado.');
-        return;
+        throw new Error('Nenhum arquivo encontrado.');
       }
 
       const vendas: Prisma.CartaoVendasCreateInput[] =
@@ -51,6 +51,7 @@ export class CieloService {
       await this.deleteRemoteFiles(process.env.PATH_VM_CIELO_UPLOADS);
     } catch (error) {
       this.logger.error('❌ Erro durante o pipeline ETL:', error);
+      throw error;
     }
   }
 
@@ -156,13 +157,5 @@ export class CieloService {
       },
     });
     return vendas;
-  }
-
-  findOne(id: number) {
-    return `This action returns a #${id} cielo`;
-  }
-
-  remove(id: number) {
-    return `This action removes a #${id} cielo`;
   }
 }
