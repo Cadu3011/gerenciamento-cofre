@@ -63,7 +63,7 @@ model Movimentations{
   category String?
   idCategoria Int?
   idContaDest Int?
-  
+  idempotencyKey String? @unique
   valueSangriaTrier Decimal? @db.Decimal(9,2)
   descrition String
   value Decimal?  @db.Decimal(9,2)
