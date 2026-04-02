@@ -22,7 +22,7 @@ export default function ToggleDepositoTransferir({ onSelect }: Props) {
       try {
         const data = await getCofresTrier();
 
-        setContas(data);
+        setContas(data || []);
       } catch (error) {
         console.error("Erro ao buscar cofres:", error);
       }
