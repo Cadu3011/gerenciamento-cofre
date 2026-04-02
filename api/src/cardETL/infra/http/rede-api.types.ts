@@ -10,6 +10,7 @@ export type RedeCardsExtracted = {
   saleDate: string;
   saleHour: string;
   merchant: { companyNumber: number };
+  tracking: [{ amount: number | string; status: string }];
 };
 
 export const cardBrands = [

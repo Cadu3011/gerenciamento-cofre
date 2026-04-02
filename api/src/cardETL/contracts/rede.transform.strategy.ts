@@ -11,8 +11,9 @@ export interface RedeCardTransformedMovement {
   valor: number | string;
   valorLiquido: number | string;
   modalidade: string | null;
-  hora: string;
+  horaVenda: Date;
   filialId: number;
   bandeira: string;
-  dataVenda: string;
+  dataVenda: Date;
+  status: string;
 }
