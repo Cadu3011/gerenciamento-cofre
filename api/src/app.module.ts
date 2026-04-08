@@ -14,6 +14,7 @@ import { CieloModule } from './cielo/cielo.module';
 import { TrierModule } from './trier/trier.module';
 import { CartEtlModule } from './cardETL/card-etl.module';
 import { JobsModule } from './jobs/jobs.module';
+import { ConciliacaoModule } from './conciliacao/conciliacao.module';
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { JobsModule } from './jobs/jobs.module';
     TrierModule,
     CartEtlModule,
     JobsModule,
+    ConciliacaoModule,
   ],
   controllers: [AppController],
   providers: [AppService],

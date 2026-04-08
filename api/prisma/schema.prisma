@@ -133,6 +133,11 @@ model CartaoVendas{
     nsu String
     codigoAutorizacao String
     codigoTransacao String
+    statusConciliacao StatusConciliacao? @default(PENDENTE)
+
+   conciliacaoItens ConciliacaoItem[]
+   
+  @@index([valorBruto, dataVenda])
 }
 model TrierCartaoVendas{
   id Int @default(autoincrement()) @id
@@ -184,11 +189,12 @@ model Conciliacao {
   metodo      MetodoConciliacao
   motivo      String?
   createdAt   DateTime @default(now())
-  createdById Int?
+  startDate   DateTime @db.Date
 
   grupos      ConciliacaoGrupo[]
 
-  @@index([filialId, createdAt])
+  @@index([filialId, startDate])
+  @@unique([filialId, startDate])
 }
 
 model ConciliacaoGrupo {
@@ -196,13 +202,14 @@ model ConciliacaoGrupo {
   conciliacaoId  Int
   conciliacao    Conciliacao @relation(fields: [conciliacaoId], references: [id])
 
-  status         StatusConciliacao
+  status         StatusConciliacao @default(PENDENTE)
   metodo         MetodoConciliacao
 
   valorTrier     Decimal? @db.Decimal(10,2)
   valorRede      Decimal? @db.Decimal(10,2)
+  valorCielo     Decimal? @db.Decimal(10,2)
   valorFinal     Decimal? @db.Decimal(10,2)
-
+  idempotencyKey String @unique
   motivo         String?
 
   itens          ConciliacaoItem[]
@@ -217,19 +224,26 @@ model ConciliacaoItem {
   origem    OrigemConciliacao
   trierId   Int?
   redeId    Int?
+  cieloId   Int?
   valor     Decimal @db.Decimal(10,2)
 
   trier     TrierCartaoVendas? @relation(fields: [trierId], references: [id])
   rede      RedeVenda?         @relation(fields: [redeId], references: [id])
+  cielo     CartaoVendas?      @relation(fields: [cieloId], references: [id])
 
   @@index([trierId])
   @@index([redeId])
+  @@index([cieloId])
   @@index([grupoId])
+  @@unique([trierId])
+  @@unique([redeId])
+  @@unique([cieloId]) 
 }
 
 enum OrigemConciliacao {
   TRIER
   REDE
+  CIELO
 }
 
 enum MetodoConciliacao {

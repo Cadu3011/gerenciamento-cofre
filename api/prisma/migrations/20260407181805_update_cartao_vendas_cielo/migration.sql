@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE `cartaovendas` MODIFY `statusConciliacao` ENUM('PENDENTE', 'CONCILIADO', 'DIVERGENTE', 'CANCELADO') NULL DEFAULT 'PENDENTE';
