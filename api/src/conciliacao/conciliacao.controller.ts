@@ -1,15 +1,34 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  Inject,
+  UseGuards,
+} from '@nestjs/common';
 import { ConciliacaoService } from './conciliacao.service';
 import { CreateConciliacaoDto } from './dto/create-conciliacao.dto';
 import { UpdateConciliacaoDto } from './dto/update-conciliacao.dto';
+import { Pipeline } from './cron/pipeline';
+import { AuthGuard } from 'src/auth/auth.guard';
+import { Role } from '@prisma/client';
+import { Roles } from 'src/auth/role.decorator';
 
 @Controller('conciliacao')
 export class ConciliacaoController {
   constructor(private readonly conciliacaoService: ConciliacaoService) {}
 
+  @Inject()
+  private readonly pipelineConciCards: Pipeline;
+
+  @UseGuards(AuthGuard)
+  @Roles(Role.GESTOR)
   @Post()
-  create(@Body() createConciliacaoDto: CreateConciliacaoDto) {
-    return this.conciliacaoService.create(createConciliacaoDto);
+  async execute(@Body() body: { filialId: number; date: string }) {
+    await this.pipelineConciCards.execute(body.filialId, body.date);
   }
 
   @Get()
@@ -23,7 +42,10 @@ export class ConciliacaoController {
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() updateConciliacaoDto: UpdateConciliacaoDto) {
+  update(
+    @Param('id') id: string,
+    @Body() updateConciliacaoDto: UpdateConciliacaoDto,
+  ) {
     return this.conciliacaoService.update(+id, updateConciliacaoDto);
   }
 

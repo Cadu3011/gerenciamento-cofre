@@ -11,23 +11,17 @@ type CardsCielo = Awaited<ReturnType<MatchService['getCardsCielo']>>;
 type CardCielo = CardsCielo[number];
 
 @Injectable()
-export class Pipeline implements OnModuleInit {
+export class Pipeline {
   @Inject()
   private readonly prisma: PrismaService;
 
   @Inject()
   private readonly matchService: MatchService;
 
-  async onModuleInit() {
-    console.log('EXECUTE START', new Date().toISOString());
-    await this.execute(2, '2026-04-01');
-    console.log('EXECUTE END', new Date().toISOString());
-  }
-
   async execute(filialId: number, date: string) {
     const groups = await this.matchService.matchMovements(filialId, date);
 
-    await this.criarGruposEItens(filialId, groups);
+    await this.criarGruposEItens(filialId, date, groups);
   }
 
   // async createConciliacao(filialId: number) {
@@ -105,7 +99,7 @@ export class Pipeline implements OnModuleInit {
 
   async criarGruposEItens(
     filialId: number,
-
+    date: string,
     groups: {
       status: StatusConciliacao;
       trier: TrierCartaoVendas;
@@ -122,15 +116,13 @@ export class Pipeline implements OnModuleInit {
         where: {
           filialId_startDate: {
             filialId,
-            startDate: new Date(
-              `${hoje.toISOString().split('T')[0]}T00:00:00.000Z`,
-            ),
+            startDate: new Date(`${date}T00:00:00.000Z`),
           },
         },
         update: {},
         create: {
           filialId,
-          startDate: hoje,
+          startDate: new Date(`${date}T00:00:00.000Z`),
           metodo: 'AUTO',
         },
       });
