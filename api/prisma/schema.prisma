@@ -201,7 +201,7 @@ model ConciliacaoGrupo {
   id             Int @id @default(autoincrement())
   conciliacaoId  Int
   conciliacao    Conciliacao @relation(fields: [conciliacaoId], references: [id])
-
+  migradoDeGrupoId Int?
   status         StatusConciliacao @default(PENDENTE)
   metodo         MetodoConciliacao
 
@@ -226,7 +226,7 @@ model ConciliacaoItem {
   redeId    Int?
   cieloId   Int?
   valor     Decimal @db.Decimal(10,2)
-
+  dataReferencia DateTime @db.Date
   trier     TrierCartaoVendas? @relation(fields: [trierId], references: [id])
   rede      RedeVenda?         @relation(fields: [redeId], references: [id])
   cielo     CartaoVendas?      @relation(fields: [cieloId], references: [id])

@@ -8,6 +8,8 @@ import {
   Delete,
   Inject,
   UseGuards,
+  Query,
+  Req,
 } from '@nestjs/common';
 import { ConciliacaoService } from './conciliacao.service';
 import { CreateConciliacaoDto } from './dto/create-conciliacao.dto';
@@ -31,26 +33,32 @@ export class ConciliacaoController {
     await this.pipelineConciCards.execute(body.filialId, body.date);
   }
 
+  @UseGuards(AuthGuard)
+  @Roles(Role.GESTOR, Role.OPERADOR)
   @Get()
-  findAll() {
-    return this.conciliacaoService.findAll();
-  }
-
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.conciliacaoService.findOne(+id);
-  }
-
-  @Patch(':id')
-  update(
-    @Param('id') id: string,
-    @Body() updateConciliacaoDto: UpdateConciliacaoDto,
+  async findByDate(
+    @Req() req: Request,
+    @Query('date') date: string,
+    @Query('filialId') filialId?: string,
   ) {
-    return this.conciliacaoService.update(+id, updateConciliacaoDto);
+    const user = req['sub'] as any;
+    if (user.roles === 'OPERADOR') {
+      filialId = user.filialId;
+      return await this.conciliacaoService.findByDate(+filialId, date);
+    }
+    return await this.conciliacaoService.findByDate(+filialId, date);
   }
 
-  @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.conciliacaoService.remove(+id);
+  @UseGuards(AuthGuard)
+  @Roles(Role.GESTOR, Role.OPERADOR)
+  @Post('conciliar')
+  async reconcile(@Req() req: Request, @Body() data: CreateConciliacaoDto) {
+    const user = req['sub'] as any;
+    if (user.roles === 'OPERADOR') {
+      data.filialId = user.filialId;
+      return await this.conciliacaoService.reconcile(data);
+    }
+
+    return await this.conciliacaoService.reconcile(data);
   }
 }

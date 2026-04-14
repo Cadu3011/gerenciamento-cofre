@@ -7,6 +7,7 @@ import {
 } from '@prisma/client';
 import { PrismaService } from 'src/database/prisma.service';
 import { MatchService } from './match.service';
+import { Decimal } from '@prisma/client/runtime/library';
 type CardsCielo = Awaited<ReturnType<MatchService['getCardsCielo']>>;
 type CardCielo = CardsCielo[number];
 
@@ -61,6 +62,7 @@ export class Pipeline {
         trierId: group.trier.id,
         origem: 'TRIER',
         valor: group.trier.valor,
+        dataReferencia: group.trier.dataEmissao,
       });
     if (group.rede)
       itens.push({
@@ -68,6 +70,7 @@ export class Pipeline {
         redeId: group.rede.id,
         origem: 'REDE',
         valor: group.rede.valor,
+        dataReferencia: group.rede.dataVenda,
       });
     if (group.cielo?.ids?.length) {
       const total = Number(group.cielo._sum.valorBruto);
@@ -91,6 +94,7 @@ export class Pipeline {
           cieloId: id,
           origem: 'CIELO',
           valor,
+          dataReferencia: new Date(`${group.cielo.dataVenda}T00:00:00.000Z`),
         });
       });
     }
@@ -130,8 +134,12 @@ export class Pipeline {
       const conciliados = groups.filter((g) => g.status === 'CONCILIADO');
 
       const gruposConciliados = await Promise.all(
-        conciliados.map((group) =>
-          tx.conciliacaoGrupo.upsert({
+        conciliados.map((group) => {
+          const valorTrier = group.trier?.valor ?? new Decimal(0);
+          const valorRede = group.rede?.valor ?? new Decimal(0);
+          const valorCielo = group.cielo?._sum?.valorBruto ?? new Decimal(0);
+          const valorFinal = valorTrier.sub(valorRede.plus(valorCielo));
+          return tx.conciliacaoGrupo.upsert({
             where: {
               idempotencyKey: `|CONCILIADO|${hoje.toISOString().split('T')[0]}T00:00:00.000Z|${filialId}|${group.rede?.idempotencyKey}|${group.trier?.idempotencyKey}|${group.cielo?.codigoTransacao}`,
             },
@@ -140,6 +148,7 @@ export class Pipeline {
               conciliacaoId: conciliacao.id,
               metodo: 'AUTO',
               status: 'CONCILIADO',
+              valorFinal: valorFinal,
               idempotencyKey: `|CONCILIADO|${hoje.toISOString().split('T')[0]}T00:00:00.000Z|${filialId}|${group.rede?.idempotencyKey}|${group.trier?.idempotencyKey}|${group.cielo?.codigoTransacao}`,
               ...(group.cielo?._sum.valorBruto && {
                 valorCielo: group.cielo._sum.valorBruto,
@@ -147,8 +156,8 @@ export class Pipeline {
               ...(group.rede?.valor && { valorRede: group.rede.valor }),
               ...(group.trier?.valor && { valorTrier: group.trier.valor }),
             },
-          }),
-        ),
+          });
+        }),
       );
 
       // Cria os itens correspondentes
@@ -218,8 +227,12 @@ export class Pipeline {
       const divergentes = groups.filter((g) => g.status === 'DIVERGENTE');
 
       const gruposDivergentes = await Promise.all(
-        divergentes.map((group) =>
-          tx.conciliacaoGrupo.upsert({
+        divergentes.map((group) => {
+          const valorTrier = group.trier?.valor ?? new Decimal(0);
+          const valorRede = group.rede?.valor ?? new Decimal(0);
+          const valorCielo = group.cielo?._sum?.valorBruto ?? new Decimal(0);
+          const valorFinal = valorTrier.sub(valorRede.plus(valorCielo));
+          return tx.conciliacaoGrupo.upsert({
             where: {
               idempotencyKey: `|DIVERGENTE|${hoje.toISOString().split('T')[0]}T00:00:00.000Z|${filialId}|${group.rede?.idempotencyKey}|${group.trier?.idempotencyKey}|${group.cielo?.codigoTransacao}`,
             },
@@ -228,6 +241,7 @@ export class Pipeline {
               conciliacaoId: conciliacao.id,
               metodo: 'AUTO',
               status: 'DIVERGENTE',
+              valorFinal: valorFinal,
               idempotencyKey: `|DIVERGENTE|${hoje.toISOString().split('T')[0]}T00:00:00.000Z|${filialId}|${group.rede?.idempotencyKey}|${group.trier?.idempotencyKey}|${group.cielo?.codigoTransacao}`,
               ...(group.cielo?._sum.valorBruto && {
                 valorCielo: group.cielo._sum.valorBruto,
@@ -235,8 +249,8 @@ export class Pipeline {
               ...(group.rede?.valor && { valorRede: group.rede.valor }),
               ...(group.trier?.valor && { valorTrier: group.trier.valor }),
             },
-          }),
-        ),
+          });
+        }),
       );
 
       // Cria os itens correspondentes

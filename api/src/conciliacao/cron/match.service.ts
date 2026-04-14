@@ -142,11 +142,13 @@ export class MatchService {
             },
             select: {
               id: true,
+              dataVenda: true,
             },
           });
 
           match = {
             ...grupoCielo,
+            dataVenda: grupoCielo.dataVenda,
             ids: registrosCielo.map((r) => r.id), // 👈 TODOS os IDs
           };
 
@@ -199,6 +201,7 @@ export class MatchService {
           origemMatch: 'CIELO',
           trier: null,
           rede: null,
+          dataReferencia: new Date(`${grupoCielo.dataVenda}T00:00:00.000Z`),
           cielo: {
             ...grupoCielo,
             ids: registrosCielo.map((r) => r.id), // 🔥 agora tem ids
