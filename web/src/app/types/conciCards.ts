@@ -1,0 +1,60 @@
+export interface ConciCards {
+  trier: {
+    id: number;
+    grupoId: number;
+    valor: number | string;
+    hora: string;
+    documentoFiscal: number;
+    modalidade: string;
+    bandeira: string;
+    status: string;
+    origem: string;
+  }[];
+  outros: {
+    id: number;
+    grupoId: number;
+    valor: number | string;
+    hora: string;
+    documentoFiscal: number;
+    modalidade: string;
+    bandeira: string;
+    status: string;
+    origem: string;
+    nsu: string;
+  };
+}
+
+type BaseItem = {
+  id: number;
+  grupoId: number;
+  horaNum: number;
+  hora: string;
+  valor: number;
+  origem: "TRIER" | "CIELO" | "REDE";
+};
+
+type TrierItem = BaseItem & {
+  origem: "TRIER";
+  documentoFiscal?: string;
+  modalidade?: string;
+  bandeira?: string;
+  status?: string;
+};
+
+type CieloItem = BaseItem & {
+  origem: "CIELO";
+  nsu?: string;
+  bandeira?: string;
+  modalidade?: string;
+  status?: string;
+};
+
+type RedeItem = BaseItem & {
+  origem: "REDE";
+  nsu?: string;
+  bandeira?: string;
+  modalidade?: string;
+  status?: string;
+};
+
+export type ConciliacaoDivergenteItem = TrierItem | CieloItem | RedeItem;

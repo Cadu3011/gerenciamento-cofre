@@ -51,6 +51,25 @@ export class ConciliacaoController {
 
   @UseGuards(AuthGuard)
   @Roles(Role.GESTOR, Role.OPERADOR)
+  @Get('divergentes')
+  async findByDateDivergentes(
+    @Req() req: Request,
+    @Query('date') date: string,
+    @Query('filialId') filialId?: string,
+  ) {
+    const user = req['sub'] as any;
+    if (user.roles === 'OPERADOR') {
+      filialId = user.filialId;
+      return await this.conciliacaoService.findByDateDivergentes(
+        +filialId,
+        date,
+      );
+    }
+    return await this.conciliacaoService.findByDateDivergentes(+filialId, date);
+  }
+
+  @UseGuards(AuthGuard)
+  @Roles(Role.GESTOR, Role.OPERADOR)
   @Post('conciliar')
   async reconcile(@Req() req: Request, @Body() data: CreateConciliacaoDto) {
     const user = req['sub'] as any;

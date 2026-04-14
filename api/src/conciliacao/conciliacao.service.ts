@@ -1,8 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { CreateConciliacaoDto } from './dto/create-conciliacao.dto';
-import { UpdateConciliacaoDto } from './dto/update-conciliacao.dto';
 import { PrismaService } from 'src/database/prisma.service';
-import { MatchService } from './cron/match.service';
 import { Decimal } from '@prisma/client/runtime/library';
 
 @Injectable()
@@ -298,5 +296,117 @@ export class ConciliacaoService {
 
       return newGroup;
     });
+  }
+
+  async findByDateDivergentes(filialId: number, date: string) {
+    const conciliacaoItem = await this.prisma.conciliacaoItem.findMany({
+      where: {
+        grupo: {
+          conciliacao: {
+            filialId,
+          },
+          status: 'DIVERGENTE',
+        },
+        dataReferencia: new Date(`${date}T00:00:00.000Z`),
+      },
+      include: {
+        grupo: true,
+        cielo: true,
+        rede: true,
+        trier: true,
+      },
+    });
+
+    // 🔹 já normaliza tudo uma vez só
+    const itens = conciliacaoItem.map((item) => ({
+      item,
+      conciliacaoId: item.grupo.conciliacaoId,
+      cieloValue: item.grupo.valorCielo,
+      horaNum: this.getHoraNormalizada(item),
+      horaFmt: this.getHoraFormatada(item),
+    }));
+
+    const cieloMap = new Map();
+    const resultado = [];
+
+    for (const entry of itens) {
+      const { item, cieloValue, horaFmt, horaNum } = entry;
+
+      // 🔹 TRIER
+      if (item.origem === 'TRIER') {
+        resultado.push({
+          id: item.id,
+          grupoId: item.grupoId,
+          horaNum,
+          hora: horaFmt,
+          valor: item.valor,
+          documentoFiscal: item.trier?.documentoFiscal,
+          modalidade: item.trier?.modalidade,
+          bandeira: item.trier?.bandeira,
+          status: item.trier?.statusConciliacao,
+          origem: item.origem,
+        });
+      }
+
+      // 🔹 CIELO
+      else if (item.origem === 'CIELO' && item.cielo) {
+        const isPix = item.cielo.modalidade === 'Pix';
+
+        if (isPix) {
+          resultado.push({
+            id: item.id,
+            grupoId: item.grupoId,
+            horaNum,
+            hora: horaFmt,
+            origem: item.origem,
+            valor: cieloValue,
+            nsu: item.cielo.nsu,
+            bandeira: item.cielo.bandeira,
+            modalidade: item.cielo.modalidade,
+            status: item.cielo.statusConciliacao,
+          });
+        } else {
+          const key = item.cielo.nsu;
+
+          if (!cieloMap.has(key)) {
+            cieloMap.set(key, true);
+
+            resultado.push({
+              id: item.id,
+              grupoId: item.grupoId,
+              horaNum,
+              hora: horaFmt,
+              origem: item.origem,
+              valor: cieloValue,
+              nsu: item.cielo.nsu,
+              bandeira: item.cielo.bandeira,
+              modalidade: item.cielo.modalidade,
+              status: item.cielo.statusConciliacao,
+            });
+          }
+        }
+      }
+
+      // 🔹 REDE
+      else if (item.origem === 'REDE') {
+        resultado.push({
+          id: item.id,
+          grupoId: item.grupoId,
+          horaNum,
+          hora: horaFmt,
+          origem: item.origem,
+          valor: item.valor,
+          nsu: item.rede.nsu,
+          bandeira: item.rede.bandeira,
+          modalidade: item.rede.modalidade,
+          status: item.rede.statusConciliacao,
+        });
+      }
+    }
+
+    // 🔥 ORDENAÇÃO FINAL GLOBAL
+    resultado.sort((a, b) => a.horaNum - b.horaNum);
+
+    return resultado;
   }
 }
