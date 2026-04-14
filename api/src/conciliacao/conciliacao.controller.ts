@@ -70,6 +70,28 @@ export class ConciliacaoController {
 
   @UseGuards(AuthGuard)
   @Roles(Role.GESTOR, Role.OPERADOR)
+  @Get('conciliados')
+  async findByDateConciliados(
+    @Req() req: Request,
+    @Query('grupoId') grupoId: string,
+    @Query('filialId') filialId?: string,
+  ) {
+    const user = req['sub'] as any;
+    if (user.roles === 'OPERADOR') {
+      filialId = user.filialId;
+      return await this.conciliacaoService.findByDateConciliados(
+        +filialId,
+        +grupoId,
+      );
+    }
+    return await this.conciliacaoService.findByDateConciliados(
+      +filialId,
+      +grupoId,
+    );
+  }
+
+  @UseGuards(AuthGuard)
+  @Roles(Role.GESTOR, Role.OPERADOR)
   @Post('conciliar')
   async reconcile(@Req() req: Request, @Body() data: CreateConciliacaoDto) {
     const user = req['sub'] as any;

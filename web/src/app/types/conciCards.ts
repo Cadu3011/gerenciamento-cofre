@@ -21,7 +21,7 @@ export interface ConciCards {
     status: string;
     origem: string;
     nsu: string;
-  };
+  }[];
 }
 
 type BaseItem = {
@@ -31,6 +31,7 @@ type BaseItem = {
   hora: string;
   valor: number;
   origem: "TRIER" | "CIELO" | "REDE";
+  diferencaGrupo?: number | string;
 };
 
 type TrierItem = BaseItem & {
@@ -58,3 +59,5 @@ type RedeItem = BaseItem & {
 };
 
 export type ConciliacaoDivergenteItem = TrierItem | CieloItem | RedeItem;
+
+export type ItensConciliados = TrierItem | CieloItem | RedeItem;

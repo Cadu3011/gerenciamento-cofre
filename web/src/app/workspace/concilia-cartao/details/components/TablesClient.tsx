@@ -13,6 +13,7 @@ import ListSalesTrier from "./ListSalesTrier";
 import ListSalesAdquirentes from "./ListSalesAdquirentes";
 import { ConciCards } from "@/app/types/conciCards";
 import DialogSearchConciCards from "./DialogSearchConciCards";
+import DialogGrupoConciliado from "./DialogGrupoConciliado";
 
 export default function TablesClient({
   data,
@@ -25,7 +26,15 @@ export default function TablesClient({
 }) {
   const [hoveredGroupId, setHoveredGroupId] = useState<number | null>(null);
   const [selectedGroup, setSelectedGroup] = useState<number | null>(null);
+  const groupMap = new Map();
 
+  [...data.trier, ...data.outros].forEach((item) => {
+    groupMap.set(item.grupoId, item);
+  });
+
+  const selectedGroupData = selectedGroup ? groupMap.get(selectedGroup) : null;
+
+  const isConciliado = selectedGroupData?.status === "CONCILIADO";
   return (
     <div className="flex flex-col justify-center items-center w-full">
       <div className="w-full px-10 pt-5 flex justify-between bg-blue-950 text-white font-bold">
@@ -96,12 +105,21 @@ export default function TablesClient({
           </Table>
         </div>
       </div>
-      <DialogSearchConciCards
-        selectedGroup={selectedGroup}
-        setSelectedGroup={setSelectedGroup}
-        token={token}
-        date={date}
-      />
+      {selectedGroup &&
+        (isConciliado ? (
+          <DialogGrupoConciliado
+            selectedGroup={selectedGroup}
+            setSelectedGroup={setSelectedGroup}
+            token={token}
+          />
+        ) : (
+          <DialogSearchConciCards
+            selectedGroup={selectedGroup}
+            setSelectedGroup={setSelectedGroup}
+            token={token}
+            date={date}
+          />
+        ))}
     </div>
   );
 }

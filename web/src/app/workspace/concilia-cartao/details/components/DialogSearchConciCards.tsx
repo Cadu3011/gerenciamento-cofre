@@ -78,8 +78,10 @@ export default function DialogSearchConciCards({
         }
       }}
     >
-      <DialogContent className="bg-white max-w-5xl">
-        <DialogTitle>Conciliar</DialogTitle>
+      <DialogContent className="bg-white max-w-5xl max-h-[100vh]">
+        <DialogTitle className="flex justify-start text-3xl">
+          Conciliar
+        </DialogTitle>
         <DialogDescription className="text-lg">
           Selecione as vendas para conciliacao clicando em cima delas. <br /> O
           ideal é que a diferença total se torne R$0,00 (valores Trier - valores
@@ -96,7 +98,7 @@ export default function DialogSearchConciCards({
           </div>
         </DialogHeader>
         {selectedGroup && (
-          <div className="relative  h-[500px] overflow-y-auto">
+          <div className="relative  h-[60vh] overflow-y-auto">
             <ListSalesDiveregentes
               data={salesDivergentes}
               selectedItems={selectedItems}
