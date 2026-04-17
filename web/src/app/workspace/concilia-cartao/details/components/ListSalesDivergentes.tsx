@@ -54,7 +54,7 @@ export default function ListSalesDiveregentes({
             onClick={() => toggleItem(s)}
             className={`cursor-pointer ${
               selectedItems.some((i) => i.grupoId === s.grupoId)
-                ? "bg-blue-300 border-6 border-blue-500 hover:bg-blue-400"
+                ? "bg-zinc-300 border-6 border-2 border-zinc-900 hover:bg-zinc-400"
                 : ""
             } ${s.grupoId === lockedId ? "opacity-70 cursor-not-allowed" : ""}`}
           >

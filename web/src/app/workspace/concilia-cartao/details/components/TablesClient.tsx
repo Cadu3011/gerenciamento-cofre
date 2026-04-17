@@ -14,6 +14,9 @@ import ListSalesAdquirentes from "./ListSalesAdquirentes";
 import { ConciCards } from "@/app/types/conciCards";
 import DialogSearchConciCards from "./DialogSearchConciCards";
 import DialogGrupoConciliado from "./DialogGrupoConciliado";
+import { useRouter } from "next/navigation";
+import { LegendaConciliacao } from "./LegendaConci";
+import { formatDate } from "@/app/admin/dashboard/utils";
 
 export default function TablesClient({
   data,
@@ -24,6 +27,11 @@ export default function TablesClient({
   date: string;
   token: string;
 }) {
+  const router = useRouter();
+
+  const reloadData = () => {
+    router.refresh();
+  };
   const [hoveredGroupId, setHoveredGroupId] = useState<number | null>(null);
   const [selectedGroup, setSelectedGroup] = useState<number | null>(null);
   const groupMap = new Map();
@@ -37,9 +45,15 @@ export default function TablesClient({
   const isConciliado = selectedGroupData?.status === "CONCILIADO";
   return (
     <div className="flex flex-col justify-center items-center w-full">
-      <div className="w-full px-10 pt-5 flex justify-between bg-blue-950 text-white font-bold">
-        <p className="text-3xl">Data:{date}</p>
-        <p>a</p>
+      <div className="w-full px-10 py-5 flex justify-between  bg-blue-950  font-bold">
+        <div className="bg-white p-2  rounded-md">
+          <p className="text-3xl">{formatDate(date)}</p>
+          <p className="text-3xl">a</p>
+        </div>
+
+        <div className="bg-white p-10 w-1/2 flex justify-center items-center rounded-md">
+          <LegendaConciliacao />
+        </div>
       </div>
 
       <div className="relative w-full h-[600px] overflow-y-auto border">
@@ -118,6 +132,7 @@ export default function TablesClient({
             setSelectedGroup={setSelectedGroup}
             token={token}
             date={date}
+            onConciliated={reloadData}
           />
         ))}
     </div>

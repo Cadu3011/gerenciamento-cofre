@@ -1,10 +1,11 @@
 "use client";
 
-import { TableBody, TableCell, TableRow } from "@/components/ui/table";
+import { ConciCards } from "@/app/types/conciCards";
+import { TableCell, TableRow } from "@/components/ui/table";
 import { Dispatch, SetStateAction } from "react";
 
 interface Props {
-  sales: any;
+  sales: ConciCards;
   hoveredGroupId: number | null;
   setHoveredGroupId: Dispatch<SetStateAction<number | null>>;
   setSelectedGroup: Dispatch<SetStateAction<number | null>>;
@@ -20,7 +21,7 @@ export default function ListSalesTrier({
 }: Props) {
   return (
     <>
-      {sales.trier.map((t: any) => {
+      {sales.trier.map((t) => {
         const semMatch = t.status === "DIVERGENTE";
 
         return (
@@ -29,27 +30,19 @@ export default function ListSalesTrier({
             onClick={() => setSelectedGroup(t.grupoId)}
             onMouseEnter={() => setHoveredGroupId(t.grupoId)}
             onMouseLeave={() => setHoveredGroupId(null)}
-            className={
-              hoveredGroupId === t.grupoId
-                ? "hover: border-4 border-green-500"
-                : ""
-            }
+            className={`border-4 
+              ${semMatch ? "bg-red-600 text-white hover:bg-red-700" : ""}
+              ${
+                hoveredGroupId === t.grupoId && t.qtdItensGrupo.itens > 1
+                  ? "hover: border-green-500"
+                  : ""
+              } ${t.metodo === "MANUAL" ? "bg-blue-200 hover:bg-blue-300" : ""} ${t.qtdItensGrupo.itens === 1 && t.status === "CONCILIADO" ? "bg-amber-700 hover:bg-amber-800 " : ""}`}
           >
-            <TableCell className={semMatch ? "bg-red-600 text-white " : ""}>
-              {t.documentoFiscal}
-            </TableCell>
-            <TableCell className={semMatch ? "bg-red-600 text-white " : ""}>
-              {t.modalidade}
-            </TableCell>
-            <TableCell className={semMatch ? "bg-red-600 text-white " : ""}>
-              {t.bandeira}
-            </TableCell>
-            <TableCell className={semMatch ? "bg-red-600 text-white " : ""}>
-              {t.hora}
-            </TableCell>
-            <TableCell className={semMatch ? "bg-red-600 text-white" : ""}>
-              {Number(t.valor).toFixed(2)}
-            </TableCell>
+            <TableCell>{t.documentoFiscal}</TableCell>
+            <TableCell>{t.modalidade}</TableCell>
+            <TableCell>{t.bandeira}</TableCell>
+            <TableCell>{t.hora}</TableCell>
+            <TableCell>{Number(t.valor).toFixed(2)}</TableCell>
           </TableRow>
         );
       })}

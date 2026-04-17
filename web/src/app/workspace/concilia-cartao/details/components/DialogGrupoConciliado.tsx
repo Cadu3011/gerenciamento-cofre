@@ -50,19 +50,16 @@ export default function DialogGrupoConciliado({
     >
       <DialogContent className="bg-white max-w-5xl max-h-[100vh]">
         <DialogTitle className="flex justify-start text-3xl">
-          Conciliar
+          Conciliados
         </DialogTitle>
         <DialogDescription className="text-lg">
-          Selecione as vendas para conciliacao clicando em cima delas. <br /> O
-          ideal é que a diferença total se torne R$0,00 (valores Trier - valores
-          Adquirentes = R$0,00)
+          Valores ja conciliados
         </DialogDescription>
         <DialogHeader className="">
-          <div className="py-2 flex justify-end px-10">
-            {" "}
-            <span
-              className={`${diferenca === 0 ? "text-green-600" : "text-red-600"} text-3xl font-bold`}
-            >
+          <div className="py-2 flex justify-between px-10">
+            <span>{salesConciliados[0]?.motivo}</span>
+
+            <span className="text-3xl font-bold text-zinc-700">
               R$ {Number(diferenca)?.toFixed(2)}
             </span>
           </div>

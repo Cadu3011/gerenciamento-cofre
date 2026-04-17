@@ -9,6 +9,8 @@ export interface ConciCards {
     bandeira: string;
     status: string;
     origem: string;
+    metodo: string;
+    qtdItensGrupo: { itens: number };
   }[];
   outros: {
     id: number;
@@ -21,17 +23,21 @@ export interface ConciCards {
     status: string;
     origem: string;
     nsu: string;
+    metodo: string;
+    qtdItensGrupo: { itens: number };
   }[];
 }
 
 type BaseItem = {
   id: number;
   grupoId: number;
+  conciliacaoId: number;
   horaNum: number;
   hora: string;
   valor: number;
   origem: "TRIER" | "CIELO" | "REDE";
   diferencaGrupo?: number | string;
+  motivo?: string;
 };
 
 type TrierItem = BaseItem & {
