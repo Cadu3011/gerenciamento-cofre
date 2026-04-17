@@ -102,4 +102,26 @@ export class ConciliacaoController {
 
     return await this.conciliacaoService.reconcile(data);
   }
+
+  @UseGuards(AuthGuard)
+  @Roles(Role.GESTOR, Role.OPERADOR)
+  @Post('desconciliar')
+  async disagreement(
+    @Req() req: Request,
+    @Body() data: { grupoId: number; filialId?: number },
+  ) {
+    const user = req['sub'] as any;
+    if (user.roles === 'OPERADOR') {
+      data.filialId = user.filialId;
+      return await this.conciliacaoService.disagreement(
+        data.grupoId,
+        data.filialId,
+      );
+    }
+
+    return await this.conciliacaoService.disagreement(
+      data.grupoId,
+      data.filialId,
+    );
+  }
 }

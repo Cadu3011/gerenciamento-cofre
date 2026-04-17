@@ -28,7 +28,7 @@ export default function ListSalesAdquirentes({
             onClick={() => setSelectedGroup(adq.grupoId)}
             onMouseEnter={() => setHoveredGroupId(adq.grupoId)}
             onMouseLeave={() => setHoveredGroupId(null)}
-            className={` border-4
+            className={` border-4 text-nowrap
               ${semMatch ? "bg-yellow-400 text-black font-bold hover:bg-yellow-500 " : ""}
               ${hoveredGroupId === adq.grupoId && adq.qtdItensGrupo.itens > 1 ? "hover: border-green-500" : ""} 
               ${adq.metodo === "MANUAL" ? "bg-blue-200 hover:bg-blue-300" : ""} 

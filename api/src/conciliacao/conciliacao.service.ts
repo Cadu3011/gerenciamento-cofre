@@ -211,6 +211,7 @@ export class ConciliacaoService {
   async reconcile(data: CreateConciliacaoDto) {
     if (data.groupIds.length === 1 && !data.motivo)
       throw new BadRequestException('Deve conter um motivo ou observação');
+
     return this.prisma.$transaction(async (tx) => {
       // 1️⃣ Buscar grupos com itens
       const groups = await tx.conciliacaoGrupo.findMany({
@@ -220,7 +221,7 @@ export class ConciliacaoService {
           conciliacao: true,
         },
       });
-      const conciliacao = await this.prisma.conciliacao.findUnique({
+      const conciliacao = await tx.conciliacao.findUnique({
         where: {
           id: data.conciliacaoId,
         },
@@ -257,20 +258,21 @@ export class ConciliacaoService {
           valorRede,
           valorCielo,
           valorFinal,
-          idempotencyKey: `|MANUAL|${Date.now()}`,
+          idempotencyKey: `MANUAL-${data.groupIds.sort().join('-')}-${Date.now()}`,
           ...(data.motivo && { motivo: data.motivo }),
         },
       });
 
       // 6️⃣ Move itens
-      await tx.conciliacaoItem.updateMany({
-        where: {
-          id: { in: itens.map((i) => i.id) },
-        },
-        data: {
-          grupoId: newGroup.id,
-        },
-      });
+      for (const item of itens) {
+        await tx.conciliacaoItem.update({
+          where: { id: item.id },
+          data: {
+            grupoId: newGroup.id,
+            origemGrupoId: item.origemGrupoId ?? item.grupoId,
+          },
+        });
+      }
 
       // 7️⃣ Atualiza status na origem
       const trierIds = itens.map((i) => i.trierId).filter(Boolean);
@@ -308,6 +310,107 @@ export class ConciliacaoService {
       });
 
       return newGroup;
+    });
+  }
+
+  async disagreement(grupoId: number, filialId: number) {
+    if (!grupoId) throw new BadRequestException('ID de Grupo Ausente');
+
+    return this.prisma.$transaction(async (tx) => {
+      // 1️⃣ Buscar grupo conciliado
+      const grupo = await tx.conciliacaoGrupo.findUnique({
+        where: { id: grupoId },
+        include: {
+          itens: true,
+          conciliacao: true,
+        },
+      });
+
+      if (!grupo) throw new BadRequestException('Grupo não encontrado');
+
+      if (grupo.status !== 'CONCILIADO') {
+        throw new BadRequestException('Grupo não está conciliado');
+      }
+
+      if (grupo.conciliacao.filialId !== filialId) {
+        throw new BadRequestException('Filial inválida');
+      }
+
+      // 2️⃣ Buscar grupos originais
+      const gruposOriginais = await tx.conciliacaoGrupo.findMany({
+        where: {
+          migradoDeGrupoId: grupo.id,
+        },
+      });
+
+      if (!gruposOriginais.length) {
+        throw new BadRequestException('Grupos de origem não encontrados');
+      }
+
+      // 3️⃣ Mapear grupos por ID
+      const gruposMap = new Map(gruposOriginais.map((g) => [g.id, g]));
+
+      // 4️⃣ Voltar itens para origem
+      for (const item of grupo.itens) {
+        const grupoDestinoId = item.origemGrupoId;
+
+        if (!grupoDestinoId || !gruposMap.has(grupoDestinoId)) {
+          throw new BadRequestException(`Item ${item.id} sem origem válida`);
+        }
+
+        await tx.conciliacaoItem.update({
+          where: { id: item.id },
+          data: {
+            grupoId: grupoDestinoId,
+          },
+        });
+      }
+
+      // 5️⃣ Reativar grupos originais
+      await tx.conciliacaoGrupo.updateMany({
+        where: {
+          id: { in: gruposOriginais.map((g) => g.id) },
+        },
+        data: {
+          status: 'DIVERGENTE',
+        },
+      });
+
+      // 6️⃣ Cancelar grupo conciliado
+      await tx.conciliacaoGrupo.update({
+        where: { id: grupo.id },
+        data: {
+          status: 'CANCELADO',
+        },
+      });
+
+      // 7️⃣ Atualizar status das entidades externas
+      const trierIds = grupo.itens.map((i) => i.trierId).filter(Boolean);
+      const redeIds = grupo.itens.map((i) => i.redeId).filter(Boolean);
+      const cieloIds = grupo.itens.map((i) => i.cieloId).filter(Boolean);
+
+      if (trierIds.length) {
+        await tx.trierCartaoVendas.updateMany({
+          where: { id: { in: trierIds } },
+          data: { statusConciliacao: 'DIVERGENTE' },
+        });
+      }
+
+      if (redeIds.length) {
+        await tx.redeVenda.updateMany({
+          where: { id: { in: redeIds } },
+          data: { statusConciliacao: 'DIVERGENTE' },
+        });
+      }
+
+      if (cieloIds.length) {
+        await tx.cartaoVendas.updateMany({
+          where: { id: { in: cieloIds } },
+          data: { statusConciliacao: 'DIVERGENTE' },
+        });
+      }
+
+      return { success: true };
     });
   }
 

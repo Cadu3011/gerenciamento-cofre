@@ -220,7 +220,7 @@ model ConciliacaoItem {
 
   grupoId   Int
   grupo     ConciliacaoGrupo @relation(fields: [grupoId], references: [id])
-
+  origemGrupoId Int?
   origem    OrigemConciliacao
   trierId   Int?
   redeId    Int?

@@ -125,6 +125,7 @@ export default function TablesClient({
             selectedGroup={selectedGroup}
             setSelectedGroup={setSelectedGroup}
             token={token}
+            onConciliated={reloadData}
           />
         ) : (
           <DialogSearchConciCards
