@@ -8,9 +8,9 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Dispatch, SetStateAction, useEffect, useState } from "react";
-import ListSalesConciliados from "./ListSalesConciliados";
 import { Button } from "@/components/ui/button";
 import { toast, ToastContainer } from "react-toastify";
+import { ConciliacaoTable } from "./ConciliacaoTable/ConciliacaoTable";
 
 export default function DialogGrupoConciliado({
   selectedGroup,
@@ -97,7 +97,7 @@ export default function DialogGrupoConciliado({
         </DialogHeader>
         {selectedGroup && (
           <div className="relative  h-[60vh] overflow-y-auto">
-            <ListSalesConciliados data={salesConciliados} />
+            <ConciliacaoTable data={salesConciliados} />
           </div>
         )}
         <div className="flex justify-end px-10">

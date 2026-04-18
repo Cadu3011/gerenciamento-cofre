@@ -17,6 +17,7 @@ import DialogGrupoConciliado from "./DialogGrupoConciliado";
 import { useRouter } from "next/navigation";
 import { LegendaConciliacao } from "./LegendaConci";
 import { formatDate } from "@/app/admin/dashboard/utils";
+import { Button } from "@/components/ui/button";
 
 export default function TablesClient({
   data,
@@ -32,6 +33,7 @@ export default function TablesClient({
   const reloadData = () => {
     router.refresh();
   };
+  const [showAutoConciliados, setShowAutoConciliados] = useState(true);
   const [hoveredGroupId, setHoveredGroupId] = useState<number | null>(null);
   const [selectedGroup, setSelectedGroup] = useState<number | null>(null);
   const groupMap = new Map();
@@ -43,6 +45,15 @@ export default function TablesClient({
   const selectedGroupData = selectedGroup ? groupMap.get(selectedGroup) : null;
 
   const isConciliado = selectedGroupData?.status === "CONCILIADO";
+
+  const filterData = (items: any[]) => {
+    if (showAutoConciliados) return items;
+
+    return items.filter(
+      (item) => !(item.status === "CONCILIADO" && item.metodo === "AUTO"),
+    );
+  };
+
   return (
     <div className="flex flex-col justify-center items-center w-full">
       <div className="w-full px-10 py-5 flex justify-between  bg-blue-950  font-bold">
@@ -50,7 +61,24 @@ export default function TablesClient({
           <p className="text-3xl">{formatDate(date)}</p>
           <p className="text-3xl">a</p>
         </div>
+        <div className="flex items-center gap-3">
+          <span className="text-white text-2xl font-semibold">
+            Auto conciliados
+          </span>
 
+          <Button
+            onClick={() => setShowAutoConciliados((prev) => !prev)}
+            className={`relative w-12 h-6 rounded-full transition-colors ${
+              showAutoConciliados ? "bg-green-500" : "bg-gray-400"
+            }`}
+          >
+            <span
+              className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${
+                showAutoConciliados ? "translate-x-6" : ""
+              }`}
+            />
+          </Button>
+        </div>
         <div className="bg-white p-10 w-1/2 flex justify-center items-center rounded-md">
           <LegendaConciliacao />
         </div>
@@ -77,7 +105,10 @@ export default function TablesClient({
 
             <TableBody>
               <ListSalesTrier
-                sales={data}
+                sales={{
+                  ...data,
+                  trier: filterData(data.trier),
+                }}
                 hoveredGroupId={hoveredGroupId}
                 setHoveredGroupId={setHoveredGroupId}
                 selectedGroup={selectedGroup}
@@ -109,7 +140,10 @@ export default function TablesClient({
 
             <TableBody>
               <ListSalesAdquirentes
-                sales={data}
+                sales={{
+                  ...data,
+                  outros: filterData(data.outros),
+                }}
                 hoveredGroupId={hoveredGroupId}
                 setHoveredGroupId={setHoveredGroupId}
                 selectedGroup={selectedGroup}
@@ -132,7 +166,7 @@ export default function TablesClient({
             selectedGroup={selectedGroup}
             setSelectedGroup={setSelectedGroup}
             token={token}
-            date={date}
+            dateInitial={date}
             onConciliated={reloadData}
           />
         ))}

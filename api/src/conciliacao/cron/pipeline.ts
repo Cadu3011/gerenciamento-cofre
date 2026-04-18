@@ -216,6 +216,8 @@ export class Pipeline {
         // 🔥 4. remove grupos vazios
         await tx.conciliacaoGrupo.deleteMany({
           where: {
+            metodo: 'AUTO',
+            OR: [{ status: 'DIVERGENTE' }, { status: 'PENDENTE' }],
             itens: {
               none: {},
             },
@@ -309,6 +311,9 @@ export class Pipeline {
         // 🔥 4. remove grupos vazios
         await tx.conciliacaoGrupo.deleteMany({
           where: {
+            metodo: 'AUTO',
+            OR: [{ status: 'DIVERGENTE' }, { status: 'PENDENTE' }],
+
             itens: {
               none: {},
             },
