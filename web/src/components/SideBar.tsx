@@ -119,16 +119,22 @@ export default function Sidebar({ role }: { role: string }) {
                         Workspace
                       </Link>
                       <Link
+                        href="/workspace/concilia-cartao"
+                        className="hover:text-green-400"
+                      >
+                        Conciliar Cartões
+                      </Link>
+                      <Link
                         href="/workspace/gerencia-caixas"
                         className="hover:text-green-400"
                       >
                         Conferir Caixas
                       </Link>
                       <Link
-                        href="/workspace/gerencia-cartao"
+                        href="/workspace/pesquisa-cartao"
                         className="hover:text-green-400"
                       >
-                        Conferir Cartões
+                        Pesquisar Cartões
                       </Link>
                       <Link
                         href="/workspace/gerencia-cofre"

@@ -9,6 +9,7 @@ import { MovementService } from 'src/movement/movement.service';
 import { CieloService } from 'src/cielo/cielo.service';
 import { TrierDifCxETL } from 'src/trier/trierDIfCx.service';
 import { RedeCardCron } from 'src/cardETL/cron/rede.cron';
+import { ConciCardsCron } from 'src/conciliacao/cron/execute.cron';
 
 @Injectable()
 export class JobsService {
@@ -26,6 +27,9 @@ export class JobsService {
 
   @Inject()
   private readonly trierPipelineCaixa: TrierDifCxETL;
+
+  @Inject()
+  private readonly conciCardsPipeline: ConciCardsCron;
 
   async onModuleInit() {
     await this.markStuckJobs();
@@ -167,6 +171,13 @@ export class JobsService {
   async runTrierCaixas() {
     return await this.runCronJob('TrierCaixas', async () => {
       await this.trierPipelineCaixa.init();
+    });
+  }
+
+  @Cron('5,38 5,7,10,12 * * 1-7')
+  async runConciCards() {
+    return await this.runCronJob('ConciCards', async () => {
+      await this.conciCardsPipeline.execute();
     });
   }
 }

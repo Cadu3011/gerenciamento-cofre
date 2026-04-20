@@ -6,6 +6,7 @@ import { CartEtlModule } from 'src/cardETL/card-etl.module';
 import { MovementModule } from 'src/movement/movement.module';
 import { CieloModule } from 'src/cielo/cielo.module';
 import { TrierModule } from 'src/trier/trier.module';
+import { ConciliacaoModule } from 'src/conciliacao/conciliacao.module';
 
 @Module({
   controllers: [JobsController],
@@ -16,6 +17,7 @@ import { TrierModule } from 'src/trier/trier.module';
     MovementModule,
     CieloModule,
     TrierModule,
+    ConciliacaoModule,
   ],
   exports: [JobsService],
 })

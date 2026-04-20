@@ -11,6 +11,7 @@ import { DateRange } from "react-day-picker";
 import { getCaixas, patchCaixa } from "@/app/api/post";
 import { Input } from "@/components/ui/input";
 import { formatDate } from "../../../admin/dashboard/utils/index";
+import { toast, ToastContainer } from "react-toastify";
 
 interface Caixa {
   id: number;
@@ -86,7 +87,10 @@ export default function ListCaixas({
     try {
       await patchCaixa(id, { obsConf: obs });
     } catch (err) {
-      console.error("Erro ao atualizar:", err);
+      const showToast = () => {
+        toast.error((err as Error).message);
+      };
+      showToast();
     }
   }
   return (
@@ -127,6 +131,9 @@ export default function ListCaixas({
                   text-md bg-yellow-200 
                 `}
             >
+              <div className="flex justify-center">
+                <ToastContainer />
+              </div>
               {c.falta}
             </TableCell>
             <TableCell className="border-l-2 border-black w-3/12">
