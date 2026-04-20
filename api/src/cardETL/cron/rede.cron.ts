@@ -45,7 +45,7 @@ export class RedeCardCron {
       // se não tem nada ainda, você decide um "start" inicial
       const startBase = last._max.dataVenda
         ? this.toISODate(new Date(last._max.dataVenda))
-        : '2026-03-29'; // seu initDate (primeira carga)
+        : '2026-01-01'; // seu initDate (primeira carga)
 
       // datas faltantes = (startBase + 1) ... D-1
       const start = this.addDays(startBase, 1);
