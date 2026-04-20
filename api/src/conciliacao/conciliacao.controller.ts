@@ -44,9 +44,41 @@ export class ConciliacaoController {
     const user = req['sub'] as any;
     if (user.roles === 'OPERADOR') {
       filialId = user.filialId;
-      return await this.conciliacaoService.findByDate(+filialId, date);
+      const sales = await this.conciliacaoService.findByDate(+filialId, date);
+      const totalDif = await this.conciliacaoService.totalDiferencaDia(
+        +filialId,
+        date,
+      );
+      return { totalDif, trier: sales.trier, outros: sales.outros };
     }
-    return await this.conciliacaoService.findByDate(+filialId, date);
+    const sales = await this.conciliacaoService.findByDate(+filialId, date);
+
+    const totalDif = await this.conciliacaoService.totalDiferencaDia(
+      +filialId,
+      date,
+    );
+    return { totalDif, sales };
+  }
+
+  @UseGuards(AuthGuard)
+  @Roles(Role.GESTOR, Role.OPERADOR)
+  @Get('totais-dia')
+  async totalsDia(
+    @Req() req: Request,
+    @Query('from') from: string,
+    @Query('to') to: string,
+    @Query('filialId') filialId?: string,
+  ) {
+    const user = req['sub'] as any;
+    const dateRange = {
+      from,
+      to,
+    };
+    if (user.roles === 'OPERADOR') {
+      filialId = user.filialId;
+      return await this.conciliacaoService.totaisDias(+filialId, dateRange);
+    }
+    return await this.conciliacaoService.totaisDias(+filialId, dateRange);
   }
 
   @UseGuards(AuthGuard)

@@ -663,4 +663,97 @@ export class ConciliacaoService {
 
     return resultado;
   }
+
+  async totalDiferencaDia(filialdId: number, date: string) {
+    const conciliacaoDia = await this.prisma.conciliacao.findUnique({
+      where: {
+        filialId_startDate: {
+          filialId: filialdId,
+          startDate: new Date(`${date}T00:00:00.000Z`),
+        },
+      },
+    });
+    if (!conciliacaoDia) {
+      return 0;
+    }
+    const total = await this.prisma.conciliacaoGrupo.aggregate({
+      _sum: { valorFinal: true },
+      where: {
+        itens: { some: { dataReferencia: new Date(`${date}T00:00:00.000Z`) } },
+        conciliacaoId: conciliacaoDia.id,
+        status: { not: 'CONCILIADO' },
+      },
+    });
+    return total._sum.valorFinal ?? 0;
+  }
+
+  async totaisDias(filialId: number, dateRange: { from: string; to: string }) {
+    const start = new Date(dateRange.from + 'T00:00:00.000Z');
+    const end = new Date(dateRange.to + 'T00:00:00.000Z');
+
+    const totais = await this.prisma.conciliacaoItem.groupBy({
+      by: ['dataReferencia', 'origem'],
+      where: {
+        dataReferencia: {
+          gte: start,
+          lte: end,
+        },
+        grupo: { conciliacao: { filialId } },
+      },
+      _sum: { valor: true },
+    });
+
+    const divergencias = await this.prisma.$queryRaw<
+      { dia: string; total: number }[]
+    >`
+  SELECT 
+    DATE(ci.dataReferencia) as dia,
+    SUM(cg.valorFinal) as total
+  FROM conciliacaoGrupo cg
+  JOIN conciliacaoItem ci ON ci.grupoId = cg.id
+  JOIN conciliacao c ON c.id = cg.conciliacaoId
+  WHERE c.filialId = ${filialId}
+    AND cg.status <> 'CONCILIADO'
+    AND ci.dataReferencia BETWEEN ${start} AND ${end}
+  GROUP BY dia
+`;
+
+    const resultado: Record<string, any> = {};
+
+    // totais por origem
+    for (const item of totais) {
+      const dia = new Date(item.dataReferencia).toISOString().slice(0, 10);
+
+      const origem = item.origem;
+      const valor = Number(item._sum.valor ?? 0);
+
+      if (!resultado[dia]) {
+        resultado[dia] = {
+          data: dia,
+          totalDivergencia: 0,
+        };
+      }
+
+      if (!resultado[dia][origem]) {
+        resultado[dia][origem] = 0;
+      }
+
+      resultado[dia][origem] += valor;
+    }
+
+    // divergências
+    for (const div of divergencias) {
+      const dia = new Date(div.dia).toISOString().slice(0, 10);
+
+      if (!resultado[dia]) {
+        resultado[dia] = {
+          data: dia,
+        };
+      }
+
+      resultado[dia].totalDivergencia = Number(div.total) || 0;
+    }
+
+    return Object.values(resultado);
+  }
 }
