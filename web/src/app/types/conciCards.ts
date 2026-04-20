@@ -1,4 +1,5 @@
 export interface ConciCards {
+  totalDif: number;
   trier: {
     id: number;
     grupoId: number;
@@ -67,3 +68,11 @@ type RedeItem = BaseItem & {
 export type ConciliacaoDivergenteItem = TrierItem | CieloItem | RedeItem;
 
 export type ItensConciliados = TrierItem | CieloItem | RedeItem;
+
+export type TotalsCardsDay = {
+  data: string;
+  TRIER: string;
+  REDE: string;
+  CIELO: string;
+  totalDivergencia: number;
+};

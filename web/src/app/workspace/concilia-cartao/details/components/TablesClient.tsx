@@ -57,9 +57,9 @@ export default function TablesClient({
   return (
     <div className="flex flex-col justify-center items-center w-full">
       <div className="w-full px-10 py-5 flex justify-between  bg-blue-950  font-bold">
-        <div className="bg-white p-2  rounded-md">
+        <div className="bg-white px-5 py-1 gap-2 flex flex-col rounded-md">
           <p className="text-3xl">{formatDate(date)}</p>
-          <p className="text-3xl">a</p>
+          <p className="text-3xl text-start">R${data.totalDif}</p>
         </div>
         <div className="flex items-center gap-3">
           <span className="text-white text-2xl font-semibold">
