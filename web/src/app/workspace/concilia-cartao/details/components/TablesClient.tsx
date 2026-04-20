@@ -59,7 +59,9 @@ export default function TablesClient({
       <div className="w-full px-10 py-5 flex justify-between  bg-blue-950  font-bold">
         <div className="bg-white px-5 py-1 gap-2 flex flex-col rounded-md">
           <p className="text-3xl">{formatDate(date)}</p>
-          <p className="text-3xl text-start">R$ {data.totalDif}</p>
+          <p className="text-3xl text-start">
+            {data.totalDif === 0 ? "Tudo Conciliado" : `R$ ${data.totalDif}`}
+          </p>
         </div>
         <div className="flex items-center gap-3">
           <span className="text-white text-2xl font-semibold">

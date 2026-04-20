@@ -77,12 +77,12 @@ export default async function GerenciaCartao({ searchParams }: Props) {
           Filial {user.filialId}
         </p>
       </div>
-      <div className="flex flex-col justify-center items-center  m-10">
+      <div className="flex flex-col  items-center relative h-[500px] overflow-y-auto mx-10">
         <div className="bg-blue-800 w-full py-4 rounded-t-lg flex justify-center">
           <FilterDateRange />
         </div>
-        <Table className="border border-black ">
-          <TableHeader className="bg-blue-950">
+        <Table className="border border-black" noWrapper>
+          <TableHeader className="bg-blue-950 sticky top-0 z-20">
             <TableRow>
               <TableHead className="text-white text-2xl">Data</TableHead>
               <TableHead className="text-white text-2xl">Trier</TableHead>
