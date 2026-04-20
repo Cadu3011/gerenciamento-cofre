@@ -700,6 +700,7 @@ export class ConciliacaoService {
         },
         grupo: { conciliacao: { filialId } },
       },
+
       _sum: { valor: true },
     });
 
@@ -754,6 +755,8 @@ export class ConciliacaoService {
       resultado[dia].totalDivergencia = Number(div.total) || 0;
     }
 
-    return Object.values(resultado);
+    return Object.values(resultado).sort((a: any, b: any) => {
+      return new Date(b.data).getTime() - new Date(a.data).getTime();
+    });
   }
 }

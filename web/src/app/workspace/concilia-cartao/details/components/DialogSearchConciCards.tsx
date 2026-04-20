@@ -47,6 +47,12 @@ export default function DialogSearchConciCards({
   const [dateSelected, setDateSelected] = useState<Date | undefined>();
   const [open, setOpen] = useState(false);
 
+  const [filterValue, setFilterValue] = useState("");
+  const [sortOrder, setSortOrder] = useState<"default" | "asc" | "desc">(
+    "default",
+  );
+  const [showOnlySelected, setShowOnlySelected] = useState(false);
+
   const getGruposPendentes = async (date?: Date) => {
     const formattedDate = date ? date.toISOString().split("T")[0] : dateInitial;
 
@@ -63,6 +69,30 @@ export default function DialogSearchConciCards({
     const data: ConciliacaoDivergenteItem[] = await res.json();
     setSalesDivergentes(data);
   };
+
+  const filteredAndSortedData = salesDivergentes
+    .filter((item) => {
+      if (!filterValue) return true;
+
+      // transforma string em número (aceita "10.50", "10,50", etc)
+      const input = Number(filterValue.replace(",", "."));
+      if (isNaN(input)) return true;
+
+      return item.valor.toString().includes(filterValue);
+    })
+    .filter((item) => {
+      if (!showOnlySelected) return true;
+
+      return selectedItems.some((s) => s.grupoId === item.grupoId);
+    })
+    .sort((a, b) => {
+      if (sortOrder === "default") return 0;
+
+      const valA = Number(a.valor);
+      const valB = Number(b.valor);
+
+      return sortOrder === "asc" ? valA - valB : valB - valA;
+    });
 
   useEffect(() => {
     if (selectedGroup) {
@@ -125,7 +155,13 @@ export default function DialogSearchConciCards({
       return [...prev, item];
     });
   }
-
+  const toggleSort = () => {
+    setSortOrder((prev) => {
+      if (prev === "default") return "desc";
+      if (prev === "desc") return "asc";
+      return "default";
+    });
+  };
   const totalTrier = selectedItems
     .filter((i) => i.origem === "TRIER")
     .reduce((acc, i) => acc.plus(new Decimal(i.valor)), new Decimal(0));
@@ -160,10 +196,19 @@ export default function DialogSearchConciCards({
           <div className="flex justify-center">
             <ToastContainer />
           </div>
-
+          <div className="flex justify-end px-16">
+            {/* 💰 Diferença */}
+            <span
+              className={`${
+                Number(diferenca) === 0 ? "text-green-600" : "text-red-600"
+              } text-3xl font-bold`}
+            >
+              R$ {diferenca.toFixed(2)}
+            </span>
+          </div>
           <div className="py-2 flex justify-between px-10">
             {/* 📅 Calendário */}
-            <div className="w-1/2">
+            <div className="flex gap-2">
               <Popover open={open} onOpenChange={setOpen}>
                 <PopoverTrigger asChild>
                   <Button
@@ -189,23 +234,42 @@ export default function DialogSearchConciCards({
                   />
                 </PopoverContent>
               </Popover>
-            </div>
 
-            {/* 💰 Diferença */}
-            <span
-              className={`${
-                Number(diferenca) === 0 ? "text-green-600" : "text-red-600"
-              } text-3xl font-bold`}
-            >
-              R$ {diferenca.toFixed(2)}
-            </span>
+              {/* 🔎 Filtro */}
+              <Input
+                placeholder="Filtrar por valor (ex: 10.00)"
+                value={filterValue}
+                onChange={(e) => setFilterValue(e.target.value)}
+                className="w-60"
+              />
+
+              {/* 🔃 Ordenação */}
+              <Button
+                variant="outline"
+                onClick={toggleSort}
+                className="bg-blue-400"
+              >
+                {sortOrder === "default" && "Padrão (Hora)"}
+                {sortOrder === "desc" && "Maior → Menor"}
+                {sortOrder === "asc" && "Menor → Maior"}
+              </Button>
+
+              <Button
+                variant={showOnlySelected ? "default" : "outline"}
+                onClick={() => setShowOnlySelected((prev) => !prev)}
+              >
+                {showOnlySelected
+                  ? "Mostrando Selecionados"
+                  : "Ver Selecionados"}
+              </Button>
+            </div>
           </div>
         </DialogHeader>
 
         {selectedGroup && (
           <div className="relative h-[50vh] overflow-y-auto">
             <ConciliacaoTable
-              data={salesDivergentes}
+              data={filteredAndSortedData}
               onRowClick={toggleItem}
               isSelected={(i) =>
                 selectedItems.some((s) => s.grupoId === i.grupoId)
