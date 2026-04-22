@@ -20,6 +20,10 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { ChevronDownIcon } from "lucide-react";
+import {
+  conciliarGrupos,
+  getGruposPendentes,
+} from "@/app/api/cartao/conciCards";
 
 export default function DialogSearchConciCards({
   selectedGroup,
@@ -53,20 +57,12 @@ export default function DialogSearchConciCards({
   );
   const [showOnlySelected, setShowOnlySelected] = useState(false);
 
-  const getGruposPendentes = async (date?: Date) => {
+  const getPendentes = async (date?: Date) => {
     const formattedDate = date ? date.toISOString().split("T")[0] : dateInitial;
 
-    const res = await fetch(
-      `http://${process.env.NEXT_PUBLIC_API_URL}/conciliacao/divergentes?date=${formattedDate}`,
-      {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      },
-    );
+    const data: ConciliacaoDivergenteItem[] =
+      await getGruposPendentes(formattedDate);
 
-    const data: ConciliacaoDivergenteItem[] = await res.json();
     setSalesDivergentes(data);
   };
 
@@ -96,7 +92,7 @@ export default function DialogSearchConciCards({
 
   useEffect(() => {
     if (selectedGroup) {
-      getGruposPendentes(dateSelected);
+      getPendentes(dateSelected);
     }
   }, [selectedGroup]);
 
@@ -117,31 +113,15 @@ export default function DialogSearchConciCards({
     conciliacaoId: number,
     motivo: string,
   ) => {
-    const dataBody = {
-      groupIds,
-      conciliacaoId,
-      motivo: motivo.trim() === "" ? null : motivo,
-    };
-
-    const res = await fetch(
-      `http://${process.env.NEXT_PUBLIC_API_URL}/conciliacao/conciliar`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(dataBody),
-      },
-    );
+    const res = await conciliarGrupos(groupIds, conciliacaoId, motivo);
 
     if (!res.ok) {
-      const error = await res.json();
+      const error = await res.data;
       toast.error(error.message || "Erro ao conciliar");
       return false;
     }
 
-    await res.json();
+    await res.data;
     return true;
   };
 
@@ -231,7 +211,7 @@ export default function DialogSearchConciCards({
                     selected={dateSelected}
                     onSelect={(date) => {
                       setDateSelected(date);
-                      getGruposPendentes(date); // 🔥 chama direto
+                      getPendentes(date); // 🔥 chama direto
                       setOpen(false);
                     }}
                   />
