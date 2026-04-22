@@ -29,7 +29,7 @@ export default function DialogGrupoConciliado({
   const [loading, setLoading] = useState(false);
   const getGrupoConciliado = async (grupoId: number) => {
     const res = await fetch(
-      `http://localhost:4000/conciliacao/conciliados?grupoId=${grupoId}`,
+      `http://${process.env.NEXT_PUBLIC_API_URL}/conciliacao/conciliados?grupoId=${grupoId}`,
       {
         method: "GET",
         headers: {
@@ -48,14 +48,17 @@ export default function DialogGrupoConciliado({
   const diferenca = Number(salesConciliados[0]?.diferencaGrupo ?? 0);
 
   const desconciliar = async (grupoId: number) => {
-    const res = await fetch("http://localhost:4000/conciliacao/desconciliar", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
+    const res = await fetch(
+      `http://${process.env.NEXT_PUBLIC_API_URL}/conciliacao/desconciliar`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ grupoId }),
       },
-      body: JSON.stringify({ grupoId }),
-    });
+    );
     if (!res.ok) {
       const error = await res.json();
 

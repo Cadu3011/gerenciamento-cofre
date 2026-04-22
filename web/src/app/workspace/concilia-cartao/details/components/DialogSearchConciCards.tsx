@@ -57,7 +57,7 @@ export default function DialogSearchConciCards({
     const formattedDate = date ? date.toISOString().split("T")[0] : dateInitial;
 
     const res = await fetch(
-      `http://localhost:4000/conciliacao/divergentes?date=${formattedDate}`,
+      `http://${process.env.NEXT_PUBLIC_API_URL}/conciliacao/divergentes?date=${formattedDate}`,
       {
         method: "GET",
         headers: {
@@ -123,14 +123,17 @@ export default function DialogSearchConciCards({
       motivo: motivo.trim() === "" ? null : motivo,
     };
 
-    const res = await fetch(`http://localhost:4000/conciliacao/conciliar`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
+    const res = await fetch(
+      `http://${process.env.NEXT_PUBLIC_API_URL}/conciliacao/conciliar`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(dataBody),
       },
-      body: JSON.stringify(dataBody),
-    });
+    );
 
     if (!res.ok) {
       const error = await res.json();
