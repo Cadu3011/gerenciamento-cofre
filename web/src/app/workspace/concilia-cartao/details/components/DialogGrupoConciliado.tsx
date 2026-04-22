@@ -11,6 +11,10 @@ import { Dispatch, SetStateAction, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { toast, ToastContainer } from "react-toastify";
 import { ConciliacaoTable } from "./ConciliacaoTable/ConciliacaoTable";
+import {
+  desconciliarGrupo,
+  getGrupoConciliado,
+} from "@/app/api/cartao/conciCards";
 
 export default function DialogGrupoConciliado({
   selectedGroup,
@@ -27,46 +31,30 @@ export default function DialogGrupoConciliado({
     [],
   );
   const [loading, setLoading] = useState(false);
-  const getGrupoConciliado = async (grupoId: number) => {
-    const res = await fetch(
-      `http://${process.env.NEXT_PUBLIC_API_URL}/conciliacao/conciliados?grupoId=${grupoId}`,
-      {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      },
-    );
-    const data: ItensConciliados[] = await res.json();
+
+  const getConciliados = async (grupoId: number) => {
+    const data: ItensConciliados[] = await getGrupoConciliado(grupoId);
     setSalesConciliados(data);
   };
+
   useEffect(() => {
     if (selectedGroup) {
-      getGrupoConciliado(selectedGroup);
+      getConciliados(selectedGroup);
     }
   }, [selectedGroup]);
   const diferenca = Number(salesConciliados[0]?.diferencaGrupo ?? 0);
 
   const desconciliar = async (grupoId: number) => {
-    const res = await fetch(
-      `http://${process.env.NEXT_PUBLIC_API_URL}/conciliacao/desconciliar`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ grupoId }),
-      },
-    );
+    const res = await desconciliarGrupo(grupoId);
+
     if (!res.ok) {
-      const error = await res.json();
+      const error = await res.data;
 
       toast.error(error.message || "Erro ao conciliar");
       return false; // 👈 importante
     }
 
-    await res.json();
+    await res.data;
 
     return true;
   };
