@@ -707,16 +707,23 @@ export class ConciliacaoService {
     const divergencias = await this.prisma.$queryRaw<
       { dia: string; total: number }[]
     >`
-  SELECT 
-    DATE(ci.dataReferencia) as dia,
-    SUM(cg.valorFinal) as total
-  FROM conciliacaoGrupo cg
-  JOIN conciliacaoItem ci ON ci.grupoId = cg.id
-  JOIN conciliacao c ON c.id = cg.conciliacaoId
-  WHERE c.filialId = ${filialId}
-    AND cg.status <> 'CONCILIADO'
-    AND ci.dataReferencia BETWEEN ${start} AND ${end}
-  GROUP BY dia
+      SELECT 
+      dia,
+      SUM(valorFinal) as total
+    FROM (
+      SELECT 
+        cg.id,
+        DATE(ci.dataReferencia) as dia,
+        cg.valorFinal
+      FROM conciliacaoGrupo cg
+      JOIN conciliacaoItem ci ON ci.grupoId = cg.id
+      JOIN conciliacao c ON c.id = cg.conciliacaoId
+      WHERE c.filialId = ${filialId}
+        AND cg.status <> 'CONCILIADO'
+        AND ci.dataReferencia BETWEEN ${start} AND ${end}
+      GROUP BY cg.id, dia, cg.valorFinal
+    ) t
+    GROUP BY dia;
 `;
 
     const resultado: Record<string, any> = {};
