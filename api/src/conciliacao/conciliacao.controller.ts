@@ -42,6 +42,7 @@ export class ConciliacaoController {
     @Query('filialId') filialId?: string,
   ) {
     const user = req['sub'] as any;
+    console.log(filialId);
     if (user.roles === 'OPERADOR') {
       filialId = user.filialId;
       const sales = await this.conciliacaoService.findByDate(+filialId, date);
@@ -57,7 +58,7 @@ export class ConciliacaoController {
       +filialId,
       date,
     );
-    return { totalDif, sales };
+    return { totalDif, trier: sales.trier, outros: sales.outros };
   }
 
   @UseGuards(AuthGuard)
@@ -74,10 +75,12 @@ export class ConciliacaoController {
       from,
       to,
     };
+
     if (user.roles === 'OPERADOR') {
       filialId = user.filialId;
       return await this.conciliacaoService.totaisDias(+filialId, dateRange);
     }
+
     return await this.conciliacaoService.totaisDias(+filialId, dateRange);
   }
 
