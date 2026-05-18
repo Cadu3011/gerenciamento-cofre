@@ -207,4 +207,53 @@ export class TrierCardCron {
 
     return { lastUpdatedByFilial: resultsLastDates };
   }
+
+  async executeByFilialAndDate(params: {
+    filialId: number;
+    date: string; // formato YYYY-MM-DD
+  }) {
+    const { filialId, date } = params;
+
+    // 1) Buscar filial
+    const filial = await this.filialService.findOne(filialId);
+
+    if (!filial) {
+      throw new Error(`Filial ${filialId} não encontrada`);
+    }
+
+    // 2) Autenticar (com retry opcional)
+    let tokenData: AuthOk | null = null;
+
+    try {
+      tokenData = await this.authOnce(filial);
+    } catch (err) {
+      console.log(`[AUTH FAIL] Tentando retry...`);
+
+      const retry = await this.authWithRetriesAfter([filial], {
+        maxAttempts: 3,
+        baseDelayMs: 800,
+      });
+
+      if (!retry.ok.length) {
+        throw new Error(`Falha na autenticação da filial ${filialId}`);
+      }
+
+      tokenData = retry.ok[0];
+    }
+
+    // 3) Executar ETL
+    console.log(`ETL manual filial ${filialId} - dia ${date}`);
+
+    await this.pipeline.execute({
+      date,
+      tokenLocalTrier: tokenData.token,
+      urlLocalTrier: tokenData.url,
+    });
+
+    return {
+      success: true,
+      filial: filialId,
+      date,
+    };
+  }
 }

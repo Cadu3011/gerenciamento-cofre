@@ -108,18 +108,20 @@ export class TrierCardTransform implements TrierTransformStrategy {
      */
     const listaVendas = [];
     for (const [documentoFiscal, regs] of grupos.entries()) {
-      let parceladoContado = false;
-      let total = new Decimal(0);
+      const transacoesUnicas = new Map<string, Decimal>();
 
       for (const t of regs) {
-        if (t.prazoVenda === 'PARCELADO') {
-          if (!parceladoContado) {
-            total = total.plus(new Decimal(t.valorTotal));
-            parceladoContado = true;
-          }
-        } else {
-          total = total.plus(new Decimal(t.valorTotal));
+        // chave que representa um pagamento real
+        const key = `${t.nsuOrigem}-${t.codigoCartao}`;
+
+        if (!transacoesUnicas.has(key)) {
+          transacoesUnicas.set(key, new Decimal(t.valorTotal));
         }
+      }
+
+      let total = new Decimal(0);
+      for (const valor of transacoesUnicas.values()) {
+        total = total.plus(valor);
       }
 
       const primeira = regs[0];

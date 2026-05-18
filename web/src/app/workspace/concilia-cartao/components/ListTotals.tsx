@@ -25,7 +25,6 @@ export default function ListTotals({ totalsCardsDay, error }: Props) {
     const redeFormat = new Decimal(rede ?? 0);
     const cieloFormat = new Decimal(cielo ?? 0);
     const difTotal = trierFormat.minus(redeFormat.plus(cieloFormat));
-    console.log(difTotal);
     return formatNum(difTotal.toString());
   }
 
