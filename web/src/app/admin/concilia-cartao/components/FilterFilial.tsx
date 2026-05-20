@@ -32,7 +32,7 @@ export default function FilterFilial({ filiais }: { filiais: Filial[] }) {
     <div>
       <p className="text-white font-bold text-xl">Filtrar Filiais</p>
       <Select value={filialId} onValueChange={handleChange}>
-        <SelectTrigger className="w-56 bg-zinc-900 border border-none">
+        <SelectTrigger className="w-56 bg-zinc-900 border border-none text-white">
           <SelectValue
             placeholder={
               filialId

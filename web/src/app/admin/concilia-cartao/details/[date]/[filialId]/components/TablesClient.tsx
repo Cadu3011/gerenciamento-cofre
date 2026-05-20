@@ -166,6 +166,7 @@ export default function TablesClient({
             setSelectedGroup={setSelectedGroup}
             token={token}
             onConciliated={reloadData}
+            filialId={filialId}
           />
         ) : (
           <DialogSearchConciCards
@@ -174,6 +175,7 @@ export default function TablesClient({
             token={token}
             dateInitial={date}
             onConciliated={reloadData}
+            filialId={filialId}
           />
         ))}
     </div>

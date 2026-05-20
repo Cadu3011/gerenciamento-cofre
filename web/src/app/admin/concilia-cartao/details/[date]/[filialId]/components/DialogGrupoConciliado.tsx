@@ -21,10 +21,12 @@ export default function DialogGrupoConciliado({
   setSelectedGroup,
   token,
   onConciliated,
+  filialId,
 }: {
   setSelectedGroup: Dispatch<SetStateAction<number | null>>;
   selectedGroup: number;
   token: string;
+  filialId: number;
   onConciliated: () => void;
 }) {
   const [salesConciliados, setSalesConciliados] = useState<ItensConciliados[]>(
@@ -33,7 +35,10 @@ export default function DialogGrupoConciliado({
   const [loading, setLoading] = useState(false);
 
   const getConciliados = async (grupoId: number) => {
-    const data: ItensConciliados[] = await getGrupoConciliado(grupoId);
+    const data: ItensConciliados[] = await getGrupoConciliado(
+      grupoId,
+      filialId,
+    );
     setSalesConciliados(data);
   };
 

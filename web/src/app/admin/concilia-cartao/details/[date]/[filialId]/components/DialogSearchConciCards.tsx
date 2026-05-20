@@ -31,12 +31,14 @@ export default function DialogSearchConciCards({
   token,
   onConciliated,
   dateInitial,
+  filialId
 }: {
   setSelectedGroup: Dispatch<SetStateAction<number | null>>;
   selectedGroup: number | null;
   token: string;
   onConciliated: () => void;
   dateInitial: string;
+  filialId:number
 }) {
   const [salesDivergentes, setSalesDivergentes] = useState<
     ConciliacaoDivergenteItem[]
@@ -61,7 +63,7 @@ export default function DialogSearchConciCards({
     const formattedDate = date ? date.toISOString().split("T")[0] : dateInitial;
 
     const data: ConciliacaoDivergenteItem[] =
-      await getGruposPendentes(formattedDate);
+      await getGruposPendentes(formattedDate,filialId);
 
     setSalesDivergentes(data);
   };

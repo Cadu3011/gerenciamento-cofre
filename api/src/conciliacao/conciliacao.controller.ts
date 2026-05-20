@@ -42,7 +42,6 @@ export class ConciliacaoController {
     @Query('filialId') filialId?: string,
   ) {
     const user = req['sub'] as any;
-    console.log(filialId);
     if (user.roles === 'OPERADOR') {
       filialId = user.filialId;
       const sales = await this.conciliacaoService.findByDate(+filialId, date);
@@ -111,6 +110,7 @@ export class ConciliacaoController {
     @Query('grupoId') grupoId: string,
     @Query('filialId') filialId?: string,
   ) {
+    console.log(filialId);
     const user = req['sub'] as any;
     if (user.roles === 'OPERADOR') {
       filialId = user.filialId;
