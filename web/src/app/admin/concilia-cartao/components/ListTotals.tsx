@@ -10,10 +10,11 @@ import Link from "next/link";
 
 export interface Props {
   totalsCardsDay: TotalsCardsDay[];
+  filialId: number;
   error?: string | null;
 }
 
-export default function ListTotals({ totalsCardsDay, error }: Props) {
+export default function ListTotals({ totalsCardsDay, filialId, error }: Props) {
   useEffect(() => {
     if (error) {
       toast.error(`Erro ao carregar dados: ${error}`);
@@ -71,7 +72,7 @@ export default function ListTotals({ totalsCardsDay, error }: Props) {
           </TableCell>
           <TableCell>
             <Link
-              href={`/workspace/concilia-cartao/details/${t.data}`}
+              href={`/admin/concilia-cartao/details/${t.data}/${filialId}`}
               className="text-2xl"
             >
               ...

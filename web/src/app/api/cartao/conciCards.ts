@@ -3,11 +3,11 @@
 import { ItensConciliados } from "@/app/types/conciCards";
 import { cookies } from "next/headers";
 
-export async function getGrupoConciliado(grupoId: number) {
+export async function getGrupoConciliado(grupoId: number, filialId?: number) {
   const tokenCookie = (await cookies()).get("access_token")?.value;
 
   const res = await fetch(
-    `http://localhost:4000/conciliacao/conciliados?grupoId=${grupoId}`,
+    `http://localhost:4000/conciliacao/conciliados?grupoId=${grupoId}&filialId=${filialId}`,
     {
       method: "GET",
       headers: {
@@ -33,10 +33,10 @@ export async function desconciliarGrupo(grupoId: number) {
   return { ok: res.ok, data: await res.json() };
 }
 
-export async function getGruposPendentes(date?: string) {
+export async function getGruposPendentes(date?: string, filialId?: number) {
   const tokenCookie = (await cookies()).get("access_token")?.value;
   const res = await fetch(
-    `http://localhost:4000/conciliacao/divergentes?date=${date}`,
+    `http://localhost:4000/conciliacao/divergentes?date=${date}&filialId=${filialId}`,
     {
       method: "GET",
       headers: {

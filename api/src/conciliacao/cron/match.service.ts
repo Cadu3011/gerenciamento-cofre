@@ -42,6 +42,7 @@ export class MatchService {
         },
         filialId: filialId,
         statusConciliacao: { not: 'CONCILIADO' },
+        status: { not: 'REVERSED' },
       },
     });
   }

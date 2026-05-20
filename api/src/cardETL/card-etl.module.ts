@@ -17,10 +17,12 @@ import { RedeCardTransform } from './transform/rede.cardTransform';
 import { RedeCardsExtractor } from './extract/rede.cardExtractor';
 import { JobsModule } from 'src/jobs/jobs.module';
 import { RedeCardCron } from './cron/rede.cron';
+import { CardETLController } from './card-etl.controller';
 
 // import { RedisService } from '../redis/redis.service'; futuramente
 
 @Module({
+  controllers: [CardETLController],
   providers: [
     TrierCardETLPipeline,
     TrierCardExtractor,

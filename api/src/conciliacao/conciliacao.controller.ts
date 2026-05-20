@@ -57,7 +57,7 @@ export class ConciliacaoController {
       +filialId,
       date,
     );
-    return { totalDif, sales };
+    return { totalDif, trier: sales.trier, outros: sales.outros };
   }
 
   @UseGuards(AuthGuard)
@@ -74,10 +74,12 @@ export class ConciliacaoController {
       from,
       to,
     };
+
     if (user.roles === 'OPERADOR') {
       filialId = user.filialId;
       return await this.conciliacaoService.totaisDias(+filialId, dateRange);
     }
+
     return await this.conciliacaoService.totaisDias(+filialId, dateRange);
   }
 
@@ -108,6 +110,7 @@ export class ConciliacaoController {
     @Query('grupoId') grupoId: string,
     @Query('filialId') filialId?: string,
   ) {
+    console.log(filialId);
     const user = req['sub'] as any;
     if (user.roles === 'OPERADOR') {
       filialId = user.filialId;
