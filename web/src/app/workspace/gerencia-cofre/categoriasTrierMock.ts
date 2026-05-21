@@ -13,4 +13,5 @@ export const categoriasDespesaTrier = [
   { id: 37, descricao: "Despesas com marketing" },
   { id: 49, descricao: "Retirada de lucro pelo proprietário" },
   { id: 8, descricao: "Comissões e premiações sobre vendas" },
+  { id: 38, descricao: "Outras despesas de funcionamento" },
 ];

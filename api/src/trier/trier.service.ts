@@ -446,7 +446,15 @@ export class TrierService {
     };
   }
 
-  async chartAnualDifs(filialId: number, operadorId?: number) {
+  async chartAnualDifs(
+    filialId?: number,
+    operadorId?: number,
+    granularidade:
+      | 'MENSAL'
+      | 'BIMESTRAL'
+      | 'TRIMESTRAL'
+      | 'SEMESTRAL' = 'MENSAL',
+  ) {
     const operadorFilter = operadorId
       ? Prisma.sql`AND dc.idOperador = ${operadorId}`
       : Prisma.empty;
@@ -455,55 +463,195 @@ export class TrierService {
       ? Prisma.sql`AND dc.filialId = ${filialId}`
       : Prisma.empty;
 
+    const mesesPorPeriodo = {
+      MENSAL: 1,
+      BIMESTRAL: 2,
+      TRIMESTRAL: 3,
+      SEMESTRAL: 6,
+    }[granularidade];
+
+    const totalMeses = granularidade === 'MENSAL' ? 12 : 36;
+
+    const quantidadePeriodos = Math.ceil(totalMeses / mesesPorPeriodo);
+
     const result = await this.prisma.$queryRaw<
-      { periodo: string; total_falta: number; total_sobra: number }[]
+      {
+        periodo: string;
+        total_falta: number;
+        total_sobra: number;
+        total_geral: number;
+      }[]
     >(Prisma.sql`
-   WITH RECURSIVE periodos AS (
+    WITH RECURSIVE periodos AS (
+      SELECT 
+        DATE_FORMAT(
+          CASE 
+            WHEN DAY(CURDATE()) >= 26 
+              THEN DATE_FORMAT(CURDATE(), '%Y-%m-26')
+            ELSE DATE_FORMAT(
+              DATE_SUB(CURDATE(), INTERVAL 1 MONTH),
+              '%Y-%m-26'
+            )
+          END,
+          '%Y-%m-%d'
+        ) AS inicio_periodo,
+        1 AS n
+
+      UNION ALL
+
+      SELECT 
+        DATE_SUB(
+          inicio_periodo,
+          INTERVAL ${mesesPorPeriodo} MONTH
+        ),
+        n + 1
+
+      FROM periodos
+      WHERE n < ${quantidadePeriodos}
+    )
+
     SELECT 
-      DATE_FORMAT(
-        CASE 
-          WHEN DAY(CURDATE()) >= 26 
-            THEN DATE_FORMAT(CURDATE(), '%Y-%m-26')
-          ELSE DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL 1 MONTH), '%Y-%m-26')
-        END,
-        '%Y-%m-%d'
-      ) AS inicio_periodo,
-      1 AS n
+      CONCAT(
+        DATE_FORMAT(p.inicio_periodo, '%Y-%m-%d'),
+        ' a ',
+        DATE_FORMAT(
+          DATE_SUB(
+            DATE_ADD(
+              p.inicio_periodo,
+              INTERVAL ${mesesPorPeriodo} MONTH
+            ),
+            INTERVAL 1 DAY
+          ),
+          '%Y-%m-%d'
+        )
+      ) AS periodo,
 
-    UNION ALL
+      COALESCE(SUM(dc.falta), 0) AS total_falta,
 
-    SELECT 
-      DATE_SUB(inicio_periodo, INTERVAL 1 MONTH),
-      n + 1
-    FROM periodos
-    WHERE n < 12
-  )
+      COALESCE(SUM(dc.sobra), 0) AS total_sobra,
 
-  SELECT 
-    CONCAT(
-      DATE_FORMAT(p.inicio_periodo, '%Y-%m-%d'),
-      ' a ',
-      DATE_FORMAT(DATE_SUB(DATE_ADD(p.inicio_periodo, INTERVAL 1 MONTH), INTERVAL 1 DAY), '%Y-%m-%d')
-    ) AS periodo,
+      COALESCE(SUM(dc.falta), 0) +
+      COALESCE(SUM(dc.sobra), 0) AS total_geral
 
-    COALESCE(SUM(dc.falta), 0) AS total_falta,
-    COALESCE(SUM(dc.sobra), 0) AS total_sobra
+    FROM periodos p
 
-  FROM periodos p
+    LEFT JOIN diferencacaixa dc
+      ON dc.data >= p.inicio_periodo
+      AND dc.data <
+        DATE_ADD(
+          p.inicio_periodo,
+          INTERVAL ${mesesPorPeriodo} MONTH
+        )
 
-  LEFT JOIN diferencacaixa dc
-    ON dc.data >= p.inicio_periodo
-    AND dc.data < DATE_ADD(p.inicio_periodo, INTERVAL 1 MONTH)
+      ${operadorFilter}
+      ${filialFilter}
 
-    ${operadorFilter}
-    ${filialFilter}
-
-  GROUP BY p.inicio_periodo
-  ORDER BY p.inicio_periodo ASC
-`);
+    GROUP BY p.inicio_periodo
+    ORDER BY p.inicio_periodo ASC
+  `);
 
     return result;
   }
+
+  // async chartAnualDifs(
+  //   filialId?: number,
+  //   operadorId?: number,
+  //   granularidade:
+  //     | 'MENSAL'
+  //     | 'BIMESTRAL'
+  //     | 'TRIMESTRAL'
+  //     | 'SEMESTRAL' = 'MENSAL',
+  // ) {
+  //   const operadorFilter = operadorId
+  //     ? Prisma.sql`AND dc.idOperador = ${operadorId}`
+  //     : Prisma.empty;
+
+  //   const filialFilter = filialId
+  //     ? Prisma.sql`AND dc.filialId = ${filialId}`
+  //     : Prisma.empty;
+
+  //   const mesesPorPeriodo = {
+  //     MENSAL: 1,
+  //     BIMESTRAL: 2,
+  //     TRIMESTRAL: 3,
+  //     SEMESTRAL: 6,
+  //   }[granularidade];
+
+  //   // mensal = últimos 12 meses
+  //   // demais = últimos 36 meses
+  //   const totalMeses = granularidade === 'MENSAL' ? 12 : 36;
+
+  //   const quantidadePeriodos = Math.ceil(totalMeses / mesesPorPeriodo);
+
+  //   const result = await this.prisma.$queryRaw<
+  //     { periodo: string; total_falta: number; total_sobra: number }[]
+  //   >(Prisma.sql`
+  //   WITH RECURSIVE periodos AS (
+  //     SELECT
+  //       DATE_FORMAT(
+  //         CASE
+  //           WHEN DAY(CURDATE()) >= 26
+  //             THEN DATE_FORMAT(CURDATE(), '%Y-%m-26')
+  //           ELSE DATE_FORMAT(
+  //             DATE_SUB(CURDATE(), INTERVAL 1 MONTH),
+  //             '%Y-%m-26'
+  //           )
+  //         END,
+  //         '%Y-%m-%d'
+  //       ) AS inicio_periodo,
+  //       1 AS n
+
+  //     UNION ALL
+
+  //     SELECT
+  //       DATE_SUB(
+  //         inicio_periodo,
+  //         INTERVAL ${mesesPorPeriodo} MONTH
+  //       ),
+  //       n + 1
+
+  //     FROM periodos
+  //     WHERE n < ${quantidadePeriodos}
+  //   )
+
+  //   SELECT
+  //     CONCAT(
+  //       DATE_FORMAT(p.inicio_periodo, '%Y-%m-%d'),
+  //       ' a ',
+  //       DATE_FORMAT(
+  //         DATE_SUB(
+  //           DATE_ADD(
+  //             p.inicio_periodo,
+  //             INTERVAL ${mesesPorPeriodo} MONTH
+  //           ),
+  //           INTERVAL 1 DAY
+  //         ),
+  //         '%Y-%m-%d'
+  //       )
+  //     ) AS periodo,
+
+  //     COALESCE(SUM(dc.falta), 0) AS total_falta,
+  //     COALESCE(SUM(dc.sobra), 0) AS total_sobra
+
+  //   FROM periodos p
+
+  //   LEFT JOIN diferencacaixa dc
+  //     ON dc.data >= p.inicio_periodo
+  //     AND dc.data <
+  //       DATE_ADD(
+  //         p.inicio_periodo,
+  //         INTERVAL ${mesesPorPeriodo} MONTH
+  //       )
+
+  //     ${operadorFilter}
+  //     ${filialFilter}
+
+  //   GROUP BY p.inicio_periodo
+  //   ORDER BY p.inicio_periodo ASC
+  // `);
+
+  //   return result;
+  // }
 
   async chartColunmsDifs(filialId: number, startDate: string, endDate: string) {
     const startDateFormat = new Date(startDate);

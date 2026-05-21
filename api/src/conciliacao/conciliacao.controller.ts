@@ -3,9 +3,6 @@ import {
   Get,
   Post,
   Body,
-  Patch,
-  Param,
-  Delete,
   Inject,
   UseGuards,
   Query,
@@ -13,7 +10,6 @@ import {
 } from '@nestjs/common';
 import { ConciliacaoService } from './conciliacao.service';
 import { CreateConciliacaoDto } from './dto/create-conciliacao.dto';
-import { UpdateConciliacaoDto } from './dto/update-conciliacao.dto';
 import { Pipeline } from './cron/pipeline';
 import { AuthGuard } from 'src/auth/auth.guard';
 import { Role } from '@prisma/client';

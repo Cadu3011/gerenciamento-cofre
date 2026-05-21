@@ -4,8 +4,8 @@ import ChartLineDifs from "./_components/ChartLineDifs";
 import ChartColumnsDifs from "./_components/ChartColunmsDifs";
 import SidebarFilter from "./_components/SideBarFilter";
 import TableDifs from "./_components/TableDifs";
-import { fi } from "date-fns/locale";
 import { formatDate } from "./utils";
+import FilterPeriodo from "./_components/FilterPeriodo";
 
 type Props = {
   searchParams: {
@@ -13,31 +13,32 @@ type Props = {
     endDate?: string;
     filialId?: string;
     operadorId?: string;
+    periodo?: string;
   };
 };
 
-
 export default async function Dashboard({ searchParams }: Props) {
   function getDefaultStartDate() {
-  const date = new Date();
-  date.setDate(26);
-  date.setMonth(date.getMonth() - 1);
-  return date.toISOString().split("T")[0]; // yyyy-mm-dd
-}
+    const date = new Date();
+    date.setDate(26);
+    date.setMonth(date.getMonth() - 1);
+    return date.toISOString().split("T")[0]; // yyyy-mm-dd
+  }
 
-function getDefaultEndDate() {
-  const date = new Date();
-  date.setDate(25);
-  date.setMonth(date.getMonth());
-  return date.toISOString().split("T")[0];
-}
-const filiais = await getFiliais();
+  function getDefaultEndDate() {
+    const date = new Date();
+    date.setDate(25);
+    date.setMonth(date.getMonth());
+    return date.toISOString().split("T")[0];
+  }
+  const filiais = await getFiliais();
 
   const {
     startDate = getDefaultStartDate(),
     endDate = getDefaultEndDate(),
     filialId = "1",
     operadorId = "",
+    periodo,
   } = await searchParams;
 
   const query = new URLSearchParams({
@@ -45,6 +46,7 @@ const filiais = await getFiliais();
     endDate,
     filialId,
     ...(operadorId && { operadorId }),
+    ...(periodo && { periodo }),
   }).toString();
 
   const data = await getCardsCaixas(query);
@@ -92,7 +94,6 @@ const filiais = await getFiliais();
               </div>
             </div>
             <div className="w-full px-5 pt-2 h-[30vh]">
-              <p>TOTAIS FALTAS E SOBRAS ANUAL</p>
               <ChartLineDifs data={data.chartAnualDifs} />
             </div>
           </div>

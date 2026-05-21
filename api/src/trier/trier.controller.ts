@@ -167,6 +167,8 @@ export class TrierController {
     @Query('startDate') startDate: string,
     @Query('endDate') endDate: string,
     @Query('operadorId') operadorId?: number,
+    @Query('periodo')
+    periodo: 'MENSAL' | 'BIMESTRAL' | 'TRIMESTRAL' | 'SEMESTRAL' = 'MENSAL',
   ) {
     const user = req['sub'];
     if (user.roles.includes('OPERADOR')) {
@@ -182,6 +184,7 @@ export class TrierController {
     const chartAnualDifs = await this.trierService.chartAnualDifs(
       +filialId,
       +operadorId,
+      periodo,
     );
     const chartColunmsDifs = await this.trierService.chartColunmsDifs(
       +filialId,
