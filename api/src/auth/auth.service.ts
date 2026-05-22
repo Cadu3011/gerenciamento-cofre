@@ -39,13 +39,15 @@ export class AuthService {
         where: { id: user.filialId },
       });
 
-      this.tokenTrier = await authTrier(
-        {
-          login: String(params.login),
-          password: params.password,
-        },
-        filial.urlLocalTrier,
-      );
+      this.tokenTrier = (
+        await authTrier(
+          {
+            login: String(params.login),
+            password: params.password,
+          },
+          filial.urlLocalTrier,
+        )
+      ).token;
       const payload = {
         sub: user.id,
         roles: user.role,

@@ -115,10 +115,12 @@ export class MovementService {
 
     dateInit.setUTCDate(dateInit.getUTCDate() - diasReprocessar);
 
-    const token = await authTrier({
-      login: '95',
-      password: 'cadu3011',
-    });
+    const token = (
+      await authTrier({
+        login: '95',
+        password: 'cadu3011',
+      })
+    ).token;
 
     for (
       let current = new Date(dateInit);
@@ -283,10 +285,12 @@ export class MovementService {
   }
 
   private async processMovementCreated(movement: any) {
-    const token = await authTrier({
-      login: '95',
-      password: 'cadu3011',
-    });
+    const token = (
+      await authTrier({
+        login: '95',
+        password: 'cadu3011',
+      })
+    ).token;
     for (const move of movement) {
       this.logger.log(`Processando movimentação ${move.id}`);
       if (move.type === 'DESPESA') {
@@ -348,10 +352,12 @@ export class MovementService {
   }
 
   private async processMovementDeleted(movement: any) {
-    const tokenTrier = await authTrier({
-      login: '95',
-      password: 'cadu3011',
-    });
+    const tokenTrier = (
+      await authTrier({
+        login: '95',
+        password: 'cadu3011',
+      })
+    ).token;
     for (const mov of movement) {
       this.logger.log(`Processando movimentação ${mov.id}`);
       const deletedMoveTrier = await this.moveTrier.deleteMoves(

@@ -8,10 +8,11 @@ import {
 } from "@/components/ui/table";
 import { useEffect, useRef, useState } from "react";
 import { DateRange } from "react-day-picker";
-import { getCaixasAdmin, patchCaixa } from "@/app/api/post";
+import { getCaixasAdmin, openRelatorio, patchCaixa } from "@/app/api/post";
 import { Input } from "@/components/ui/input";
 import { formatDate } from "../../dashboard/utils/index";
 import { toast, ToastContainer } from "react-toastify";
+import { ClipboardMinus } from "lucide-react";
 
 export interface Caixa {
   id: number;
@@ -23,6 +24,7 @@ export interface Caixa {
   falta: string;
   obsConf: string;
   obsFinal: string;
+  filialId: number;
 }
 export default function ListCaixas({
   dateRange,
@@ -97,6 +99,21 @@ export default function ListCaixas({
       showToast();
     }
   }
+  async function handleGerarRelCx(data: { filial: number; caixa: number }) {
+    try {
+      const pdfUrl = await openRelatorio(data);
+      window.open(
+        pdfUrl,
+        "_blank",
+        "toolbar=no,location=no,status=no,menubar=no,scrollbars=yes,resizable=yes,width=900,height=700",
+      );
+    } catch (err) {
+      const showToast = () => {
+        toast.error((err as Error).message);
+      };
+      showToast();
+    }
+  }
 
   return (
     <>
@@ -110,7 +127,19 @@ export default function ListCaixas({
                 : "bg-gray-300 hover:bg-zinc-400 "
             }
           >
-            <TableCell className="">{c.caixa}</TableCell>
+            <TableCell
+              className="cursor-pointer hover:underline "
+              onClick={() =>
+                handleGerarRelCx({
+                  filial: c.filialId,
+                  caixa: Number(c.caixa),
+                })
+              }
+            >
+              <div className="flex items-center gap-2">
+                <ClipboardMinus size={20} /> {c.caixa}
+              </div>
+            </TableCell>
             <TableCell className="">
               {formatDate(c.data.split("T")[0])}
             </TableCell>

@@ -26,11 +26,13 @@ export class TrierCardCron {
     id: number;
     urlLocalTrier: string;
   }): Promise<AuthOk> {
-    const token = await authTrier(
-      { login: '95', password: 'cadu3011' },
-      filial.urlLocalTrier,
-      filial.id,
-    );
+    const token = (
+      await authTrier(
+        { login: '95', password: 'cadu3011' },
+        filial.urlLocalTrier,
+        filial.id,
+      )
+    ).token;
 
     return { filial: filial.id, url: filial.urlLocalTrier, token };
   }

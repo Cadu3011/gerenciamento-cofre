@@ -132,12 +132,20 @@ export class TrierController {
     });
 
     return {
-      tokenLocalTrier: await authTrier(
-        credentials,
-        filial.urlLocalTrier,
-        filial.id,
-      ),
+      tokenLocalTrier: (
+        await authTrier(credentials, filial.urlLocalTrier, filial.id)
+      ).token,
     };
+  }
+
+  @UseGuards(AuthGuard)
+  @Roles(Role.OPERADOR, Role.GESTOR)
+  @Post('/caixas/rel')
+  async getCaixasTrier(@Body() data: { filial: number; numCaixa: number }) {
+    return await this.trierService.gerarRelatorioCaixaTrier(
+      data.filial,
+      data.numCaixa,
+    );
   }
 
   @UseGuards(AuthGuard)

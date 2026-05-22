@@ -1,7 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
-import { prev } from 'cheerio/dist/commonjs/api/traversing';
 import { authTrier } from 'src/auth/authTrier/loginTrier';
 import { PrismaService } from 'src/database/prisma.service';
 import { UpdateTrierCaixaDTO } from './dto/use-trier-caixa.dto';
@@ -239,11 +238,13 @@ export class TrierService {
     const filial = await this.prisma.filial.findUnique({
       where: { id: filialId },
     });
-    const token = await authTrier(
-      { login: '95', password: 'cadu3011' },
-      filial.urlLocalTrier,
-      filialId,
-    );
+    const token = (
+      await authTrier(
+        { login: '95', password: 'cadu3011' },
+        filial.urlLocalTrier,
+        filialId,
+      )
+    ).token;
     const docSales = await this.prisma.salesDin.findMany({
       where: { numCaixa: caixa, filialId, tipo: 'REC_VENDA' },
     });
@@ -309,6 +310,242 @@ export class TrierService {
     );
     const seller = (await resSeller.json())[0];
     return { operador: seller.nome, idOperador: seller.codigo };
+  }
+
+  async gerarRelatorioCaixaTrier(filialId: number, numeroCaixa: number) {
+    const getDataAbert = await this.prisma.diferencaCaixa.findFirst({
+      where: {
+        caixa: String(numeroCaixa),
+        filialId,
+      },
+    });
+
+    if (!getDataAbert) {
+      throw new Error('Caixa não encontrado');
+    }
+
+    const { client, baseURL } = await authTrier({
+      login: '95',
+      password: 'cadu3011',
+    });
+
+    // 1️⃣ abre tela do relatório
+    const cacheId = Date.now();
+
+    const relatorioPage = await client.get(
+      `${baseURL}/Rel_0031.pod?cacheId=${cacheId}`,
+    );
+
+    const relatorioHtml = relatorioPage.data;
+
+    const relatorioController = relatorioHtml.match(
+      /controllerSerial\s*=\s*'([^']+)'/,
+    )?.[1];
+
+    if (!relatorioController) {
+      throw new Error('Controller do relatório não encontrado');
+    }
+
+    // 2️⃣ httpStart
+    const startActionId = `${Date.now()}_1`;
+
+    const reportAttributes = `
+id_cod_rede=ty-hidden!id-id_cod_rede!ds-0!ro-0!fi-0!&
+sel_periodo=ty-radio!id-sel_periodo_0!ds-0!ro-0!fi-0!&
+sel_periodo=ty-radio!id-sel_periodo_1!ds-0!ro-0!fi-0!&
+cod_grfilialEntrada=ty-text!id-cod_grfilialEntrada!ds-0!ro-0!fi-0!&
+cod_grfilial=ty-hidden!id-cod_grfilial!ds-0!ro-0!fi-0!&
+cadgrfil_grfilial_nom_grfilial=ty-text!id-cadgrfil_grfilial_nom_grfilial!ds-1!ro-0!fi-0!&
+id_cod_filialEntrada=ty-text!id-id_cod_filialEntrada!ds-0!ro-0!fi-0!&
+id_cod_filial=ty-hidden!id-id_cod_filial!ds-0!ro-0!fi-0!&
+cadfilia_filial_nom_filial=ty-text!id-cadfilia_filial_nom_filial!ds-1!ro-0!fi-0!&
+agrup_fil=ty-radio!id-agrup_fil_0!ds-1!ro-0!fi-0!&
+agrup_fil=ty-radio!id-agrup_fil_1!ds-1!ro-0!fi-0!&
+agrup_fil=ty-radio!id-agrup_fil_2!ds-1!ro-0!fi-0!&
+agrup_fil=ty-radio!id-agrup_fil_3!ds-1!ro-0!fi-0!&
+num_caixaEntrada=ty-text!id-num_caixaEntrada!ds-0!ro-0!fi-0!&
+num_caixa=ty-hidden!id-num_caixa!ds-0!ro-0!fi-0!&
+cod_operadorInf=ty-text!id-cod_operadorInf!ds-1!ro-0!fi-0!&
+cadusuar_operador_nom_usuario=ty-text!id-cadusuar_operador_nom_usuario!ds-1!ro-0!fi-0!&
+dat_abertura=ty-text!id-dat_abertura!ds-1!ro-0!fi-0!&
+hor_abertura=ty-text!id-hor_abertura!ds-1!ro-0!fi-0!&
+dat_fechamento=ty-text!id-dat_fechamento!ds-1!ro-0!fi-0!&
+hor_fechamento=ty-text!id-hor_fechamento!ds-1!ro-0!fi-0!&
+cod_operadorEntrada=ty-text!id-cod_operadorEntrada!ds-1!ro-0!fi-0!&
+cod_operador=ty-hidden!id-cod_operador!ds-0!ro-0!fi-0!&
+nom_operador=ty-text!id-nom_operador!ds-1!ro-0!fi-0!&
+dat_inicio=ty-text!id-dat_inicio!ds-1!ro-0!fi-0!&
+hor_inicio=ty-text!id-hor_inicio!ds-1!ro-0!fi-0!&
+dat_fim=ty-text!id-dat_fim!ds-1!ro-0!fi-0!&
+hor_fim=ty-text!id-hor_fim!ds-1!ro-0!fi-0!&
+chk_grafico=ty-checkbox!id-chk_grafico!ds-0!ro-0!fi-0!&
+chk_resumo_contas_recebidas=ty-checkbox!id-chk_resumo_contas_recebidas!ds-0!ro-0!fi-0!&
+chk_venda_ecf=ty-checkbox!id-chk_venda_ecf!ds-0!ro-0!fi-0!&
+chk_det_movto=ty-checkbox!id-chk_det_movto!ds-0!ro-0!fi-0!&
+chk_det_vendasConv=ty-checkbox!id-chk_det_vendasConv!ds-0!ro-0!fi-0!&
+chk_det_vendasVend=ty-checkbox!id-chk_det_vendasVend!ds-0!ro-0!fi-0!&
+chk_det_vendasCartao=ty-checkbox!id-chk_det_vendasCartao!ds-0!ro-0!fi-0!&
+chk_det_vendasGrupoProd=ty-checkbox!id-chk_det_vendasGrupoProd!ds-0!ro-0!fi-0!&
+chk_det_vendasCheq=ty-checkbox!id-chk_det_vendasCheq!ds-0!ro-0!fi-0!&
+chk_reem_parc=ty-checkbox!id-chk_reem_parc!ds-0!ro-0!fi-0!&
+chk_det_vendasTele=ty-checkbox!id-chk_det_vendasTele!ds-0!ro-0!fi-0!&
+chk_filtro_datLanc=ty-checkbox!id-chk_filtro_datLanc!ds-1!ro-0!fi-0!&
+chk_descto_valorFrete=ty-checkbox!id-chk_descto_valorFrete!ds-0!ro-0!fi-0!&
+chk_recebimentos_convcard=ty-checkbox!id-chk_recebimentos_convcard!ds-0!ro-0!fi-0!&
+saida=ty-radio!id-saida1!ds-0!ro-0!fi-0!&
+saida=ty-radio!id-saida2!ds-0!ro-0!fi-0!&
+saida=ty-radio!id-saida3!ds-0!ro-0!fi-0!&
+saida=ty-radio!id-saida4!ds-0!ro-0!fi-0!&
+saida=ty-radio!id-saida5!ds-0!ro-0!fi-0!&
+runReport=ty-button!id-runReport!ds-0!ro-0!fi-0!&
+limpar=ty-button!id-limpar!ds-0!ro-0!fi-0!&
+btnConfirmarCaixa=ty-button!id-btnConfirmarCaixa!ds-0!ro-0!fi-0!
+`.replace(/\s+/g, '');
+
+    const bodyHttpStart =
+      `actionId=${startActionId}` +
+      `&controller=${relatorioController}` +
+      `&action=httpStart` +
+      `&attributes=${encodeURIComponent(reportAttributes)}`;
+
+    await client.post(
+      `${baseURL}/PodiumAction?actionId=${startActionId}`,
+      bodyHttpStart,
+      {
+        headers: {
+          'User-Agent': 'Mozilla/5.0',
+          Origin: 'http://192.168.1.253:4647',
+          Referer: `${baseURL}/Rel_0031.pod`,
+          'X-Requested-With': 'XMLHttpRequest',
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+      },
+    );
+
+    // 3️⃣ consulta automática do caixa
+    const consultaActionId = `${Date.now()}_4`;
+
+    const consultaBody =
+      `actionId=${consultaActionId}` +
+      `&controller=${relatorioController}` +
+      `&query=conRel_0031Num_caixa` +
+      `&field=num_caixa` +
+      `&num_caixa=${numeroCaixa}` +
+      `&id_cod_rede=1` +
+      `&sel_periodo=0` +
+      `&id_cod_filialEntrada=${filialId}` +
+      `&id_cod_filial=${filialId}` +
+      `&num_caixaEntrada=${numeroCaixa}` +
+      `&saida=1`;
+
+    const consultaResponse = await client.post(
+      `${baseURL}/ConsultaWebJS?actionId=${consultaActionId}`,
+      consultaBody,
+      {
+        headers: {
+          'User-Agent': 'Mozilla/5.0',
+          Origin: 'http://192.168.1.253:4647',
+          Referer: `${baseURL}/Rel_0031.pod`,
+          'X-Requested-With': 'XMLHttpRequest',
+          'Content-Type': 'application/x-www-form-urlencoded',
+          Accept: '*/*',
+        },
+      },
+    );
+
+    const consultaJs = consultaResponse.data;
+
+    function extractValue(js: string, field: string) {
+      const regex = new RegExp(
+        `doSetElementValue\\('${field}',\\s*'([^']*)'\\)`,
+      );
+
+      return js.match(regex)?.[1] ?? '';
+    }
+
+    const dat_abertura = extractValue(consultaJs, 'dat_abertura');
+
+    const hor_abertura = extractValue(consultaJs, 'hor_abertura');
+
+    const dat_fechamento = extractValue(consultaJs, 'dat_fechamento');
+
+    const hor_fechamento = extractValue(consultaJs, 'hor_fechamento');
+
+    const cod_operador = extractValue(consultaJs, 'cod_operador');
+
+    const nom_operador = extractValue(
+      consultaJs,
+      'cadusuar_operador_nom_usuario',
+    );
+
+    // 4️⃣ executa relatório
+    const actionId = `${Date.now()}_105`;
+
+    const body =
+      `actionId=${actionId}` +
+      `&controller=${relatorioController}` +
+      `&action=validaUsuario` +
+      `&id_cod_rede=1` +
+      `&sel_periodo=0` +
+      `&id_cod_filialEntrada=${filialId}` +
+      `&id_cod_filial=${filialId}` +
+      `&num_caixaEntrada=${numeroCaixa}` +
+      `&num_caixa=${numeroCaixa}` +
+      `&dat_abertura=${encodeURIComponent(dat_abertura)}` +
+      `&hor_abertura=${encodeURIComponent(hor_abertura)}` +
+      `&dat_fechamento=${encodeURIComponent(dat_fechamento)}` +
+      `&hor_fechamento=${encodeURIComponent(hor_fechamento)}` +
+      `&cod_operador=${cod_operador}` +
+      `&cod_operadorEntrada=${cod_operador}` +
+      `&cod_operadorInf=${cod_operador}` +
+      `&nom_operador=${encodeURIComponent(nom_operador)}` +
+      `&cadusuar_operador_nom_usuario=${encodeURIComponent(nom_operador)}` +
+      `&chk_grafico=false` +
+      `&chk_resumo_contas_recebidas=false` +
+      `&chk_venda_ecf=false` +
+      `&chk_det_movto=true` +
+      `&chk_det_vendasConv=false` +
+      `&chk_det_vendasVend=true` +
+      `&chk_det_vendasCartao=false` +
+      `&chk_det_vendasGrupoProd=false` +
+      `&chk_det_vendasCheq=false` +
+      `&chk_reem_parc=false` +
+      `&chk_det_vendasTele=false` +
+      `&chk_filtro_datLanc=false` +
+      `&chk_descto_valorFrete=N` +
+      `&chk_recebimentos_convcard=N` +
+      `&saida=1`;
+
+    const response = await client.post(
+      `${baseURL}/PodiumAction?actionId=${actionId}`,
+      body,
+      {
+        headers: {
+          'User-Agent': 'Mozilla/5.0',
+          Origin: 'http://192.168.1.253:4647',
+          Referer: `${baseURL}/Rel_0031.pod`,
+          'X-Requested-With': 'XMLHttpRequest',
+          'Content-Type': 'application/x-www-form-urlencoded',
+          Accept: '*/*',
+        },
+
+        maxRedirects: 0,
+        validateStatus: () => true,
+      },
+    );
+
+    const js = response.data;
+
+    const pdfMatch = js.match(/openReport\('([^']+\.pdf)'/);
+
+    if (!pdfMatch) {
+      console.log(js);
+      throw new Error('PDF não encontrado');
+    }
+
+    const pdfPath = pdfMatch[1];
+
+    return `${baseURL}/${pdfPath}`;
   }
 
   async createDifCaixa(data: DiferencaCaixaDataDto) {
@@ -552,106 +789,6 @@ export class TrierService {
 
     return result;
   }
-
-  // async chartAnualDifs(
-  //   filialId?: number,
-  //   operadorId?: number,
-  //   granularidade:
-  //     | 'MENSAL'
-  //     | 'BIMESTRAL'
-  //     | 'TRIMESTRAL'
-  //     | 'SEMESTRAL' = 'MENSAL',
-  // ) {
-  //   const operadorFilter = operadorId
-  //     ? Prisma.sql`AND dc.idOperador = ${operadorId}`
-  //     : Prisma.empty;
-
-  //   const filialFilter = filialId
-  //     ? Prisma.sql`AND dc.filialId = ${filialId}`
-  //     : Prisma.empty;
-
-  //   const mesesPorPeriodo = {
-  //     MENSAL: 1,
-  //     BIMESTRAL: 2,
-  //     TRIMESTRAL: 3,
-  //     SEMESTRAL: 6,
-  //   }[granularidade];
-
-  //   // mensal = últimos 12 meses
-  //   // demais = últimos 36 meses
-  //   const totalMeses = granularidade === 'MENSAL' ? 12 : 36;
-
-  //   const quantidadePeriodos = Math.ceil(totalMeses / mesesPorPeriodo);
-
-  //   const result = await this.prisma.$queryRaw<
-  //     { periodo: string; total_falta: number; total_sobra: number }[]
-  //   >(Prisma.sql`
-  //   WITH RECURSIVE periodos AS (
-  //     SELECT
-  //       DATE_FORMAT(
-  //         CASE
-  //           WHEN DAY(CURDATE()) >= 26
-  //             THEN DATE_FORMAT(CURDATE(), '%Y-%m-26')
-  //           ELSE DATE_FORMAT(
-  //             DATE_SUB(CURDATE(), INTERVAL 1 MONTH),
-  //             '%Y-%m-26'
-  //           )
-  //         END,
-  //         '%Y-%m-%d'
-  //       ) AS inicio_periodo,
-  //       1 AS n
-
-  //     UNION ALL
-
-  //     SELECT
-  //       DATE_SUB(
-  //         inicio_periodo,
-  //         INTERVAL ${mesesPorPeriodo} MONTH
-  //       ),
-  //       n + 1
-
-  //     FROM periodos
-  //     WHERE n < ${quantidadePeriodos}
-  //   )
-
-  //   SELECT
-  //     CONCAT(
-  //       DATE_FORMAT(p.inicio_periodo, '%Y-%m-%d'),
-  //       ' a ',
-  //       DATE_FORMAT(
-  //         DATE_SUB(
-  //           DATE_ADD(
-  //             p.inicio_periodo,
-  //             INTERVAL ${mesesPorPeriodo} MONTH
-  //           ),
-  //           INTERVAL 1 DAY
-  //         ),
-  //         '%Y-%m-%d'
-  //       )
-  //     ) AS periodo,
-
-  //     COALESCE(SUM(dc.falta), 0) AS total_falta,
-  //     COALESCE(SUM(dc.sobra), 0) AS total_sobra
-
-  //   FROM periodos p
-
-  //   LEFT JOIN diferencacaixa dc
-  //     ON dc.data >= p.inicio_periodo
-  //     AND dc.data <
-  //       DATE_ADD(
-  //         p.inicio_periodo,
-  //         INTERVAL ${mesesPorPeriodo} MONTH
-  //       )
-
-  //     ${operadorFilter}
-  //     ${filialFilter}
-
-  //   GROUP BY p.inicio_periodo
-  //   ORDER BY p.inicio_periodo ASC
-  // `);
-
-  //   return result;
-  // }
 
   async chartColunmsDifs(filialId: number, startDate: string, endDate: string) {
     const startDateFormat = new Date(startDate);
