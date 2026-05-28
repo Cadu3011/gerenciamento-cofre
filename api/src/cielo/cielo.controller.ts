@@ -1,4 +1,13 @@
-import { Controller, Get, Param, UseGuards, Req, Query } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Param,
+  UseGuards,
+  Req,
+  Query,
+  Post,
+  Body,
+} from '@nestjs/common';
 import { CieloService } from './cielo.service';
 import { Roles } from 'src/auth/role.decorator';
 import { Role } from '@prisma/client';
@@ -7,6 +16,13 @@ import { AuthGuard } from 'src/auth/auth.guard';
 @Controller('cielo')
 export class CieloController {
   constructor(private readonly cieloService: CieloService) {}
+
+  @UseGuards(AuthGuard)
+  @Roles(Role.GESTOR)
+  @Post('manual')
+  async executeETLManual(@Body() body: { fileName: string }) {
+    return await this.cieloService.execPipelineETL(body.fileName);
+  }
 
   @UseGuards(AuthGuard)
   @Roles(Role.OPERADOR)
