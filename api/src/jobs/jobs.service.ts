@@ -65,8 +65,7 @@ export class JobsService {
 
   findAll() {
     return this.prisma.jobs.findMany({
-      include: { cronJobs: { orderBy: { createdAt: 'desc' } } },
-      take: 10,
+      include: { cronJobs: { take: 10, orderBy: { createdAt: 'desc' } } },
     });
   }
 
