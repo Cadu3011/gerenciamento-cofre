@@ -54,7 +54,7 @@ export default function SidebarFilter({ filiais }: { filiais: Filial[] }) {
               role="dialog"
               aria-modal="true"
             >
-              <div>
+              <div className="py-20">
                 <div className="flex items-center justify-between">
                   <button
                     onClick={() => setOpen(false)}
@@ -65,7 +65,7 @@ export default function SidebarFilter({ filiais }: { filiais: Filial[] }) {
                   </button>
                 </div>
 
-                <nav className="mt-8 flex flex-col gap-4">
+                <nav className="mt-2 flex flex-col gap-4">
                   <div className=" text-center text-2xl ">
                     <p>Filtros</p>
                   </div>

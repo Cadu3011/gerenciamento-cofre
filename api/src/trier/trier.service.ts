@@ -539,7 +539,6 @@ btnConfirmarCaixa=ty-button!id-btnConfirmarCaixa!ds-0!ro-0!fi-0!
     const pdfMatch = js.match(/openReport\('([^']+\.pdf)'/);
 
     if (!pdfMatch) {
-      console.log(js);
       throw new Error('PDF não encontrado');
     }
 

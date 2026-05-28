@@ -15,7 +15,6 @@ export default async function ListDetails({
   }
   const Url = await apiUrl();
   const { date, filialId } = await params;
-  console.log(filialId);
   const res = await fetch(
     `http://${Url}/conciliacao?date=${date}&filialId=${filialId}`,
     {

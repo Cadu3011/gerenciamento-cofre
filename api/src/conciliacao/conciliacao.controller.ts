@@ -155,4 +155,21 @@ export class ConciliacaoController {
       data.filialId,
     );
   }
+
+  @UseGuards(AuthGuard)
+  @Roles(Role.GESTOR)
+  @Get('/dashboard/cartoes')
+  async getDashboard(
+    @Query('filialId') filialId: number,
+    @Query('startDate') startDate: string,
+    @Query('endDate') endDate: string,
+  ) {
+    return this.conciliacaoService.totaisCards(
+      {
+        from: startDate,
+        to: endDate,
+      },
+      +filialId,
+    );
+  }
 }
