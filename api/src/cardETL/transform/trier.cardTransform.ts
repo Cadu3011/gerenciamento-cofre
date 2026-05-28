@@ -14,15 +14,13 @@ export class TrierCardTransform implements TrierTransformStrategy {
     ctx: MoveCardsExtracted,
   ): Promise<TrierCardTransformedMovement[]> {
     /**
-     * 0) INDEX DE METADATA (SEM DEPENDER DA FORMA DE PAGAMENTO)
-     *    - Serve pra pegar hora/data/filial pelo documentoFiscal/numeroNota
+     * 0) INDEX DE METADATA
      */
     const metaByDoc = new Map<
       string,
       { hora: string; data: string; filialId: number }
     >();
 
-    // Todas as vendas (independente da condição de pagamento)
     for (const venda of ctx.vendas) {
       metaByDoc.set(String(venda.numeroNota), {
         hora: venda.horaEmissao?.split('-')[0] ?? '',
@@ -31,7 +29,6 @@ export class TrierCardTransform implements TrierTransformStrategy {
       });
     }
 
-    // Devoluções: indexa pelo numeroNotaOrigem (que é o doc da venda original)
     for (const dev of ctx.devolucoes) {
       metaByDoc.set(String(dev.numeroNota), {
         hora: dev.horaEmissao?.split('-')[0] ?? '',
@@ -40,8 +37,8 @@ export class TrierCardTransform implements TrierTransformStrategy {
       });
     }
 
-    /*
-     * 0.5) BLOQUEAR CODIGO CARTAO 34
+    /**
+     * 0.5) BLOQUEAR CARTÃO 34
      */
     const docsCartao34 = new Set<string>();
 
@@ -56,8 +53,7 @@ export class TrierCardTransform implements TrierTransformStrategy {
     }
 
     /**
-     * 1) DEVOLUÇÕES CARTÃO (mantém seu filtro, se você só quer devolução no cartão)
-     *    - aqui continua fazendo sentido filtrar por 6/8
+     * 1) DEVOLUÇÕES
      */
     const devFormat = ctx.devolucoes
       .filter((dev) => {
@@ -77,50 +73,84 @@ export class TrierCardTransform implements TrierTransformStrategy {
         const hora = dev.horaEmissao?.split('-')[0] ?? '';
         const data = dev.dataEmissao;
         const filialId = dev.codFilial;
+
         const valor = dev.itens.reduce(
           (acc, t) => acc.plus(new Decimal(t.valorTotalLiquido).mul(-1)),
           new Decimal(0),
         );
 
-        return { idVenda: idDev, hora, valor, data, filialId, origemDev };
+        return {
+          idVenda: idDev,
+          hora,
+          valor,
+          data,
+          filialId,
+          origemDev,
+        };
       });
 
     /**
-     * 2) AGRUPAR PARCELAS POR DOCUMENTO FISCAL
+     * 2) AGRUPAR POR DOCUMENTO
      */
     const grupos = new Map<string, any[]>();
 
     for (const t of ctx.vendasParcela.transacoes) {
-      if (t.codigoCartao === 34) continue; // mantém sua regra
+      if (t.codigoCartao === 34) continue;
 
-      // se vier sem documento, ainda agrupa por um id fallback
       const documento = t.documentoFiscal
         ? String(t.documentoFiscal)
         : String(t.idTransacao.replace('RC:', '9000'));
 
-      if (!grupos.has(documento)) grupos.set(documento, []);
+      if (!grupos.has(documento)) {
+        grupos.set(documento, []);
+      }
+
       grupos.get(documento)!.push(t);
     }
 
     /**
-     * 3) CALCULAR VALOR TOTAL POR DOCUMENTO (com sua regra do PARCELADO)
-     *    + guardar fallback de dataEmissao pela própria parcela
+     * 3) CALCULAR TOTAL POR DOCUMENTO
      */
     const listaVendas = [];
+
     for (const [documentoFiscal, regs] of grupos.entries()) {
-      const transacoesUnicas = new Map<string, Decimal>();
+      /**
+       * Precisamos identificar pagamentos reais únicos.
+       *
+       * Problemas que resolvemos:
+       *
+       * - Parcelado:
+       *   mesma venda vem repetida por parcela
+       *
+       * - Multi pagamento:
+       *   PIX + Débito + Crédito precisam somar
+       */
+      const pagamentosUnicos = new Map<string, Decimal>();
 
       for (const t of regs) {
-        // chave que representa um pagamento real
-        const key = `${t.nsuOrigem}-${t.codigoCartao}`;
+        /**
+         * CHAVE DE PAGAMENTO ÚNICO
+         *
+         * Ex:
+         * CREDITO-5-63.97-2
+         * DEBITO-22-3-1
+         * PIX-22-9.6-1
+         */
+        const key = [
+          t.modalidadeVenda ?? '',
+          t.codigoCartao ?? '',
+          t.valorTotal ?? '',
+          t.totalParcelas ?? '',
+        ].join('-');
 
-        if (!transacoesUnicas.has(key)) {
-          transacoesUnicas.set(key, new Decimal(t.valorTotal));
+        if (!pagamentosUnicos.has(key)) {
+          pagamentosUnicos.set(key, new Decimal(t.valorTotal));
         }
       }
 
       let total = new Decimal(0);
-      for (const valor of transacoesUnicas.values()) {
+
+      for (const valor of pagamentosUnicos.values()) {
         total = total.plus(valor);
       }
 
@@ -134,24 +164,26 @@ export class TrierCardTransform implements TrierTransformStrategy {
         bandeira: primeira?.nomeCartao ?? null,
         filialId: ctx.vendasParcela.codigoLoja,
         dataEmissaoParcela: primeira?.dataEmissao ?? null,
-        dataVencimentoParcela: primeira.dataVencimento,
-        dataPagamentoParcela: primeira.dataPagamento ?? null,
+        dataVencimentoParcela: primeira?.dataVencimento ?? '',
+        dataPagamentoParcela: primeira?.dataPagamento ?? null,
       });
     }
 
     /**
-     * 4) GERAR VENDAS CARTÃO BASEADAS NAS PARCELAS
-     *    - hora/data vem do metaByDoc (todas as vendas), não do filtro de pagamento
+     * 4) GERAR VENDAS
      */
     const listaFinalVendasCartao: TrierCardTransformedMovement[] =
       listaVendas.map((vendaParc) => {
         const meta = metaByDoc.get(String(vendaParc.documentoFiscal));
 
         const hora = meta?.hora ?? '00:00:00';
+
         const data = meta?.data ?? vendaParc.dataEmissaoParcela ?? undefined;
+
         const tipo = vendaParc.idTransacao.startsWith('RC:')
           ? 'RECEBIMENTO_CREDIARIO'
           : 'VENDA';
+
         return {
           idempotencyKey: `TRIER|${vendaParc.filialId}|${data ?? 'SEM_DATA'}|${vendaParc.documentoFiscal}|${hora ?? 'SEM_HORA'}`,
           documentoFiscal: Number(vendaParc.documentoFiscal),
@@ -168,7 +200,7 @@ export class TrierCardTransform implements TrierTransformStrategy {
       });
 
     /**
-     * 5) DEVOLUÇÕES (como você já fazia)
+     * 5) DEVOLUÇÕES
      */
     const listaDevolucoes: TrierCardTransformedMovement[] = devFormat.map(
       (dev) => ({
@@ -193,6 +225,7 @@ export class TrierCardTransform implements TrierTransformStrategy {
       (a, b) => {
         if (!a.hora) return 1;
         if (!b.hora) return -1;
+
         return a.hora.localeCompare(b.hora);
       },
     );
