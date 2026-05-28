@@ -132,12 +132,20 @@ export class TrierController {
     });
 
     return {
-      tokenLocalTrier: await authTrier(
-        credentials,
-        filial.urlLocalTrier,
-        filial.id,
-      ),
+      tokenLocalTrier: (
+        await authTrier(credentials, filial.urlLocalTrier, filial.id)
+      ).token,
     };
+  }
+
+  @UseGuards(AuthGuard)
+  @Roles(Role.OPERADOR, Role.GESTOR)
+  @Post('/caixas/rel')
+  async getCaixasTrier(@Body() data: { filial: number; numCaixa: number }) {
+    return await this.trierService.gerarRelatorioCaixaTrier(
+      data.filial,
+      data.numCaixa,
+    );
   }
 
   @UseGuards(AuthGuard)
@@ -167,6 +175,8 @@ export class TrierController {
     @Query('startDate') startDate: string,
     @Query('endDate') endDate: string,
     @Query('operadorId') operadorId?: number,
+    @Query('periodo')
+    periodo: 'MENSAL' | 'BIMESTRAL' | 'TRIMESTRAL' | 'SEMESTRAL' = 'MENSAL',
   ) {
     const user = req['sub'];
     if (user.roles.includes('OPERADOR')) {
@@ -182,6 +192,7 @@ export class TrierController {
     const chartAnualDifs = await this.trierService.chartAnualDifs(
       +filialId,
       +operadorId,
+      periodo,
     );
     const chartColunmsDifs = await this.trierService.chartColunmsDifs(
       +filialId,

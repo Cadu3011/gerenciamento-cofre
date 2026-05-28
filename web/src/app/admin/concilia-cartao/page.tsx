@@ -60,7 +60,6 @@ export default async function GerenciaCartao({ searchParams }: Props) {
   if (!access_token) {
     return;
   }
-  console.log(query);
   const res = await fetch(
     `http://localhost:4000/conciliacao/totais-dia?${query}`,
     {

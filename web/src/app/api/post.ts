@@ -439,6 +439,37 @@ export async function getCardsCaixas(query: string) {
   );
   return await resCard.json();
 }
+export async function getCardsTotalCards(query: string) {
+  const tokenCookie = (await cookies()).get("access_token")?.value;
+  const resCard = await fetch(
+    `http://localhost:4000/conciliacao/dashboard/cartoes?${query}`,
+    {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${tokenCookie}`,
+      },
+    },
+  );
+  return await resCard.json();
+}
+
+export async function openRelatorio(data: { filial: number; caixa: number }) {
+  const tokenCookie = (await cookies()).get("access_token")?.value;
+  const response = await fetch("http://localhost:4000/trier/caixas/rel", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${tokenCookie}`,
+    },
+    body: JSON.stringify({
+      filial: data.filial,
+      numCaixa: data.caixa,
+    }),
+  });
+
+  return await response.text();
+}
 
 export async function patchCaixa(id: number, data: Partial<Caixa>) {
   const tokenCookie = (await cookies()).get("access_token")?.value;

@@ -1,17 +1,24 @@
-// import { chromium } from 'playwright';
 import axios from 'axios';
 import { wrapper } from 'axios-cookiejar-support';
 import { CookieJar } from 'tough-cookie';
-// import qs from 'qs';
+
 export interface authData {
   login: string;
   password: string;
 }
+
+interface TrierSession {
+  token: string;
+  client?: any;
+  controller?: string;
+  baseURL?: string;
+}
+
 export async function authTrier(
   authData: authData,
   urlTrier?: string,
   idFilial?: number,
-) {
+): Promise<TrierSession> {
   if (!urlTrier) {
     urlTrier = '192.168.1.253';
     idFilial = 99;
@@ -107,11 +114,16 @@ export async function authTrier(
 
   if (!tokenMatch) {
     console.log('Não encontrou token_integracao');
-    return '';
+    return { token: '' };
   }
 
   const token = tokenMatch[1];
-  return token;
+  return {
+    token,
+    client,
+    controller,
+    baseURL,
+  };
 }
 
 // let browser;

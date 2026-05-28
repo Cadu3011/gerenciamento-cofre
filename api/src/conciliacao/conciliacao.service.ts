@@ -766,4 +766,103 @@ export class ConciliacaoService {
       return new Date(b.data).getTime() - new Date(a.data).getTime();
     });
   }
+
+  async totaisCards(
+    dateRange: { from: string; to: string },
+    filialId?: number,
+  ) {
+    const start = new Date(dateRange.from + 'T00:00:00.000Z');
+    const end = new Date(dateRange.to + 'T00:00:00.000Z');
+    const totais = await this.prisma.$transaction(async (ctx) => {
+      let filialCielo;
+      if (filialId) {
+        filialCielo = await ctx.filial.findUnique({
+          where: { id: filialId },
+        });
+      }
+      const naoConciliados = await ctx.conciliacaoGrupo.aggregate({
+        where: {
+          status: {
+            not: 'CONCILIADO',
+          },
+          conciliacao: {
+            ...(filialId && { filialId }),
+          },
+          itens: {
+            some: {
+              dataReferencia: {
+                gte: start,
+                lte: end,
+              },
+            },
+          },
+        },
+        _sum: {
+          valorFinal: true,
+        },
+      });
+      const conciliadosTrier = await ctx.trierCartaoVendas.aggregate({
+        where: {
+          ...(filialId && { filialId }),
+          statusConciliacao: 'CONCILIADO',
+          dataEmissao: { gte: new Date(start), lte: new Date(end) },
+        },
+        _sum: {
+          valor: true,
+        },
+      });
+      const trier = await ctx.trierCartaoVendas.aggregate({
+        where: {
+          ...(filialId && { filialId }),
+          dataEmissao: {
+            gte: new Date(start),
+            lte: new Date(end),
+          },
+        },
+        _sum: { valor: true },
+      });
+      const kpiConciTrier = conciliadosTrier._sum.valor
+        .div(trier._sum.valor)
+        .mul(100)
+        .toDecimalPlaces(2);
+
+      const rede = await ctx.redeVenda.aggregate({
+        where: {
+          ...(filialId && { filialId }),
+          dataVenda: {
+            gte: new Date(start),
+            lte: new Date(end),
+          },
+        },
+        _sum: { valor: true },
+      });
+      const cielo = await ctx.cartaoVendas.aggregate({
+        where: {
+          ...(filialId && { estabelecimento: filialCielo.idCielo }),
+          dataVenda: {
+            gte: dateRange.from,
+            lte: dateRange.to,
+          },
+        },
+        _sum: { valorBruto: true },
+      });
+      const totalAdq = (rede._sum.valor || new Decimal(0)).plus(
+        cielo._sum.valorBruto || new Decimal(0),
+      );
+      const diferenca = trier._sum.valor.sub(totalAdq).abs().lessThan(0.01)
+        ? new Decimal(0)
+        : trier._sum.valor.sub(totalAdq).toDecimalPlaces(2);
+
+      return {
+        erp: trier._sum.valor.toDecimalPlaces(2),
+        adquirentes: totalAdq.toDecimalPlaces(2),
+        diferenca: diferenca,
+        naoConciliados: (
+          naoConciliados._sum.valorFinal || new Decimal(0)
+        ).toDecimalPlaces(2),
+        kpiConciTrier,
+      };
+    });
+    return totais;
+  }
 }
