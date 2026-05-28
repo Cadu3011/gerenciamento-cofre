@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from 'src/database/prisma.service';
 import { FilialService } from 'src/filial/filial.service';
 import { Pipeline } from './pipeline';
@@ -13,6 +13,8 @@ export class ConciCardsCron {
 
   @Inject()
   private readonly pipeline: Pipeline;
+
+  private readonly logger = new Logger(ConciCardsCron.name);
 
   private toISODate(d: Date) {
     return d.toISOString().slice(0, 10);
@@ -60,7 +62,7 @@ export class ConciCardsCron {
       // roda dia a dia
       let current = start;
       while (this.diffDays(current, dMinus1) >= 0) {
-        console.log(`ETL filial ${f.name} - dia ${current}`);
+        this.logger.log(`ETL Conci filial ${f.name} - dia ${current}`);
 
         await this.pipeline.execute(f.id, current);
 

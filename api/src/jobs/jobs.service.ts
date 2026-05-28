@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { CreateJobDto } from './dto/create-job.dto';
 import { UpdateJobDto } from './dto/update-job.dto';
 import { PrismaService } from 'src/database/prisma.service';
@@ -30,6 +30,8 @@ export class JobsService {
 
   @Inject()
   private readonly conciCardsPipeline: ConciCardsCron;
+
+  private readonly logger = new Logger(JobsService.name);
 
   async onModuleInit() {
     await this.markStuckJobs();
@@ -104,12 +106,12 @@ export class JobsService {
       });
     } catch (error: any) {
       if (error?.code === 'P2002') {
-        console.log(`Job ${jobName} já finalizado`);
+        this.logger.log(`Job ${jobName} já finalizado`);
         return { error: `Tarefa ${jobName} já finalizada hoje` };
       }
 
       if (error?.code === 'P2025') {
-        console.log(`Job ${jobName} não está ativo ou não existe`);
+        this.logger.warn(`Job ${jobName} não está ativo ou não existe`);
         return { error: `Tarefa ${jobName} não está ativo ou não existe` };
       }
 

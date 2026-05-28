@@ -127,8 +127,6 @@ export class MovementService {
       current < dataAtualFormat;
       current.setDate(current.getDate() + 1)
     ) {
-      console.log(current, dataAtualFormat);
-
       const initDay = new Date(
         Date.UTC(
           current.getUTCFullYear(),
@@ -153,8 +151,6 @@ export class MovementService {
         ),
       );
 
-      console.log(initDay, finalDay);
-
       const totais = await this.moveTrier.getVendasTotais(
         initDay,
         finalDay,
@@ -169,7 +165,7 @@ export class MovementService {
               const res = await this.moveTrier.getVendasDetalhes(id, token);
 
               if (!res || !Array.isArray(res.detalhes)) {
-                console.log(`⚠️ Nenhum detalhe encontrado para id=${id}`);
+                this.logger.warn(`⚠️ Nenhum detalhe encontrado para id=${id}`);
                 return [];
               }
 
@@ -246,7 +242,7 @@ export class MovementService {
             }
           }
         } catch (error) {
-          console.log(error);
+          this.logger.warn(error);
           throw 'Erro ao processar movimentações.';
         }
       }
@@ -364,7 +360,7 @@ export class MovementService {
         mov.movementId,
         tokenTrier,
       );
-      console.log(deletedMoveTrier);
+      this.logger.log(deletedMoveTrier);
       if (deletedMoveTrier !== undefined) {
         await this.Prisma.deletedMovements.delete({
           where: { movementId: deletedMoveTrier },
@@ -543,7 +539,7 @@ export class MovementService {
           balance: Number(valueSub),
         });
       } else {
-        console.log('tentou duplicar');
+        this.logger.warn('tentou duplicar');
         return;
       }
     }

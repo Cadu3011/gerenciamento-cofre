@@ -66,7 +66,7 @@ export class CieloService {
       );
 
       if (!fs.existsSync(localDir)) {
-        console.log('path não encontrado');
+        this.logger.warn('path não encontrado');
         fs.mkdirSync(localDir, { recursive: true });
       }
       for (const file of fileList) {

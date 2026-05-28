@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { TrierCardETLPipeline } from '../pipeline/trier.card-etl.pipeline.ts.js';
 import { authTrier } from 'src/auth/authTrier/loginTrier';
 import { FilialService } from 'src/filial/filial.service';
@@ -21,6 +21,8 @@ export class TrierCardCron {
 
   @Inject()
   private readonly prisma: PrismaService;
+
+  private readonly logger = new Logger(TrierCardCron.name);
 
   private async authOnce(filial: {
     id: number;
@@ -125,7 +127,7 @@ export class TrierCardCron {
           console.error(`[IP NÃO ACESSÍVEL] ${filial.urlLocalTrier}`);
           return { success: false, message: 'IP não acessível' };
         }
-        console.log(
+        this.logger.warn(
           `[AUTH FAIL 1ª] filial=${filial.id} url=${filial.urlLocalTrier}`,
           r.reason,
         );
@@ -135,7 +137,7 @@ export class TrierCardCron {
     // 2) Só depois que terminou TODO MUNDO da 1ª rodada, retenta as falhas
     let retriedOk: AuthOk[] = [];
     if (authFailed.length) {
-      console.log(
+      this.logger.warn(
         `Iniciando retentativas de auth para ${authFailed.length} filiais...`,
       );
 
@@ -147,11 +149,11 @@ export class TrierCardCron {
       retriedOk = retried.ok;
 
       if (retried.fail.length) {
-        console.log(
+        this.logger.error(
           `Auth falhou definitivamente em ${retried.fail.length} filiais:`,
         );
         retried.fail.forEach((f) =>
-          console.log(
+          this.logger.error(
             `[AUTH FAIL FINAL] filial=${f.filial} url=${f.url}`,
             f.error,
           ),
@@ -193,7 +195,7 @@ export class TrierCardCron {
       // roda dia a dia
       let current = start;
       while (this.diffDays(current, dMinus1) >= 0) {
-        console.log(`ETL filial ${filial} - dia ${current}`);
+        this.logger.log(`ETL Trier filial ${filial} - dia ${current}`);
 
         await this.pipeline.execute({
           date: current,
@@ -229,7 +231,7 @@ export class TrierCardCron {
     try {
       tokenData = await this.authOnce(filial);
     } catch (err) {
-      console.log(`[AUTH FAIL] Tentando retry...`);
+      this.logger.warn(`[AUTH FAIL] Tentando retry...`);
 
       const retry = await this.authWithRetriesAfter([filial], {
         maxAttempts: 3,
@@ -244,7 +246,7 @@ export class TrierCardCron {
     }
 
     // 3) Executar ETL
-    console.log(`ETL manual filial ${filialId} - dia ${date}`);
+    this.logger.log(`ETL manual filial ${filialId} - dia ${date}`);
 
     await this.pipeline.execute({
       date,
