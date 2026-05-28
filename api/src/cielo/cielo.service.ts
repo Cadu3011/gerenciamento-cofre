@@ -55,6 +55,41 @@ export class CieloService {
     }
   }
 
+  async execPipelineETL(fileName: string) {
+    try {
+      if (!fileName) {
+        throw new Error('Nome do arquivo não informado.');
+      }
+
+      const filePath = path.join(process.env.PATH_LOCAL_UPLOADS, fileName);
+
+      const buffer = await fs.promises.readFile(filePath);
+
+      const file = new File([buffer], fileName, {
+        type: 'text/plain',
+      });
+
+      const vendas: Prisma.CartaoVendasCreateInput[] =
+        await this.cieloTransformSalesService.parseSalesData([file]);
+
+      await this.create(vendas);
+
+      this.logger.log(
+        `✅ Arquivo ${fileName} processado com sucesso manualmente.`,
+      );
+
+      return {
+        success: true,
+        fileName,
+        totalVendas: vendas.length,
+      };
+    } catch (error) {
+      this.logger.error(`❌ Erro ao processar arquivo ${fileName}:`, error);
+
+      throw error;
+    }
+  }
+
   async uploadExtract(remoteSourceDir: string, localDir: string) {
     try {
       await this.sftp.connect(this.config);
@@ -66,7 +101,7 @@ export class CieloService {
       );
 
       if (!fs.existsSync(localDir)) {
-        console.log('path não encontrado');
+        this.logger.warn('path não encontrado');
         fs.mkdirSync(localDir, { recursive: true });
       }
       for (const file of fileList) {

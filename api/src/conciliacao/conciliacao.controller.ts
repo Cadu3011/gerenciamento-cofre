@@ -106,7 +106,6 @@ export class ConciliacaoController {
     @Query('grupoId') grupoId: string,
     @Query('filialId') filialId?: string,
   ) {
-    console.log(filialId);
     const user = req['sub'] as any;
     if (user.roles === 'OPERADOR') {
       filialId = user.filialId;

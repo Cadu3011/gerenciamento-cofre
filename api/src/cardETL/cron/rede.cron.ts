@@ -1,4 +1,4 @@
-import { Inject } from '@nestjs/common';
+import { Inject, Logger } from '@nestjs/common';
 import { RedeCardETLPipeline } from '../pipeline/rede.card-etl.pipeline';
 import { FilialService } from 'src/filial/filial.service';
 import { PrismaService } from 'src/database/prisma.service';
@@ -16,6 +16,7 @@ export class RedeCardCron {
   private toISODate(d: Date) {
     return d.toISOString().slice(0, 10);
   }
+  private readonly logger = new Logger(RedeCardCron.name);
 
   private addDays(dateStr: string, days: number) {
     const d = new Date(dateStr + 'T00:00:00');
@@ -59,7 +60,7 @@ export class RedeCardCron {
       // roda dia a dia
       let current = start;
       while (this.diffDays(current, dMinus1) >= 0) {
-        console.log(`ETL filial ${f.name} - dia ${current}`);
+        this.logger.log(`ETL Rede filial ${f.name} - dia ${current}`);
 
         await this.pipeline.execute({
           date: current,

@@ -25,35 +25,6 @@ export class Pipeline {
     await this.criarGruposEItens(filialId, date, groups);
   }
 
-  // async createConciliacao(filialId: number) {
-  //   const hoje = new Date();
-
-  //   const conciliacaoAtual = await this.prisma.conciliacao.findUnique({
-  //     where: {
-  //       filialId_startDate: {
-  //         filialId,
-  //         startDate: `${hoje.toISOString().split('T')[0]}T00:00:00.000Z`,
-  //       },
-  //     },
-  //   });
-  //   console.log(conciliacaoAtual);
-
-  //   return await this.prisma.conciliacao.upsert({
-  //     where: {
-  //       filialId_startDate: {
-  //         filialId,
-  //         startDate: hoje,
-  //       },
-  //     },
-  //     update: {},
-  //     create: {
-  //       filialId,
-  //       startDate: hoje,
-  //       metodo: 'AUTO',
-  //     },
-  //   });
-  // }
-
   gerarItensParaGrupo(group: any, grupoId: number) {
     const itens = [];
     if (group.trier)

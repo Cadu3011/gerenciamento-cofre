@@ -44,7 +44,6 @@ export class TrierDifCxETL {
     });
 
     ultimoItem = ultimo ? Number(ultimo.caixa) + 1 : 0;
-    console.log(ultimoItem);
 
     const browser = await chromium.launch({
       headless: true,
@@ -98,7 +97,6 @@ export class TrierDifCxETL {
         '#num_caixaEntrada',
         (el: any) => (el as HTMLInputElement).value,
       );
-      console.log(confirmItem);
 
       await page.waitForSelector('#saida3');
       await page.click('#saida3');
@@ -155,11 +153,6 @@ export class TrierDifCxETL {
         }
         await newPage.close();
       } catch (error) {
-        console.log(
-          `Erro: nova aba da Filial ${pathFilial} não abriu. Gravando dados.`,
-          error,
-        );
-
         if (caixas.length) {
           await this.prisma.excel_staging_diferenca_caixa.createMany({
             data: caixas,
