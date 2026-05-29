@@ -414,7 +414,7 @@ btnConfirmarCaixa=ty-button!id-btnConfirmarCaixa!ds-0!ro-0!fi-0!
       {
         headers: {
           'User-Agent': 'Mozilla/5.0',
-          Origin: 'http://192.168.1.253:4647',
+          Origin: 'http://177.200.115.10:4647',
           Referer: `${baseURL}/Rel_0031.pod`,
           'X-Requested-With': 'XMLHttpRequest',
           'Content-Type': 'application/x-www-form-urlencoded',
@@ -444,7 +444,7 @@ btnConfirmarCaixa=ty-button!id-btnConfirmarCaixa!ds-0!ro-0!fi-0!
       {
         headers: {
           'User-Agent': 'Mozilla/5.0',
-          Origin: 'http://192.168.1.253:4647',
+          Origin: 'http://177.200.115.10:4647',
           Referer: `${baseURL}/Rel_0031.pod`,
           'X-Requested-With': 'XMLHttpRequest',
           'Content-Type': 'application/x-www-form-urlencoded',
@@ -522,7 +522,7 @@ btnConfirmarCaixa=ty-button!id-btnConfirmarCaixa!ds-0!ro-0!fi-0!
       {
         headers: {
           'User-Agent': 'Mozilla/5.0',
-          Origin: 'http://192.168.1.253:4647',
+          Origin: 'http://177.200.115.10:4647',
           Referer: `${baseURL}/Rel_0031.pod`,
           'X-Requested-With': 'XMLHttpRequest',
           'Content-Type': 'application/x-www-form-urlencoded',
