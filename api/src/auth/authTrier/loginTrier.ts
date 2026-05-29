@@ -20,7 +20,7 @@ export async function authTrier(
   idFilial?: number,
 ): Promise<TrierSession> {
   if (!urlTrier) {
-    urlTrier = '192.168.1.253';
+    urlTrier = '177.200.115.10';
     idFilial = 99;
   }
   const jar = new CookieJar();
