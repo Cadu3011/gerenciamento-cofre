@@ -163,12 +163,20 @@ export class ConciliacaoController {
     @Query('startDate') startDate: string,
     @Query('endDate') endDate: string,
   ) {
-    return this.conciliacaoService.totaisCards(
+    const cardsTotals = await this.conciliacaoService.totaisCards(
       {
         from: startDate,
         to: endDate,
       },
       +filialId,
     );
+    const chartLinesCards = await this.conciliacaoService.chartLinesCards(
+      {
+        from: startDate,
+        to: endDate,
+      },
+      +filialId,
+    );
+    return { cardsTotals, chartLinesCards };
   }
 }

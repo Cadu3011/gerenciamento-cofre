@@ -1,6 +1,8 @@
 import { getCardsTotalCards, getFiliais } from "@/app/api/post";
 import CardTotals from "../_components/CardTotals";
 import { formatDate } from "../utils";
+import ChartLineCards from "./_components/ChartLineCardsSales";
+import ChartColumnsCardsDifs from "./_components/ChartColunmsCardsDifs";
 
 type Props = {
   searchParams: {
@@ -40,40 +42,42 @@ export default async function Dashboard({ searchParams }: Props) {
   }).toString();
 
   const data = await getCardsTotalCards(query);
-  console.log(data.kpiConciTrier);
+
+  const { cardsTotals, chartLinesCards } = data;
+  console.log(chartLinesCards);
   return (
     <div className="flex gap-2">
       <div className="flex flex-col w-full">
-        <div className="flex">
-          <div className="py-3 w-full">
-            <div className="w-full ">
+        <div className="">
+          <div className="py-3 w-full flex flex-col gap-5">
+            <div className="">
               <div className="w-full px-8 flex gap-3">
                 <CardTotals
                   title="Total Trier"
-                  value={data.erp}
+                  value={cardsTotals.erp}
                   backgroundColor="bg-blue-200"
-                  fontSize="text-4xl"
+                  fontSize="text-3xl"
                   fontBold
                 />
                 <CardTotals
                   title="Total Adquirentes"
-                  value={data.adquirentes}
+                  value={cardsTotals.adquirentes}
                   backgroundColor="bg-orange-200"
-                  fontSize="text-4xl"
+                  fontSize="text-3xl"
                   fontBold
                 />
                 <CardTotals
                   title="Total Diferença"
-                  value={String(data.diferenca * -1)}
+                  value={String(cardsTotals.diferenca * -1)}
                   backgroundColor="bg-green-200"
-                  fontSize="text-4xl"
+                  fontSize="text-3xl"
                   fontBold
                 />
                 <CardTotals
                   title="Diferença não Conciliada"
-                  value={String(data.naoConciliados * -1)}
+                  value={String(cardsTotals.naoConciliados * -1)}
                   backgroundColor="bg-zinc-100"
-                  fontSize="text-4xl"
+                  fontSize="text-3xl"
                   alertValue={true}
                   fontBold
                 />
@@ -93,6 +97,10 @@ export default async function Dashboard({ searchParams }: Props) {
                   </div>
                 </div>
               </div>
+            </div>
+            <div className="w-full px-10 gap-5 flex justify-between">
+              <ChartLineCards chartLinesCards={data.chartLinesCards} />
+              <ChartColumnsCardsDifs data={data.chartLinesCards} />
             </div>
           </div>
         </div>

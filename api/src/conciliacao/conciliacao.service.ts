@@ -2,6 +2,7 @@ import { BadRequestException, Inject, Injectable } from '@nestjs/common';
 import { CreateConciliacaoDto } from './dto/create-conciliacao.dto';
 import { PrismaService } from 'src/database/prisma.service';
 import { Decimal } from '@prisma/client/runtime/library';
+import { Prisma } from '@prisma/client';
 
 @Injectable()
 export class ConciliacaoService {
@@ -782,9 +783,8 @@ export class ConciliacaoService {
       }
       const naoConciliados = await ctx.conciliacaoGrupo.aggregate({
         where: {
-          status: {
-            not: 'CONCILIADO',
-          },
+          status: 'DIVERGENTE',
+
           conciliacao: {
             ...(filialId && { filialId }),
           },
@@ -811,6 +811,7 @@ export class ConciliacaoService {
           valor: true,
         },
       });
+
       const trier = await ctx.trierCartaoVendas.aggregate({
         where: {
           ...(filialId && { filialId }),
@@ -864,5 +865,170 @@ export class ConciliacaoService {
       };
     });
     return totais;
+  }
+
+  async chartLinesCards(
+    dateRange: { from: string; to: string },
+    filialId?: number,
+  ) {
+    const start = new Date(dateRange.from + 'T00:00:00.000Z');
+    const end = new Date(dateRange.to + 'T00:00:00.000Z');
+
+    let filial = null;
+
+    // 🔹 Busca filial somente se informado
+    if (filialId) {
+      filial = await this.prisma.filial.findUnique({
+        where: { id: filialId },
+      });
+
+      if (!filial) {
+        throw new BadRequestException('Filial não encontrada');
+      }
+    }
+    const filtroFilial = filialId
+      ? Prisma.sql`AND c.filialId = ${filialId}`
+      : Prisma.empty;
+
+    // 🔹 TRIER
+    const trier = await this.prisma.trierCartaoVendas.groupBy({
+      by: ['dataEmissao'],
+      where: {
+        ...(filialId && { filialId }),
+        dataEmissao: {
+          gte: start,
+          lte: end,
+        },
+      },
+      _sum: {
+        valor: true,
+      },
+    });
+
+    // 🔹 REDE
+    const rede = await this.prisma.redeVenda.groupBy({
+      by: ['dataVenda'],
+      where: {
+        ...(filialId && { filialId }),
+        dataVenda: {
+          gte: start,
+          lte: end,
+        },
+      },
+      _sum: {
+        valor: true,
+      },
+    });
+
+    // 🔹 CIELO
+    const cielo = await this.prisma.cartaoVendas.groupBy({
+      by: ['dataVenda'],
+      where: {
+        ...(filial?.idCielo && {
+          estabelecimento: filial.idCielo,
+        }),
+        dataVenda: {
+          gte: dateRange.from,
+          lte: dateRange.to,
+        },
+      },
+      _sum: {
+        valorBruto: true,
+      },
+    });
+
+    // 🔹 DIVERGÊNCIAS
+    const divergencias = await this.prisma.$queryRaw<
+      { dia: string; total: number }[]
+    >(Prisma.sql`
+  SELECT
+    dia,
+    SUM(valorFinal) as total
+  FROM (
+    SELECT
+      cg.id,
+      DATE(ci.dataReferencia) as dia,
+      cg.valorFinal
+    FROM conciliacaoGrupo cg
+    JOIN conciliacaoItem ci ON ci.grupoId = cg.id
+    JOIN conciliacao c ON c.id = cg.conciliacaoId
+    WHERE
+      cg.status <> 'CONCILIADO'
+      ${filtroFilial}
+      AND ci.dataReferencia BETWEEN ${start} AND ${end}
+    GROUP BY cg.id, dia, cg.valorFinal
+  ) t
+  GROUP BY dia
+`);
+    const resultado: Record<string, any> = {};
+
+    // 🔹 Trier
+    for (const item of trier) {
+      const dia = new Date(item.dataEmissao).toISOString().slice(0, 10);
+
+      if (!resultado[dia]) {
+        resultado[dia] = {
+          data: dia,
+          trier: 0,
+          adquirentes: 0,
+          diferenca: 0,
+        };
+      }
+
+      resultado[dia].trier += Number(item._sum.valor || 0);
+    }
+
+    // 🔹 Rede
+    for (const item of rede) {
+      const dia = new Date(item.dataVenda).toISOString().slice(0, 10);
+
+      if (!resultado[dia]) {
+        resultado[dia] = {
+          data: dia,
+          trier: 0,
+          adquirentes: 0,
+          diferenca: 0,
+        };
+      }
+
+      resultado[dia].adquirentes += Number(item._sum.valor || 0);
+    }
+
+    // 🔹 Cielo
+    for (const item of cielo) {
+      const dia = new Date(item.dataVenda).toISOString().slice(0, 10);
+
+      if (!resultado[dia]) {
+        resultado[dia] = {
+          data: dia,
+          trier: 0,
+          adquirentes: 0,
+          diferenca: 0,
+        };
+      }
+
+      resultado[dia].adquirentes += Number(item._sum.valorBruto || 0);
+    }
+
+    // 🔹 Divergências
+    for (const item of divergencias) {
+      const dia = new Date(item.dia).toISOString().slice(0, 10);
+
+      if (!resultado[dia]) {
+        resultado[dia] = {
+          data: dia,
+          trier: 0,
+          adquirentes: 0,
+          diferenca: 0,
+        };
+      }
+
+      resultado[dia].diferenca = Number(item.total || 0) * -1;
+    }
+
+    return Object.values(resultado).sort(
+      (a: any, b: any) =>
+        new Date(a.data).getTime() - new Date(b.data).getTime(),
+    );
   }
 }
