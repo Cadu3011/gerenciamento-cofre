@@ -2,7 +2,7 @@ import { BadRequestException, Inject, Injectable } from '@nestjs/common';
 import { CreateConciliacaoDto } from './dto/create-conciliacao.dto';
 import { PrismaService } from 'src/database/prisma.service';
 import { Decimal } from '@prisma/client/runtime/library';
-import { Prisma } from '@prisma/client';
+import { Prisma, StatusConciliacao } from '@prisma/client';
 
 @Injectable()
 export class ConciliacaoService {
@@ -819,13 +819,16 @@ export class ConciliacaoService {
             gte: new Date(start),
             lte: new Date(end),
           },
+          bandeira: { not: { contains: 'BRASILCARD' } },
         },
         _sum: { valor: true },
       });
       const kpiConciTrier = conciliadosTrier._sum.valor
-        .div(trier._sum.valor)
-        .mul(100)
-        .toDecimalPlaces(2);
+        ? conciliadosTrier._sum.valor
+            .div(trier._sum.valor)
+            .mul(100)
+            .toDecimalPlaces(2)
+        : 0;
 
       const rede = await ctx.redeVenda.aggregate({
         where: {
@@ -837,27 +840,43 @@ export class ConciliacaoService {
         },
         _sum: { valor: true },
       });
-      const cielo = await ctx.cartaoVendas.aggregate({
+      // const cielo = await ctx.cartaoVendas.aggregate({
+      //   where: {
+      //     ...(filialId && { estabelecimento: filialCielo.idCielo }),
+      //     dataVenda: {
+      //       gte: dateRange.from,
+      //       lte: dateRange.to,
+      //     },
+      //   },
+      //   _sum: { valorBruto: true },
+      // });
+
+      const cielo = await this.prisma.conciliacaoItem.aggregate({
         where: {
-          ...(filialId && { estabelecimento: filialCielo.idCielo }),
-          dataVenda: {
-            gte: dateRange.from,
-            lte: dateRange.to,
+          origem: 'CIELO',
+          dataReferencia: {
+            gte: start,
+            lte: end,
           },
+
+          ...(filialId && { grupo: { conciliacao: { filialId } } }),
         },
-        _sum: { valorBruto: true },
+
+        _sum: { valor: true },
       });
+
       const totalAdq = (rede._sum.valor || new Decimal(0)).plus(
-        cielo._sum.valorBruto || new Decimal(0),
+        cielo._sum.valor || new Decimal(0),
       );
-      const diferenca = trier._sum.valor.sub(totalAdq).abs().lessThan(0.01)
-        ? new Decimal(0)
-        : trier._sum.valor.sub(totalAdq).toDecimalPlaces(2);
+      const diferenca =
+        !trier._sum.valor || trier._sum.valor.sub(totalAdq).abs().lessThan(0.01)
+          ? new Decimal(0)
+          : trier._sum.valor.sub(totalAdq).toDecimalPlaces(2);
 
       return {
-        erp: trier._sum.valor.toDecimalPlaces(2),
-        adquirentes: totalAdq.toDecimalPlaces(2),
-        diferenca: diferenca,
+        erp: trier._sum.valor ? trier._sum.valor.toDecimalPlaces(2) : 0,
+        adquirentes: totalAdq ? totalAdq.toDecimalPlaces(2) : 0,
+        diferenca: diferenca || 0,
         naoConciliados: (
           naoConciliados._sum.valorFinal || new Decimal(0)
         ).toDecimalPlaces(2),
@@ -921,20 +940,34 @@ export class ConciliacaoService {
     });
 
     // 🔹 CIELO
-    const cielo = await this.prisma.cartaoVendas.groupBy({
-      by: ['dataVenda'],
+    // const cielo = await this.prisma.cartaoVendas.groupBy({
+    //   by: ['dataVenda'],
+    //   where: {
+    //     ...(filial?.idCielo && {
+    //       estabelecimento: filial.idCielo,
+    //     }),
+    //     dataVenda: {
+    //       gte: dateRange.from,
+    //       lte: dateRange.to,
+    //     },
+    //   },
+    //   _sum: {
+    //     valorBruto: true,
+    //   },
+    // });
+
+    const cielo = await this.prisma.conciliacaoItem.groupBy({
+      by: ['dataReferencia'],
       where: {
-        ...(filial?.idCielo && {
-          estabelecimento: filial.idCielo,
-        }),
-        dataVenda: {
-          gte: dateRange.from,
-          lte: dateRange.to,
+        origem: 'CIELO',
+        dataReferencia: {
+          gte: start,
+          lte: end,
         },
+        ...(filialId && { grupo: { conciliacao: { filialId } } }),
       },
-      _sum: {
-        valorBruto: true,
-      },
+
+      _sum: { valor: true },
     });
 
     // 🔹 DIVERGÊNCIAS
@@ -996,7 +1029,7 @@ export class ConciliacaoService {
 
     // 🔹 Cielo
     for (const item of cielo) {
-      const dia = new Date(item.dataVenda).toISOString().slice(0, 10);
+      const dia = new Date(item.dataReferencia).toISOString().slice(0, 10);
 
       if (!resultado[dia]) {
         resultado[dia] = {
@@ -1007,7 +1040,7 @@ export class ConciliacaoService {
         };
       }
 
-      resultado[dia].adquirentes += Number(item._sum.valorBruto || 0);
+      resultado[dia].adquirentes += Number(item._sum.valor || 0);
     }
 
     // 🔹 Divergências
@@ -1030,5 +1063,47 @@ export class ConciliacaoService {
       (a: any, b: any) =>
         new Date(a.data).getTime() - new Date(b.data).getTime(),
     );
+  }
+
+  async chartRankingPendencias(dateRange: { from: string; to: string }) {
+    const start = new Date(dateRange.from + 'T00:00:00.000Z');
+    const end = new Date(dateRange.to + 'T23:59:59.999Z');
+
+    const rankingNaoConciliados = await this.prisma.$queryRaw<
+      {
+        filial: string;
+        divergencias: bigint;
+        valor: any;
+      }[]
+    >`
+SELECT
+  f.name AS filial,
+  CAST(COUNT(cg.id) AS SIGNED) AS divergencias,
+  SUM(COALESCE(cg.valorFinal, 0)) AS valor
+FROM ConciliacaoGrupo cg
+INNER JOIN Conciliacao c
+  ON c.id = cg.conciliacaoId
+INNER JOIN Filial f
+  ON f.id = c.filialId
+WHERE
+  cg.status = 'DIVERGENTE'
+  AND EXISTS (
+    SELECT 1
+    FROM ConciliacaoItem ci
+    WHERE ci.grupoId = cg.id
+      AND ci.dataReferencia BETWEEN ${start} AND ${end}
+  )
+GROUP BY
+  f.id,
+  f.name
+ORDER BY
+  valor DESC
+`;
+
+    return rankingNaoConciliados.map((item) => ({
+      filial: item.filial,
+      divergencias: Number(item.divergencias),
+      valor: Number(item.valor),
+    }));
   }
 }

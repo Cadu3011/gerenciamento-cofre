@@ -177,6 +177,10 @@ export class ConciliacaoController {
       },
       +filialId,
     );
-    return { cardsTotals, chartLinesCards };
+    const rankings = await this.conciliacaoService.chartRankingPendencias({
+      from: startDate,
+      to: endDate,
+    });
+    return { cardsTotals, chartLinesCards, rankings };
   }
 }

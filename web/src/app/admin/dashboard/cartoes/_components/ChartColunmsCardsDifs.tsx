@@ -17,7 +17,6 @@ import {
   ReferenceLine,
   Cell,
 } from "recharts";
-import { calculateDynamicMax } from "../../utils";
 
 const chartConfig = {
   diferenca: {
@@ -38,8 +37,9 @@ export default function ChartColumnsCardsDifs({ data }: Props) {
   const min = Math.min(...values);
   const max = Math.max(...values);
 
-  const yMin = min < 0 ? min * 1.15 : 0;
-  const yMax = max > 0 ? max * 1.15 : 0;
+  const yMin = min < 0 ? min * 1.05 : 0;
+  const yMax = max > 0 ? max * 1.05 : 0;
+
   const getBarColor = (diferenca: number) => {
     return diferenca >= -100 && diferenca <= 100
       ? "#22c55e" // green-500
@@ -49,9 +49,26 @@ export default function ChartColumnsCardsDifs({ data }: Props) {
   };
   return (
     <div className="h-full w-full flex flex-col">
-      <div className="flex justify-between">
-        <div>
-          <p>Diferenças</p>
+      <div className="flex justify-between items-center">
+        <div className="flex items-center gap-6">
+          <p className="font-bold">Vendas Trier vs Adquirentes</p>
+
+          <div className="flex gap-4 text-sm">
+            <div className="flex items-center gap-2">
+              <div className="h-3 w-3 rounded-full bg-[#22c55e]" />
+              <span>Moderado</span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <div className="h-3 w-3 rounded-full bg-[#ef4444]" />
+              <span>Falta</span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <div className="h-3 w-3 rounded-full bg-[#ca8a04]" />
+              <span>Sobra</span>
+            </div>
+          </div>
         </div>
       </div>
       <ChartContainer config={chartConfig} className="h-full w-full">
@@ -66,9 +83,16 @@ export default function ChartColumnsCardsDifs({ data }: Props) {
             tickFormatter={(value) => value.slice(0, 10)}
           />
           <ReferenceLine y={0} />
-          <YAxis domain={[yMin, yMax]} />
+          <YAxis
+            domain={[yMin, yMax]}
+            tickFormatter={(value) =>
+              Intl.NumberFormat("pt-BR", {
+                notation: "compact",
+                maximumFractionDigits: 1,
+              }).format(value)
+            }
+          />
           <ChartTooltip content={<ChartTooltipContent />} />
-          <ChartLegend content={<ChartLegendContent />} />
           <Bar dataKey="diferenca" radius={4}>
             {data.map((entry, index) => (
               <Cell key={index} fill={getBarColor(entry.diferenca)} />

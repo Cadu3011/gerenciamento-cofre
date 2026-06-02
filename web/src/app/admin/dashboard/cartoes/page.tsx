@@ -3,6 +3,7 @@ import CardTotals from "../_components/CardTotals";
 import { formatDate } from "../utils";
 import ChartLineCards from "./_components/ChartLineCardsSales";
 import ChartColumnsCardsDifs from "./_components/ChartColunmsCardsDifs";
+import ChartRowBarsRankings from "./_components/ChartRowBarsRankings";
 
 type Props = {
   searchParams: {
@@ -16,15 +17,25 @@ type Props = {
 
 export default async function Dashboard({ searchParams }: Props) {
   function getDefaultStartDate() {
-    const date = new Date();
+    const today = new Date();
 
-    return new Date(date.getFullYear(), date.getMonth(), 1)
-      .toISOString()
-      .split("T")[0];
+    const referenceDate =
+      today.getDate() <= 5
+        ? new Date(today.getFullYear(), today.getMonth() - 1, 1)
+        : new Date(today.getFullYear(), today.getMonth(), 1);
+
+    return referenceDate.toISOString().split("T")[0];
   }
 
   function getDefaultEndDate() {
-    return new Date().toISOString().split("T")[0];
+    const today = new Date();
+
+    const referenceDate =
+      today.getDate() <= 5
+        ? new Date(today.getFullYear(), today.getMonth(), 0) // último dia do mês anterior
+        : today;
+
+    return referenceDate.toISOString().split("T")[0];
   }
 
   const filiais = await getFiliais();
@@ -43,8 +54,8 @@ export default async function Dashboard({ searchParams }: Props) {
 
   const data = await getCardsTotalCards(query);
 
-  const { cardsTotals, chartLinesCards } = data;
-  console.log(chartLinesCards);
+  const { cardsTotals, chartLinesCards, rankings } = data;
+
   return (
     <div className="flex gap-2">
       <div className="flex flex-col w-full">
@@ -74,7 +85,7 @@ export default async function Dashboard({ searchParams }: Props) {
                   fontBold
                 />
                 <CardTotals
-                  title="Diferença não Conciliada"
+                  title="Divergências não Conciliadas"
                   value={String(cardsTotals.naoConciliados * -1)}
                   backgroundColor="bg-zinc-100"
                   fontSize="text-3xl"
@@ -99,8 +110,11 @@ export default async function Dashboard({ searchParams }: Props) {
               </div>
             </div>
             <div className="w-full px-10 gap-5 flex justify-between">
-              <ChartLineCards chartLinesCards={data.chartLinesCards} />
-              <ChartColumnsCardsDifs data={data.chartLinesCards} />
+              <ChartLineCards chartLinesCards={chartLinesCards} />
+              <ChartColumnsCardsDifs data={chartLinesCards} />
+            </div>
+            <div className="w-full px-10 gap-5 ">
+              <ChartRowBarsRankings data={rankings} />
             </div>
           </div>
         </div>
