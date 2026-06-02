@@ -12,10 +12,6 @@ interface UserPayload {
 }
 const secret = new TextEncoder().encode(process.env.JWT_SECRET);
 export async function proxy(request: NextRequest) {
-  const ip = request.headers.get("x-forwarded-for")?.split(",")[0] ?? "unknown";
-
-  console.log(ip, request.nextUrl.pathname);
-
   const token = request.cookies.get("access_token")?.value;
   if (!token) return NextResponse.redirect(new URL("/login", request.url));
 
@@ -23,7 +19,7 @@ export async function proxy(request: NextRequest) {
   const isExpired = userData.exp * 1000 < Date.now();
 
   if (isExpired) {
-    NextResponse.redirect(new URL("/login", request.url));
+    return NextResponse.redirect(new URL("/login", request.url));
   }
   try {
     const { payload } = await jwtVerify(token, secret);

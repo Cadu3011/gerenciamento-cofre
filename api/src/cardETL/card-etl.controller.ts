@@ -13,6 +13,6 @@ export class CardETLController {
   @Roles(Role.GESTOR)
   @Post('trier')
   async execute(@Body() body: { date: string; filialId: number }) {
-    await this.trierCardCron.executeByFilialAndDate(body);
+    return await this.trierCardCron.executeByFilialAndDate(body);
   }
 }
