@@ -15,3 +15,14 @@ export function formatDate(date: string) {
   const [year, month, day] = date.split("-");
   return `${day}/${month}/${year}`;
 }
+
+export function formatNum(valor: string | number) {
+  const numero = Number(valor || 0);
+
+  const formatado = Math.abs(numero).toLocaleString("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  });
+
+  return numero < 0 ? `R$ - ${formatado.replace("R$", "").trim()}` : formatado;
+}

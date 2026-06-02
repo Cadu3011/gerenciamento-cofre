@@ -1,12 +1,18 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Filter, Menu, X } from "lucide-react";
-
-import { handleLogut } from "@/app/api/post";
+import { Banknote, CreditCard, Filter, X } from "lucide-react";
 import { FilterDateRange } from "./FilterDateRange";
 import FilterFilial, { Filial } from "./FilterFilial";
+import { Button } from "@/components/ui/button";
+import Link from "next/link";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 export default function SidebarFilter({ filiais }: { filiais: Filial[] }) {
   const [open, setOpen] = useState(false);
@@ -18,18 +24,61 @@ export default function SidebarFilter({ filiais }: { filiais: Filial[] }) {
     return () => window.removeEventListener("keydown", onKey);
   }, [open]);
 
-  async function submitLogout(): Promise<any> {
-    handleLogut();
-  }
   return (
-    <>
-      <button
-        onClick={() => setOpen(true)}
-        aria-label="Abrir menu"
-        className="inline-flex text-white h-8 w-8 items-center justify-center overflow-hidden rounded-full sm:h-10 sm:w-10"
-      >
-        <Filter />
-      </button>
+    <div className="flex flex-col gap-2">
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant={"ghost"}
+              size={"lg"}
+              onClick={() => setOpen(true)}
+              aria-label="Abrir menu"
+              className="inline-flex text-white h-8 w-8 items-center justify-center overflow-hidden rounded-full sm:h-10 sm:w-10"
+            >
+              <Filter />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="right" className="bg-white">
+            <p>Filtros</p>
+          </TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Link href={"/admin/dashboard/cartoes"}>
+              <Button
+                variant={"ghost"}
+                size={"lg"}
+                aria-label="Abrir menu"
+                className="inline-flex text-white h-8 w-8 items-center justify-center overflow-hidden rounded-full sm:h-10 sm:w-10"
+              >
+                <CreditCard />
+              </Button>
+            </Link>
+          </TooltipTrigger>
+          <TooltipContent side="right" className="bg-white">
+            <p>Diferença de Cartões</p>
+          </TooltipContent>
+        </Tooltip>
+
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Link href={"/admin/dashboard/caixas"}>
+              <Button
+                variant={"ghost"}
+                size={"lg"}
+                aria-label="Abrir menu"
+                className="inline-flex text-white h-8 w-8 items-center justify-center overflow-hidden rounded-full sm:h-10 sm:w-10"
+              >
+                <Banknote />
+              </Button>
+            </Link>
+          </TooltipTrigger>
+          <TooltipContent side="right" className="bg-white">
+            <p>Diferença de Caixas</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
 
       <AnimatePresence>
         {open && (
@@ -77,6 +126,6 @@ export default function SidebarFilter({ filiais }: { filiais: Filial[] }) {
           </>
         )}
       </AnimatePresence>
-    </>
+    </div>
   );
 }

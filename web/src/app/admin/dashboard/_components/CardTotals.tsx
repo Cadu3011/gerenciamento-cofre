@@ -1,3 +1,5 @@
+import { formatNum } from "../utils";
+
 export default function CardTotals({
   title,
   value,
@@ -19,18 +21,6 @@ export default function CardTotals({
 }) {
   const valueFormat = Number(value);
 
-  function formatNum(valor: string | number) {
-    const numero = Number(valor || 0);
-
-    const formatado = Math.abs(numero).toLocaleString("pt-BR", {
-      style: "currency",
-      currency: "BRL",
-    });
-
-    return numero < 0
-      ? `R$ - ${formatado.replace("R$", "").trim()}`
-      : formatado;
-  }
   return (
     <div
       className={`px-5 flex flex-col gap-2 items-center justify-center ${backgroundColor}`}

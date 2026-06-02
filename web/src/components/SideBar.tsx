@@ -76,7 +76,7 @@ export default function Sidebar({ role }: { role: string }) {
                   {role === "GESTOR" && (
                     <div className="flex flex-col gap-4">
                       <Link
-                        href="/admin/dashboard"
+                        href="/admin/dashboard/caixas"
                         className="hover:text-green-400"
                       >
                         Dashboard
