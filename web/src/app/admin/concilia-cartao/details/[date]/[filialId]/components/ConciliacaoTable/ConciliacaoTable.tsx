@@ -1,3 +1,4 @@
+import { formatDate, formatNum } from "@/app/admin/dashboard/utils";
 import {
   Table,
   TableBody,
@@ -24,6 +25,7 @@ export function ConciliacaoTable<T extends any>({
     <Table noWrapper>
       <TableHeader className="sticky top-0 bg-blue-950">
         <TableRow>
+          <TableHead className="text-white">Data</TableHead>
           <TableHead className="text-white">Origem</TableHead>
           <TableHead className="text-white">Cod Venda</TableHead>
           <TableHead className="text-white">Modalidade</TableHead>
@@ -43,6 +45,7 @@ export function ConciliacaoTable<T extends any>({
               ${disabled?.(item) ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}
             `}
           >
+            <TableCell>{formatDate(String(item.data).split("T")[0])}</TableCell>
             <TableCell>{item.origem}</TableCell>
             <TableCell>
               {item.origem === "TRIER" ? item.documentoFiscal : item.nsu}
@@ -50,7 +53,7 @@ export function ConciliacaoTable<T extends any>({
             <TableCell>{item.modalidade}</TableCell>
             <TableCell>{item.bandeira}</TableCell>
             <TableCell>{item.hora}</TableCell>
-            <TableCell>{item.valor}</TableCell>
+            <TableCell>{formatNum(item.valor)}</TableCell>
           </TableRow>
         ))}
       </TableBody>

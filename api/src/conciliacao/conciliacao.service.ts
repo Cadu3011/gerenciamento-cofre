@@ -415,7 +415,12 @@ export class ConciliacaoService {
     });
   }
 
-  async findByDateDivergentes(filialId: number, date: string) {
+  async findByDateDivergentes(
+    filialId: number,
+    dateRange: { from: string; to: string },
+  ) {
+    const start = new Date(dateRange.from + 'T00:00:00.000Z');
+    const end = new Date(dateRange.to + 'T00:00:00.000Z');
     const conciliacaoItem = await this.prisma.conciliacaoItem.findMany({
       where: {
         grupo: {
@@ -424,7 +429,7 @@ export class ConciliacaoService {
           },
           status: 'DIVERGENTE',
         },
-        dataReferencia: new Date(`${date}T00:00:00.000Z`),
+        dataReferencia: { gte: start, lte: end },
       },
       include: {
         grupo: true,
@@ -441,13 +446,14 @@ export class ConciliacaoService {
       cieloValue: item.grupo.valorCielo,
       horaNum: this.getHoraNormalizada(item),
       horaFmt: this.getHoraFormatada(item),
+      data: item.dataReferencia,
     }));
 
     const cieloMap = new Map();
     const resultado = [];
 
     for (const entry of itens) {
-      const { item, cieloValue, horaFmt, horaNum, conciliacaoId } = entry;
+      const { item, cieloValue, horaFmt, horaNum, conciliacaoId, data } = entry;
 
       // 🔹 TRIER
       if (item.origem === 'TRIER') {
@@ -457,12 +463,13 @@ export class ConciliacaoService {
           conciliacaoId,
           horaNum,
           hora: horaFmt,
-          valor: item.valor,
+          valor: item.valor.toFixed(2),
           documentoFiscal: item.trier?.documentoFiscal,
           modalidade: item.trier?.modalidade,
           bandeira: item.trier?.bandeira,
           status: item.trier?.statusConciliacao,
           origem: item.origem,
+          data,
         });
       }
 
@@ -475,10 +482,11 @@ export class ConciliacaoService {
             id: item.id,
             grupoId: item.grupoId,
             conciliacaoId,
+            data,
             horaNum,
             hora: horaFmt,
             origem: item.origem,
-            valor: cieloValue,
+            valor: cieloValue.toFixed(2),
             nsu: item.cielo.nsu,
             bandeira: item.cielo.bandeira,
             modalidade: item.cielo.modalidade,
@@ -494,10 +502,11 @@ export class ConciliacaoService {
               id: item.id,
               grupoId: item.grupoId,
               conciliacaoId,
+              data,
               horaNum,
               hora: horaFmt,
               origem: item.origem,
-              valor: cieloValue,
+              valor: cieloValue.toFixed(2),
               nsu: item.cielo.nsu,
               bandeira: item.cielo.bandeira,
               modalidade: item.cielo.modalidade,
@@ -513,10 +522,11 @@ export class ConciliacaoService {
           id: item.id,
           grupoId: item.grupoId,
           conciliacaoId,
+          data,
           horaNum,
           hora: horaFmt,
           origem: item.origem,
-          valor: item.valor,
+          valor: item.valor.toFixed(2),
           nsu: item.rede.nsu,
           bandeira: item.rede.bandeira,
           modalidade: item.rede.modalidade,
@@ -559,6 +569,7 @@ export class ConciliacaoService {
       horaFmt: this.getHoraFormatada(item),
       valorFinal: item.grupo.valorFinal,
       motivo: item.grupo.motivo,
+      data: item.dataReferencia,
     }));
 
     const cieloMap = new Map();
@@ -573,6 +584,7 @@ export class ConciliacaoService {
         valorFinal,
         conciliacaoId,
         motivo,
+        data,
       } = entry;
 
       // 🔹 TRIER
@@ -591,6 +603,7 @@ export class ConciliacaoService {
           origem: item.origem,
           diferencaGrupo: valorFinal,
           motivo,
+          data,
         });
       }
 
@@ -613,6 +626,7 @@ export class ConciliacaoService {
             status: item.cielo.statusConciliacao,
             diferencaGrupo: valorFinal,
             motivo,
+            data,
           });
         } else {
           const key = item.cielo.nsu;
@@ -634,6 +648,7 @@ export class ConciliacaoService {
               status: item.cielo.statusConciliacao,
               diferencaGrupo: valorFinal,
               motivo,
+              data,
             });
           }
         }
@@ -655,6 +670,7 @@ export class ConciliacaoService {
           status: item.rede.statusConciliacao,
           diferencaGrupo: valorFinal,
           motivo,
+          data,
         });
       }
     }

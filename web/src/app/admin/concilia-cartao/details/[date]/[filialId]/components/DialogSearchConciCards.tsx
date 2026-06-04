@@ -24,6 +24,9 @@ import {
   conciliarGrupos,
   getGruposPendentes,
 } from "@/app/api/cartao/conciCards";
+import { FilterDateRange } from "@/app/admin/dashboard/_components/FilterDateRange";
+import { formatNum } from "@/app/admin/dashboard/utils";
+import { useRouter, useSearchParams } from "next/navigation";
 
 export default function DialogSearchConciCards({
   selectedGroup,
@@ -31,15 +34,16 @@ export default function DialogSearchConciCards({
   token,
   onConciliated,
   dateInitial,
-  filialId
+  filialId,
 }: {
   setSelectedGroup: Dispatch<SetStateAction<number | null>>;
   selectedGroup: number | null;
   token: string;
   onConciliated: () => void;
   dateInitial: string;
-  filialId:number
+  filialId: number;
 }) {
+  const router = useRouter();
   const [salesDivergentes, setSalesDivergentes] = useState<
     ConciliacaoDivergenteItem[]
   >([]);
@@ -50,53 +54,64 @@ export default function DialogSearchConciCards({
   const [motivo, setMotivo] = useState<string>("");
   const [loading, setLoading] = useState(false);
 
-  const [dateSelected, setDateSelected] = useState<Date | undefined>();
-  const [open, setOpen] = useState(false);
-
   const [filterValue, setFilterValue] = useState("");
   const [sortOrder, setSortOrder] = useState<"default" | "asc" | "desc">(
     "default",
   );
   const [showOnlySelected, setShowOnlySelected] = useState(false);
 
-  const getPendentes = async (date?: Date) => {
-    const formattedDate = date ? date.toISOString().split("T")[0] : dateInitial;
+  const searchParams = useSearchParams();
 
-    const data: ConciliacaoDivergenteItem[] =
-      await getGruposPendentes(formattedDate,filialId);
+  const startDate = searchParams.get("startDate") ?? dateInitial;
+
+  const endDate = searchParams.get("endDate") ?? dateInitial;
+
+  const getPendentes = async () => {
+    const data: ConciliacaoDivergenteItem[] = await getGruposPendentes(
+      startDate ?? dateInitial,
+      endDate ?? startDate ?? dateInitial,
+      filialId,
+    );
 
     setSalesDivergentes(data);
   };
+  const clearDateFilters = () => {
+    const params = new URLSearchParams(searchParams.toString());
 
-  const filteredAndSortedData = salesDivergentes
-    .filter((item) => {
-      if (!filterValue) return true;
+    params.delete("startDate");
+    params.delete("endDate");
 
-      // transforma string em número (aceita "10.50", "10,50", etc)
-      const input = Number(filterValue.replace(",", "."));
-      if (isNaN(input)) return true;
+    const query = params.toString();
 
-      return item.valor.toString().includes(filterValue);
-    })
-    .filter((item) => {
-      if (!showOnlySelected) return true;
-
-      return selectedItems.some((s) => s.grupoId === item.grupoId);
-    })
-    .sort((a, b) => {
-      if (sortOrder === "default") return 0;
-
-      const valA = Number(a.valor);
-      const valB = Number(b.valor);
-
-      return sortOrder === "asc" ? valA - valB : valB - valA;
+    router.replace(query ? `?${query}` : window.location.pathname, {
+      scroll: false,
     });
+  };
+
+  const filteredAndSortedData = showOnlySelected
+    ? selectedItems
+    : salesDivergentes
+        .filter((item) => {
+          if (!filterValue) return true;
+
+          const search = filterValue.replace(",", ".");
+
+          return item.valor.toString().includes(search);
+        })
+        .sort((a, b) => {
+          if (sortOrder === "default") return 0;
+
+          const valA = Number(a.valor);
+          const valB = Number(b.valor);
+
+          return sortOrder === "asc" ? valA - valB : valB - valA;
+        });
 
   useEffect(() => {
     if (selectedGroup) {
-      getPendentes(dateSelected);
+      getPendentes();
     }
-  }, [selectedGroup]);
+  }, [selectedGroup, startDate, endDate]);
 
   useEffect(() => {
     if (selectedGroup && salesDivergentes.length > 0) {
@@ -162,6 +177,7 @@ export default function DialogSearchConciCards({
       open={!!selectedGroup}
       onOpenChange={(open) => {
         if (!open) {
+          clearDateFilters();
           setSelectedGroup(null);
           setSelectedItems([]);
         }
@@ -188,37 +204,13 @@ export default function DialogSearchConciCards({
                 Number(diferenca) === 0 ? "text-green-600" : "text-red-600"
               } text-3xl font-bold`}
             >
-              R$ {diferenca.toFixed(2)}
+              {formatNum(String(diferenca))}
             </span>
           </div>
           <div className="py-2 flex justify-between px-10">
             {/* 📅 Calendário */}
             <div className="flex gap-2">
-              <Popover open={open} onOpenChange={setOpen}>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className="w-56 justify-between font-normal"
-                  >
-                    {dateSelected
-                      ? dateSelected.toLocaleDateString()
-                      : "Selecionar data"}
-                    <ChevronDownIcon />
-                  </Button>
-                </PopoverTrigger>
-
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={dateSelected}
-                    onSelect={(date) => {
-                      setDateSelected(date);
-                      getPendentes(date); // 🔥 chama direto
-                      setOpen(false);
-                    }}
-                  />
-                </PopoverContent>
-              </Popover>
+              <FilterDateRange />
 
               {/* 🔎 Filtro */}
               <Input

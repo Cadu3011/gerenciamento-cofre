@@ -65,7 +65,7 @@ export function FilterDateRange() {
           <Button
             variant="default"
             id="date"
-            className="w-48 justify-between font-normal"
+            className="w-48 justify-start font-normal"
           >
             {dateRange?.from && dateRange?.to ? (
               <div>

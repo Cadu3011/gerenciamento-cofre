@@ -1,4 +1,5 @@
 "use client";
+import { formatNum } from "@/app/admin/dashboard/utils";
 import { ConciCards } from "@/app/types/conciCards";
 import { TableBody, TableCell, TableRow } from "@/components/ui/table";
 import { Dispatch, SetStateAction } from "react";
@@ -35,7 +36,7 @@ export default function ListSalesAdquirentes({
               ${adq.qtdItensGrupo.itens === 1 && adq.status === "CONCILIADO" ? "bg-amber-700 hover:bg-amber-800 " : ""}`}
           >
             <TableCell>{adq.hora}</TableCell>
-            <TableCell>{adq.valor}</TableCell>
+            <TableCell>{formatNum(adq.valor)}</TableCell>
             <TableCell>{adq.origem}</TableCell>
             <TableCell>{adq.modalidade}</TableCell>
             <TableCell>{adq.bandeira}</TableCell>

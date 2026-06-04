@@ -84,18 +84,22 @@ export class ConciliacaoController {
   @Get('divergentes')
   async findByDateDivergentes(
     @Req() req: Request,
-    @Query('date') date: string,
+    @Query('startDate') startDate: string,
+    @Query('endDate') endDate: string,
     @Query('filialId') filialId?: string,
   ) {
     const user = req['sub'] as any;
     if (user.roles === 'OPERADOR') {
       filialId = user.filialId;
-      return await this.conciliacaoService.findByDateDivergentes(
-        +filialId,
-        date,
-      );
+      return await this.conciliacaoService.findByDateDivergentes(+filialId, {
+        from: startDate,
+        to: endDate,
+      });
     }
-    return await this.conciliacaoService.findByDateDivergentes(+filialId, date);
+    return await this.conciliacaoService.findByDateDivergentes(+filialId, {
+      from: startDate,
+      to: endDate,
+    });
   }
 
   @UseGuards(AuthGuard)

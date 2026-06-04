@@ -175,7 +175,7 @@ export class JobsService {
     });
   }
 
-  @Cron('5,38 5,7,10,12 * * 1-7')
+  @Cron('10,38 7,10,12,13 * * 1-7')
   async runConciCards() {
     return await this.runCronJob('ConciCards', async () => {
       await this.conciCardsPipeline.execute();
