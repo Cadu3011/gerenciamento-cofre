@@ -13,17 +13,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast, ToastContainer } from "react-toastify";
 import { ConciliacaoTable } from "./ConciliacaoTable/ConciliacaoTable";
-import { Calendar } from "@/components/ui/calendar";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { ChevronDownIcon } from "lucide-react";
 import {
   conciliarGrupos,
   getGruposPendentes,
 } from "@/app/api/cartao/conciCards";
+import { FilterDateRange } from "@/app/admin/dashboard/_components/FilterDateRange";
+import { useRouter, useSearchParams } from "next/navigation";
+import { formatNum } from "@/app/admin/dashboard/utils";
 
 export default function DialogSearchConciCards({
   selectedGroup,
@@ -38,6 +34,7 @@ export default function DialogSearchConciCards({
   onConciliated: () => void;
   dateInitial: string;
 }) {
+  const router = useRouter();
   const [salesDivergentes, setSalesDivergentes] = useState<
     ConciliacaoDivergenteItem[]
   >([]);
@@ -48,53 +45,63 @@ export default function DialogSearchConciCards({
   const [motivo, setMotivo] = useState<string>("");
   const [loading, setLoading] = useState(false);
 
-  const [dateSelected, setDateSelected] = useState<Date | undefined>();
-  const [open, setOpen] = useState(false);
-
   const [filterValue, setFilterValue] = useState("");
   const [sortOrder, setSortOrder] = useState<"default" | "asc" | "desc">(
     "default",
   );
   const [showOnlySelected, setShowOnlySelected] = useState(false);
 
-  const getPendentes = async (date?: Date) => {
-    const formattedDate = date ? date.toISOString().split("T")[0] : dateInitial;
+  const searchParams = useSearchParams();
 
-    const data: ConciliacaoDivergenteItem[] =
-      await getGruposPendentes(formattedDate);
+  const startDate = searchParams.get("startDate") ?? dateInitial;
+
+  const endDate = searchParams.get("endDate") ?? dateInitial;
+
+  const getPendentes = async () => {
+    const data: ConciliacaoDivergenteItem[] = await getGruposPendentes(
+      startDate ?? dateInitial,
+      endDate ?? startDate ?? dateInitial,
+    );
 
     setSalesDivergentes(data);
   };
+  const clearDateFilters = () => {
+    const params = new URLSearchParams(searchParams.toString());
 
-  const filteredAndSortedData = salesDivergentes
-    .filter((item) => {
-      if (!filterValue) return true;
+    params.delete("startDate");
+    params.delete("endDate");
 
-      // transforma string em número (aceita "10.50", "10,50", etc)
-      const input = Number(filterValue.replace(",", "."));
-      if (isNaN(input)) return true;
+    const query = params.toString();
 
-      return item.valor.toString().includes(filterValue);
-    })
-    .filter((item) => {
-      if (!showOnlySelected) return true;
-
-      return selectedItems.some((s) => s.grupoId === item.grupoId);
-    })
-    .sort((a, b) => {
-      if (sortOrder === "default") return 0;
-
-      const valA = Number(a.valor);
-      const valB = Number(b.valor);
-
-      return sortOrder === "asc" ? valA - valB : valB - valA;
+    router.replace(query ? `?${query}` : window.location.pathname, {
+      scroll: false,
     });
+  };
+
+  const filteredAndSortedData = showOnlySelected
+    ? selectedItems
+    : salesDivergentes
+        .filter((item) => {
+          if (!filterValue) return true;
+
+          const search = filterValue.replace(",", ".");
+
+          return item.valor.toString().includes(search);
+        })
+        .sort((a, b) => {
+          if (sortOrder === "default") return 0;
+
+          const valA = Number(a.valor);
+          const valB = Number(b.valor);
+
+          return sortOrder === "asc" ? valA - valB : valB - valA;
+        });
 
   useEffect(() => {
     if (selectedGroup) {
-      getPendentes(dateSelected);
+      getPendentes();
     }
-  }, [selectedGroup]);
+  }, [selectedGroup, startDate, endDate]);
 
   useEffect(() => {
     if (selectedGroup && salesDivergentes.length > 0) {
@@ -160,6 +167,7 @@ export default function DialogSearchConciCards({
       open={!!selectedGroup}
       onOpenChange={(open) => {
         if (!open) {
+          clearDateFilters();
           setSelectedGroup(null);
           setSelectedItems([]);
         }
@@ -183,59 +191,45 @@ export default function DialogSearchConciCards({
             {/* 💰 Diferença */}
             <span
               className={`${
-                Number(diferenca) === 0 ? "text-green-600" : "text-red-600"
+                Number(diferenca) === 0
+                  ? "text-green-600"
+                  : Number(diferenca) < 0
+                    ? "text-yellow-600"
+                    : "text-red-600"
               } text-3xl font-bold`}
             >
-              R$ {diferenca.toFixed(2)}
+              {formatNum(Number(diferenca) * -1)}
             </span>
           </div>
           <div className="py-2 flex justify-between px-10">
             {/* 📅 Calendário */}
             <div className="flex gap-2">
-              <Popover open={open} onOpenChange={setOpen}>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className="w-56 justify-between font-normal"
-                  >
-                    {dateSelected
-                      ? dateSelected.toLocaleDateString()
-                      : "Selecionar data"}
-                    <ChevronDownIcon />
-                  </Button>
-                </PopoverTrigger>
-
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={dateSelected}
-                    onSelect={(date) => {
-                      setDateSelected(date);
-                      getPendentes(date); // 🔥 chama direto
-                      setOpen(false);
-                    }}
-                  />
-                </PopoverContent>
-              </Popover>
+              <FilterDateRange />
 
               {/* 🔎 Filtro */}
-              <Input
-                placeholder="Filtrar por valor (ex: 10.00)"
-                value={filterValue}
-                onChange={(e) => setFilterValue(e.target.value)}
-                className="w-60"
-              />
+              <div>
+                <p>Filtrar por Valor</p>
+                <Input
+                  placeholder="Filtrar por valor (ex: 10.00)"
+                  value={filterValue}
+                  onChange={(e) => setFilterValue(e.target.value)}
+                  className="w-60"
+                />
+              </div>
 
               {/* 🔃 Ordenação */}
-              <Button
-                variant="outline"
-                onClick={toggleSort}
-                className="bg-blue-400"
-              >
-                {sortOrder === "default" && "Padrão (Hora)"}
-                {sortOrder === "desc" && "Maior → Menor"}
-                {sortOrder === "asc" && "Menor → Maior"}
-              </Button>
+              <div>
+                <p>Ordenar por:</p>{" "}
+                <Button
+                  variant="outline"
+                  onClick={toggleSort}
+                  className="bg-blue-400"
+                >
+                  {sortOrder === "default" && "Padrão (Hora)"}
+                  {sortOrder === "desc" && "Maior → Menor"}
+                  {sortOrder === "asc" && "Menor → Maior"}
+                </Button>
+              </div>
 
               <Button
                 variant={showOnlySelected ? "default" : "outline"}
@@ -250,7 +244,7 @@ export default function DialogSearchConciCards({
         </DialogHeader>
 
         {selectedGroup && (
-          <div className="relative h-[50vh] overflow-y-auto">
+          <div className="relative h-[40vh] overflow-y-auto">
             <ConciliacaoTable
               data={filteredAndSortedData}
               onRowClick={toggleItem}
@@ -269,13 +263,13 @@ export default function DialogSearchConciCards({
               type="text"
               value={motivo}
               onChange={(e) => setMotivo(e.target.value)}
-              className="w-1/2"
+              className="max-w-xl"
               placeholder="Digite a observação ou motivo"
             />
           </div>
 
           <Button
-            className="bg-blue-700 w-24"
+            className="bg-blue-700 shrink-0"
             onClick={async () => {
               if (loading) return;
 

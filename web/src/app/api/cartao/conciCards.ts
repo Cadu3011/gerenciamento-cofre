@@ -33,10 +33,14 @@ export async function desconciliarGrupo(grupoId: number) {
   return { ok: res.ok, data: await res.json() };
 }
 
-export async function getGruposPendentes(date?: string, filialId?: number) {
+export async function getGruposPendentes(
+  startDate: string,
+  endDate: string,
+  filialId?: number,
+) {
   const tokenCookie = (await cookies()).get("access_token")?.value;
   const res = await fetch(
-    `http://localhost:4000/conciliacao/divergentes?date=${date}&filialId=${filialId}`,
+    `http://localhost:4000/conciliacao/divergentes?startDate=${startDate}&endDate=${endDate}&filialId=${filialId}`,
     {
       method: "GET",
       headers: {

@@ -1,5 +1,6 @@
 "use client";
 
+import { formatNum } from "@/app/admin/dashboard/utils";
 import { ConciCards } from "@/app/types/conciCards";
 import { TableCell, TableRow } from "@/components/ui/table";
 import { Dispatch, SetStateAction } from "react";
@@ -42,7 +43,7 @@ export default function ListSalesTrier({
             <TableCell>{t.modalidade}</TableCell>
             <TableCell>{t.bandeira}</TableCell>
             <TableCell>{t.hora}</TableCell>
-            <TableCell>{Number(t.valor).toFixed(2)}</TableCell>
+            <TableCell>{formatNum(t.valor)}</TableCell>
           </TableRow>
         );
       })}
