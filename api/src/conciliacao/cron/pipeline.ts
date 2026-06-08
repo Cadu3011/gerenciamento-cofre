@@ -1,4 +1,4 @@
-import { Inject, Injectable, OnModuleInit } from '@nestjs/common';
+import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import {
   RedeVenda,
   TrierCartaoVendas,
@@ -19,10 +19,59 @@ export class Pipeline {
   @Inject()
   private readonly matchService: MatchService;
 
+  private readonly logger = new Logger(Pipeline.name);
+
   async execute(filialId: number, date: string) {
     const groups = await this.matchService.matchMovements(filialId, date);
-
+    this.logger.log(
+      `Filial ${filialId} Data ${date} - Groups: ${groups.length}`,
+    );
     await this.criarGruposEItens(filialId, date, groups);
+
+    const total = groups.length;
+
+    if (total === 0) {
+      this.logger.warn(
+        `Filial ${filialId} Data ${date} - Nenhum grupo encontrado`,
+      );
+      return;
+    }
+
+    const conciliados = groups.filter((g) => g.status === 'CONCILIADO').length;
+
+    const percentual = (conciliados / total) * 100;
+    this.logger.log(
+      `Filial ${filialId} Data ${date} - ${conciliados}/${total} (${percentual.toFixed(2)}%)`,
+    );
+    const conciliacao = await this.prisma.conciliacao.findUnique({
+      where: {
+        filialId_startDate: {
+          filialId,
+          startDate: new Date(`${date}T00:00:00.000Z`),
+        },
+      },
+    });
+    if (percentual < 80) {
+      await this.prisma.conciliacao.update({
+        where: { id: conciliacao.id },
+        data: {
+          status: 'DIVERGENTE',
+          motivo: `${percentual}% concluido`,
+        },
+      });
+
+      throw new Error(
+        `Taxa de conciliação abaixo do esperado (${percentual.toFixed(2)}%)`,
+      );
+    }
+
+    await this.prisma.conciliacao.update({
+      where: { id: conciliacao.id },
+      data: {
+        status: 'CONCILIADO',
+        motivo: `${percentual}% concluido`,
+      },
+    });
   }
 
   gerarItensParaGrupo(group: any, grupoId: number) {
