@@ -40,15 +40,16 @@ export class ConciCardsCron {
       filial: number;
       lastUpdatedDate: string | null;
     }> = [];
+    const errors: string[] = [];
     for (const f of filiais) {
       const last = await this.prisma.conciliacao.aggregate({
-        where: { filialId: f.id },
+        where: { filialId: f.id, status: 'CONCILIADO' },
         _max: { startDate: true },
       });
       // se não tem nada ainda, você decide um "start" inicial
       const startBase = last._max.startDate
         ? this.toISODate(new Date(last._max.startDate))
-        : '2026-04-01'; // seu initDate (primeira carga)
+        : '2026-05-24'; // seu initDate (primeira carga)
 
       // datas faltantes = (startBase + 1) ... D-1
       const start = this.addDays(startBase, 1);
@@ -62,14 +63,28 @@ export class ConciCardsCron {
       // roda dia a dia
       let current = start;
       while (this.diffDays(current, dMinus1) >= 0) {
-        this.logger.log(`ETL Conci filial ${f.name} - dia ${current}`);
+        try {
+          await this.pipeline.execute(f.id, current);
+          this.logger.debug(
+            `Filial ${f.id} Data ${current} processada com sucesso`,
+          );
+        } catch (error) {
+          const message =
+            error instanceof Error ? error.message : String(error);
 
-        await this.pipeline.execute(f.id, current);
+          errors.push(`Filial ${f.id} - Data ${current} - ${message}`);
+        }
 
         current = this.addDays(current, 1);
       }
 
       resultsLastDates.push({ filial: f.id, lastUpdatedDate: dMinus1 });
+    }
+    this.logger.log(`Total de erros: ${errors.length}`);
+
+    if (errors.length > 0) {
+      this.logger.error(errors.join('\n'));
+      throw new Error(`${errors.length} conciliações ficaram abaixo de 80%`);
     }
     return { lastUpdatedByFilial: resultsLastDates };
   }
