@@ -4,6 +4,7 @@ import { formatDate } from "../utils";
 import ChartLineCards from "./_components/ChartLineCardsSales";
 import ChartColumnsCardsDifs from "./_components/ChartColunmsCardsDifs";
 import ChartRowBarsRankings from "./_components/ChartRowBarsRankings";
+import ChartRowBarsRankingsHealth from "./_components/ChartRowBarsRankingsHealth";
 
 type Props = {
   searchParams: {
@@ -54,7 +55,7 @@ export default async function Dashboard({ searchParams }: Props) {
 
   const data = await getCardsTotalCards(query);
 
-  const { cardsTotals, chartLinesCards, rankings } = data;
+  const { cardsTotals, chartLinesCards, rankings, chartRankingHealth } = data;
 
   return (
     <div className="flex gap-2">
@@ -113,8 +114,9 @@ export default async function Dashboard({ searchParams }: Props) {
               <ChartLineCards chartLinesCards={chartLinesCards} />
               <ChartColumnsCardsDifs data={chartLinesCards} />
             </div>
-            <div className="w-full px-10 gap-5 ">
+            <div className="w-full flex flex-col px-10 gap-10 ">
               <ChartRowBarsRankings data={rankings} />
+              <ChartRowBarsRankingsHealth data={chartRankingHealth} />
             </div>
           </div>
         </div>

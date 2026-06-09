@@ -181,10 +181,17 @@ export class ConciliacaoController {
       },
       +filialId,
     );
+    const chartRankingHealth = await this.conciliacaoService.chartRankingHealth(
+      {
+        from: startDate,
+        to: endDate,
+      },
+      +filialId,
+    );
     const rankings = await this.conciliacaoService.chartRankingPendencias({
       from: startDate,
       to: endDate,
     });
-    return { cardsTotals, chartLinesCards, rankings };
+    return { cardsTotals, chartLinesCards, rankings, chartRankingHealth };
   }
 }

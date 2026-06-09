@@ -1122,4 +1122,182 @@ ORDER BY
       valor: Number(item.valor),
     }));
   }
+
+  async chartRankingHealth(
+    dateRange: { from: string; to: string },
+    filialId?: number,
+  ) {
+    const start = new Date(`${dateRange.from}T00:00:00.000Z`);
+    const end = new Date(`${dateRange.to}T23:59:59.999Z`);
+
+    const [gruposConciliados, totalDivergentes] = await Promise.all([
+      this.prisma.conciliacaoGrupo.findMany({
+        where: {
+          status: 'CONCILIADO',
+          conciliacao: {
+            ...(filialId && { filialId }),
+          },
+          itens: {
+            some: {
+              dataReferencia: {
+                gte: start,
+                lte: end,
+              },
+            },
+          },
+        },
+        include: {
+          itens: {
+            include: {
+              trier: true,
+              rede: true,
+              cielo: true,
+            },
+          },
+        },
+      }),
+
+      this.prisma.conciliacaoGrupo.count({
+        where: {
+          status: 'DIVERGENTE',
+          conciliacao: {
+            ...(filialId && { filialId }),
+          },
+          itens: {
+            some: {
+              dataReferencia: {
+                gte: start,
+                lte: end,
+              },
+            },
+          },
+        },
+      }),
+    ]);
+
+    let automatico = 0;
+    let manualMenor2 = 0;
+    let manualMaior2 = 0;
+    let unico = 0;
+
+    for (const grupo of gruposConciliados) {
+      const possuiTrier = grupo.itens.some((item) => item.origem === 'TRIER');
+
+      const possuiAdquirente = grupo.itens.some(
+        (item) => item.origem === 'REDE' || item.origem === 'CIELO',
+      );
+
+      // 🔹 Grupo único
+      const ehUnico = possuiTrier !== possuiAdquirente;
+
+      if (ehUnico) {
+        const possuiBrasilCard = grupo.itens.some((item) => {
+          const bandeiras = [
+            item.trier?.bandeira,
+            item.rede?.bandeira,
+            item.cielo?.bandeira,
+          ]
+            .filter(Boolean)
+            .join(' ')
+            .toUpperCase();
+
+          return bandeiras.includes('BRASILCARD');
+        });
+
+        // 🔹 BrasilCard não entra na saúde do sistema
+        if (!possuiBrasilCard) {
+          unico++;
+        }
+
+        continue;
+      }
+
+      // 🔹 Automático
+      if (grupo.metodo === 'AUTO') {
+        automatico++;
+        continue;
+      }
+
+      // 🔹 Manual
+      if (grupo.metodo === 'MANUAL') {
+        const diferenca = Number(grupo.valorFinal ?? 0);
+
+        // entre -2 e +2
+        if (diferenca >= -2 && diferenca <= 2) {
+          manualMenor2++;
+        } else {
+          manualMaior2++;
+        }
+      }
+    }
+
+    const totalConciliados = automatico + manualMenor2 + manualMaior2 + unico;
+
+    const totalGrupos = totalConciliados + totalDivergentes;
+    const percentualAutomaticoGeral =
+      totalGrupos === 0
+        ? 0
+        : Number(((automatico / totalGrupos) * 100).toFixed(2));
+
+    const percentualManualGeral =
+      totalGrupos === 0
+        ? 0
+        : Number(
+            (((manualMenor2 + manualMaior2) / totalGrupos) * 100).toFixed(2),
+          );
+
+    const percentualUnicoGeral =
+      totalGrupos === 0 ? 0 : Number(((unico / totalGrupos) * 100).toFixed(2));
+    const percentualConciliado = (valor: number) =>
+      totalConciliados === 0
+        ? 0
+        : Number(((valor / totalConciliados) * 100).toFixed(2));
+
+    const percentualGeral = (valor: number) =>
+      totalGrupos === 0 ? 0 : Number(((valor / totalGrupos) * 100).toFixed(2));
+
+    return {
+      resumo: {
+        totalGrupos,
+        totalConciliados,
+        totalDivergentes,
+
+        percentualConciliado: percentualGeral(totalConciliados),
+
+        percentualDivergente: percentualGeral(totalDivergentes),
+
+        percentualAutomaticoGeral,
+
+        percentualManualGeral,
+
+        percentualUnicoGeral,
+      },
+
+      ranking: [
+        {
+          tipo: 'Automático',
+          quantidade: automatico,
+          percentual: percentualConciliado(automatico),
+        },
+
+        {
+          tipo: 'Manual ± R$2',
+          quantidade: manualMenor2,
+          percentual: percentualConciliado(manualMenor2),
+        },
+
+        {
+          tipo: 'Manual > R$2',
+          quantidade: manualMaior2,
+          percentual: percentualConciliado(manualMaior2),
+        },
+
+        {
+          tipo: 'Único',
+          quantidade: unico,
+          percentual: percentualConciliado(unico),
+        },
+      ],
+    };
+  }
 }
