@@ -564,7 +564,6 @@ export class ConciliacaoService {
     const itens = conciliacaoItem.map((item) => ({
       item,
       conciliacaoId: item.grupo.conciliacaoId,
-      cieloValue: item.grupo.valorCielo,
       horaNum: this.getHoraNormalizada(item),
       horaFmt: this.getHoraFormatada(item),
       valorFinal: item.grupo.valorFinal,
@@ -572,13 +571,11 @@ export class ConciliacaoService {
       data: item.dataReferencia,
     }));
 
-    const cieloMap = new Map();
     const resultado = [];
 
     for (const entry of itens) {
       const {
         item,
-        cieloValue,
         horaFmt,
         horaNum,
         valorFinal,
@@ -609,49 +606,22 @@ export class ConciliacaoService {
 
       // 🔹 CIELO
       else if (item.origem === 'CIELO' && item.cielo) {
-        const isPix = item.cielo.modalidade === 'Pix';
-
-        if (isPix) {
-          resultado.push({
-            id: item.id,
-            grupoId: item.grupoId,
-            conciliacaoId,
-            horaNum,
-            hora: horaFmt,
-            origem: item.origem,
-            valor: cieloValue,
-            nsu: item.cielo.nsu,
-            bandeira: item.cielo.bandeira,
-            modalidade: item.cielo.modalidade,
-            status: item.cielo.statusConciliacao,
-            diferencaGrupo: valorFinal,
-            motivo,
-            data,
-          });
-        } else {
-          const key = item.cielo.nsu;
-
-          if (!cieloMap.has(key)) {
-            cieloMap.set(key, true);
-
-            resultado.push({
-              id: item.id,
-              grupoId: item.grupoId,
-              conciliacaoId,
-              horaNum,
-              hora: horaFmt,
-              origem: item.origem,
-              valor: cieloValue,
-              nsu: item.cielo.nsu,
-              bandeira: item.cielo.bandeira,
-              modalidade: item.cielo.modalidade,
-              status: item.cielo.statusConciliacao,
-              diferencaGrupo: valorFinal,
-              motivo,
-              data,
-            });
-          }
-        }
+        resultado.push({
+          id: item.id,
+          grupoId: item.grupoId,
+          conciliacaoId,
+          horaNum,
+          hora: horaFmt,
+          origem: item.origem,
+          valor: item.valor,
+          nsu: item.cielo.nsu,
+          bandeira: item.cielo.bandeira,
+          modalidade: item.cielo.modalidade,
+          status: item.cielo.statusConciliacao,
+          diferencaGrupo: valorFinal,
+          motivo,
+          data,
+        });
       }
 
       // 🔹 REDE
@@ -1088,12 +1058,14 @@ export class ConciliacaoService {
     const rankingNaoConciliados = await this.prisma.$queryRaw<
       {
         filial: string;
+        filialId: number;
         divergencias: bigint;
         valor: any;
       }[]
     >`
 SELECT
   f.name AS filial,
+  f.id AS filialId,
   CAST(COUNT(cg.id) AS SIGNED) AS divergencias,
   SUM(COALESCE(cg.valorFinal, 0)) AS valor
 FROM ConciliacaoGrupo cg
@@ -1118,6 +1090,7 @@ ORDER BY
 
     return rankingNaoConciliados.map((item) => ({
       filial: item.filial,
+      filialId: item.filialId,
       divergencias: Number(item.divergencias),
       valor: Number(item.valor),
     }));
@@ -1181,14 +1154,27 @@ ORDER BY
     let unico = 0;
 
     for (const grupo of gruposConciliados) {
-      const possuiTrier = grupo.itens.some((item) => item.origem === 'TRIER');
-
-      const possuiAdquirente = grupo.itens.some(
-        (item) => item.origem === 'REDE' || item.origem === 'CIELO',
+      const itensConciliaveis = grupo.itens.filter(
+        (item) =>
+          item.origem === 'TRIER' ||
+          item.origem === 'REDE' ||
+          item.origem === 'CIELO',
       );
 
-      // 🔹 Grupo único
-      const ehUnico = possuiTrier !== possuiAdquirente;
+      const quantidadeTrier = itensConciliaveis.filter(
+        (item) => item.origem === 'TRIER',
+      ).length;
+
+      const quantidadeAdquirente = itensConciliaveis.filter(
+        (item) => item.origem === 'REDE' || item.origem === 'CIELO',
+      ).length;
+
+      const possuiTrier = quantidadeTrier > 0;
+      const possuiAdquirente = quantidadeAdquirente > 0;
+
+      // 🔹 Único somente quando existir um único movimento
+      const ehUnico =
+        possuiTrier !== possuiAdquirente && itensConciliaveis.length === 1;
 
       if (ehUnico) {
         const possuiBrasilCard = grupo.itens.some((item) => {
@@ -1204,7 +1190,6 @@ ORDER BY
           return bandeiras.includes('BRASILCARD');
         });
 
-        // 🔹 BrasilCard não entra na saúde do sistema
         if (!possuiBrasilCard) {
           unico++;
         }
@@ -1222,7 +1207,6 @@ ORDER BY
       if (grupo.metodo === 'MANUAL') {
         const diferenca = Number(grupo.valorFinal ?? 0);
 
-        // entre -2 e +2
         if (diferenca >= -2 && diferenca <= 2) {
           manualMenor2++;
         } else {
@@ -1299,5 +1283,227 @@ ORDER BY
         },
       ],
     };
+  }
+
+  async findMovimentosByHealthType(
+    dateRange: { from: string; to: string },
+    type:
+      | 'AUTOMATICO'
+      | 'MANUAL_MENOR_2'
+      | 'MANUAL_MAIOR_2'
+      | 'UNICO'
+      | 'DIVERGENTE',
+    filialId?: number,
+  ) {
+    if (!type) return [];
+    const start = new Date(`${dateRange.from}T00:00:00.000Z`);
+    const end = new Date(`${dateRange.to}T23:59:59.999Z`);
+
+    const grupos = await this.prisma.conciliacaoGrupo.findMany({
+      where: {
+        ...(type === 'DIVERGENTE'
+          ? { status: 'DIVERGENTE' }
+          : { status: 'CONCILIADO' }),
+
+        conciliacao: {
+          ...(filialId && { filialId }),
+        },
+
+        itens: {
+          some: {
+            dataReferencia: {
+              gte: start,
+              lte: end,
+            },
+          },
+        },
+      },
+      include: {
+        conciliacao: true,
+        itens: {
+          include: {
+            trier: true,
+            rede: true,
+            cielo: true,
+          },
+        },
+      },
+    });
+
+    const gruposFiltrados = grupos.filter((grupo) => {
+      const itensConciliaveis = grupo.itens.filter(
+        (item) =>
+          item.origem === 'TRIER' ||
+          item.origem === 'REDE' ||
+          item.origem === 'CIELO',
+      );
+
+      const quantidadeTrier = itensConciliaveis.filter(
+        (item) => item.origem === 'TRIER',
+      ).length;
+
+      const quantidadeAdquirente = itensConciliaveis.filter(
+        (item) => item.origem === 'REDE' || item.origem === 'CIELO',
+      ).length;
+
+      const possuiTrier = quantidadeTrier > 0;
+      const possuiAdquirente = quantidadeAdquirente > 0;
+
+      const ehUnico =
+        possuiTrier !== possuiAdquirente && itensConciliaveis.length === 1;
+
+      const possuiBrasilCard = grupo.itens.some((item) => {
+        const bandeiras = [
+          item.trier?.bandeira,
+          item.rede?.bandeira,
+          item.cielo?.bandeira,
+        ]
+          .filter(Boolean)
+          .join(' ')
+          .toUpperCase();
+
+        return bandeiras.includes('BRASILCARD');
+      });
+
+      switch (type) {
+        case 'DIVERGENTE':
+          return true;
+
+        case 'UNICO':
+          return ehUnico && !possuiBrasilCard;
+
+        case 'AUTOMATICO':
+          return !ehUnico && grupo.metodo === 'AUTO';
+
+        case 'MANUAL_MENOR_2': {
+          const diferenca = Number(grupo.valorFinal ?? 0);
+
+          return (
+            !ehUnico &&
+            grupo.metodo === 'MANUAL' &&
+            diferenca >= -2 &&
+            diferenca <= 2
+          );
+        }
+
+        case 'MANUAL_MAIOR_2': {
+          const diferenca = Number(grupo.valorFinal ?? 0);
+
+          return (
+            !ehUnico &&
+            grupo.metodo === 'MANUAL' &&
+            (diferenca < -2 || diferenca > 2)
+          );
+        }
+
+        default:
+          return false;
+      }
+    });
+
+    const grupoIds = gruposFiltrados.map((grupo) => grupo.id);
+
+    const conciliacaoItem = await this.prisma.conciliacaoItem.findMany({
+      where: {
+        grupoId: {
+          in: grupoIds,
+        },
+      },
+      include: {
+        grupo: true,
+        cielo: true,
+        rede: true,
+        trier: true,
+      },
+    });
+
+    const itens = conciliacaoItem.map((item) => ({
+      item,
+      conciliacaoId: item.grupo.conciliacaoId,
+      horaNum: this.getHoraNormalizada(item),
+      horaFmt: this.getHoraFormatada(item),
+      data: item.dataReferencia,
+    }));
+
+    const resultado = [];
+
+    for (const entry of itens) {
+      const { item, horaFmt, horaNum, conciliacaoId, data } = entry;
+
+      if (item.origem === 'TRIER') {
+        resultado.push({
+          id: item.id,
+          grupoId: item.grupoId,
+          valorFinal: item.grupo.valorFinal,
+          conciliacaoId,
+          horaNum,
+          hora: horaFmt,
+          valor: item.valor.toFixed(2),
+          documentoFiscal: item.trier?.documentoFiscal,
+          modalidade: item.trier?.modalidade,
+          bandeira: item.trier?.bandeira,
+          status: item.trier?.statusConciliacao,
+          motivo: item.grupo.motivo,
+          origem: item.origem,
+          data,
+        });
+      } else if (item.origem === 'CIELO' && item.cielo) {
+        resultado.push({
+          id: item.id,
+          grupoId: item.grupoId,
+          conciliacaoId,
+          valorFinal: item.grupo.valorFinal,
+          data,
+          horaNum,
+          hora: horaFmt,
+          origem: item.origem,
+          valor: item.valor.toFixed(2),
+          nsu: item.cielo.nsu,
+          bandeira: item.cielo.bandeira,
+          modalidade: item.cielo.modalidade,
+          status: item.cielo.statusConciliacao,
+          motivo: item.grupo.motivo,
+        });
+      } else if (item.origem === 'REDE' && item.rede) {
+        resultado.push({
+          id: item.id,
+          grupoId: item.grupoId,
+          valorFinal: item.grupo.valorFinal,
+          conciliacaoId,
+          data,
+          horaNum,
+          hora: horaFmt,
+          origem: item.origem,
+          valor: item.valor.toFixed(2),
+          nsu: item.rede.nsu,
+          bandeira: item.rede.bandeira,
+          modalidade: item.rede.modalidade,
+          status: item.rede.statusConciliacao,
+          motivo: item.grupo.motivo,
+        });
+      }
+    }
+
+    resultado.sort((a, b) => a.horaNum - b.horaNum);
+
+    const gruposMap = new Map();
+
+    for (const item of resultado) {
+      if (!gruposMap.has(item.grupoId)) {
+        gruposMap.set(item.grupoId, {
+          grupoId: item.grupoId,
+          conciliacaoId: item.conciliacaoId,
+          motivo: item.motivo,
+          valorFinal: item.valorFinal,
+
+          registros: [],
+        });
+      }
+      const { grupoId, conciliacaoId, motivo, valorFinal, ...registro } = item;
+
+      gruposMap.get(grupoId).registros.push(registro);
+    }
+
+    return Array.from(gruposMap.values());
   }
 }

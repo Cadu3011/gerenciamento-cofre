@@ -5,6 +5,7 @@ import {
   ChartContainer,
   ChartTooltip,
 } from "@/components/ui/chart";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   Bar,
   BarChart,
@@ -90,7 +91,25 @@ export default function ChartRowBarsRankingsHealth({ data }: Props) {
   const chartData = [...data.ranking].sort(
     (a, b) => b.percentual - a.percentual,
   );
+  const router = useRouter();
+  const searchParams = useSearchParams();
 
+  const type = searchParams.get("type");
+
+  const handleBarClick = (tipo: string) => {
+    const typeMap: Record<string, string> = {
+      "Manual ± R$2": "MANUAL_MENOR_2",
+      "Manual > R$2": "MANUAL_MAIOR_2",
+      Único: "UNICO",
+      Divergente: "DIVERGENTE",
+    };
+
+    const params = new URLSearchParams(searchParams.toString());
+
+    params.set("type", typeMap[tipo]);
+
+    router.push(`?${params.toString()}`);
+  };
   return (
     <div className="flex w-full flex-col gap-4 ">
       <div>
@@ -171,6 +190,13 @@ export default function ChartRowBarsRankingsHealth({ data }: Props) {
           <BarChart
             data={chartData}
             layout="vertical"
+            onClick={(state) => {
+              if (!state?.activePayload?.length) return;
+
+              const item = state.activePayload[0].payload;
+
+              handleBarClick(item.tipo);
+            }}
             margin={{
               left: 20,
               right: 60,
@@ -194,7 +220,11 @@ export default function ChartRowBarsRankingsHealth({ data }: Props) {
 
             <ChartTooltip content={<CustomTooltip />} />
 
-            <Bar dataKey="percentual" radius={4}>
+            <Bar
+              dataKey="percentual"
+              radius={4}
+              // onClick={(data) => handleBarClick(data.tipo)}
+            >
               {chartData.map((entry, index) => (
                 <Cell key={index} fill={getColor(entry.tipo)} />
               ))}

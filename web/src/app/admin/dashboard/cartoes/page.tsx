@@ -5,12 +5,15 @@ import ChartLineCards from "./_components/ChartLineCardsSales";
 import ChartColumnsCardsDifs from "./_components/ChartColunmsCardsDifs";
 import ChartRowBarsRankings from "./_components/ChartRowBarsRankings";
 import ChartRowBarsRankingsHealth from "./_components/ChartRowBarsRankingsHealth";
+import { HealthDetailsDialog } from "./_components/HealthDetailsDialog";
+import DialogHealthWrapper from "./_components/DialogHealthWrapper";
 
 type Props = {
   searchParams: {
     startDate?: string;
     endDate?: string;
     filialId?: string;
+    type?: string;
     // operadorId?: string;
     // periodo?: string;
   };
@@ -45,17 +48,25 @@ export default async function Dashboard({ searchParams }: Props) {
     startDate = getDefaultStartDate(),
     endDate = getDefaultEndDate(),
     filialId,
+    type,
   } = await searchParams;
 
   const query = new URLSearchParams({
     startDate,
     endDate,
     ...(filialId && { filialId }),
+    ...(type && { type }),
   }).toString();
 
   const data = await getCardsTotalCards(query);
 
-  const { cardsTotals, chartLinesCards, rankings, chartRankingHealth } = data;
+  const {
+    cardsTotals,
+    chartLinesCards,
+    rankings,
+    chartRankingHealth,
+    movesRankingByHealth,
+  } = data;
 
   return (
     <div className="flex gap-2">
@@ -121,6 +132,7 @@ export default async function Dashboard({ searchParams }: Props) {
           </div>
         </div>
       </div>
+      <DialogHealthWrapper data={movesRankingByHealth} type={type} />
     </div>
   );
 }

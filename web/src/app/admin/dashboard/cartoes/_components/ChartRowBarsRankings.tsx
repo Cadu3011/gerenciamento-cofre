@@ -5,6 +5,7 @@ import {
   ChartContainer,
   ChartTooltip,
 } from "@/components/ui/chart";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   Bar,
   BarChart,
@@ -27,6 +28,7 @@ const chartConfig = {
 export interface Props {
   data: {
     filial: string;
+    filialId: number;
     divergencias: number;
     valor: number;
   }[];
@@ -55,13 +57,24 @@ function CustomTooltip({ active, payload }: TooltipProps<number, string>) {
 }
 
 export default function ChartRowBarsRankings({ data }: Props) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const chartData = [...data]
     .sort((a, b) => Math.abs(b.valor) - Math.abs(a.valor))
     .map((item) => ({
       ...item,
       valorAbs: Math.abs(item.valor),
     }));
+  const handleClick = (data: any) => {
+    if (!data?.filial) return;
 
+    const params = new URLSearchParams(searchParams.toString());
+
+    params.set("filialId", String(data.filialId));
+
+    router.push(`${pathname}?${params.toString()}`);
+  };
   return (
     <div className="flex h-[50vh] w-full flex-col">
       <div className="flex justify-between items-center">
@@ -116,7 +129,12 @@ export default function ChartRowBarsRankings({ data }: Props) {
 
             <ChartTooltip content={<CustomTooltip />} />
 
-            <Bar dataKey="valorAbs" radius={4}>
+            <Bar
+              dataKey="valorAbs"
+              radius={4}
+              onClick={(data) => handleClick(data)}
+              cursor="pointer"
+            >
               {chartData.map((entry, index) => (
                 <Cell
                   key={index}
