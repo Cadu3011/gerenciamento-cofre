@@ -166,6 +166,8 @@ export class ConciliacaoController {
     @Query('filialId') filialId: number,
     @Query('startDate') startDate: string,
     @Query('endDate') endDate: string,
+    @Query('type')
+    type: 'MANUAL_MENOR_2' | 'MANUAL_MAIOR_2' | 'UNICO' | 'DIVERGENTE',
   ) {
     const cardsTotals = await this.conciliacaoService.totaisCards(
       {
@@ -181,10 +183,32 @@ export class ConciliacaoController {
       },
       +filialId,
     );
+    const chartRankingHealth = await this.conciliacaoService.chartRankingHealth(
+      {
+        from: startDate,
+        to: endDate,
+      },
+      +filialId,
+    );
     const rankings = await this.conciliacaoService.chartRankingPendencias({
       from: startDate,
       to: endDate,
     });
-    return { cardsTotals, chartLinesCards, rankings };
+    const movesRankingByHealth =
+      await this.conciliacaoService.findMovimentosByHealthType(
+        {
+          from: startDate,
+          to: endDate,
+        },
+        type,
+        +filialId,
+      );
+    return {
+      cardsTotals,
+      chartLinesCards,
+      rankings,
+      chartRankingHealth,
+      movesRankingByHealth,
+    };
   }
 }

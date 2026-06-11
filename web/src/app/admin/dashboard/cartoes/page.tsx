@@ -4,12 +4,16 @@ import { formatDate } from "../utils";
 import ChartLineCards from "./_components/ChartLineCardsSales";
 import ChartColumnsCardsDifs from "./_components/ChartColunmsCardsDifs";
 import ChartRowBarsRankings from "./_components/ChartRowBarsRankings";
+import ChartRowBarsRankingsHealth from "./_components/ChartRowBarsRankingsHealth";
+import { HealthDetailsDialog } from "./_components/HealthDetailsDialog";
+import DialogHealthWrapper from "./_components/DialogHealthWrapper";
 
 type Props = {
   searchParams: {
     startDate?: string;
     endDate?: string;
     filialId?: string;
+    type?: string;
     // operadorId?: string;
     // periodo?: string;
   };
@@ -44,17 +48,25 @@ export default async function Dashboard({ searchParams }: Props) {
     startDate = getDefaultStartDate(),
     endDate = getDefaultEndDate(),
     filialId,
+    type,
   } = await searchParams;
 
   const query = new URLSearchParams({
     startDate,
     endDate,
     ...(filialId && { filialId }),
+    ...(type && { type }),
   }).toString();
 
   const data = await getCardsTotalCards(query);
 
-  const { cardsTotals, chartLinesCards, rankings } = data;
+  const {
+    cardsTotals,
+    chartLinesCards,
+    rankings,
+    chartRankingHealth,
+    movesRankingByHealth,
+  } = data;
 
   return (
     <div className="flex gap-2">
@@ -113,12 +125,14 @@ export default async function Dashboard({ searchParams }: Props) {
               <ChartLineCards chartLinesCards={chartLinesCards} />
               <ChartColumnsCardsDifs data={chartLinesCards} />
             </div>
-            <div className="w-full px-10 gap-5 ">
+            <div className="w-full flex flex-col px-10 gap-10 ">
               <ChartRowBarsRankings data={rankings} />
+              <ChartRowBarsRankingsHealth data={chartRankingHealth} />
             </div>
           </div>
         </div>
       </div>
+      <DialogHealthWrapper data={movesRankingByHealth} type={type} />
     </div>
   );
 }

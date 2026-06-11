@@ -22,6 +22,14 @@ export class Pipeline {
   private readonly logger = new Logger(Pipeline.name);
 
   async execute(filialId: number, date: string) {
+    const percentualMinimoPorFilial = {
+      1: 92.32,
+      2: 91.67,
+      3: 93.19,
+      4: 97.01,
+      5: 81.57,
+      6: 97.0,
+    };
     const groups = await this.matchService.matchMovements(filialId, date);
     this.logger.log(
       `Filial ${filialId} Data ${date} - Groups: ${groups.length}`,
@@ -38,7 +46,7 @@ export class Pipeline {
     }
 
     const conciliados = groups.filter((g) => g.status === 'CONCILIADO').length;
-
+    const naoConciliados = total - conciliados;
     const percentual = (conciliados / total) * 100;
     this.logger.log(
       `Filial ${filialId} Data ${date} - ${conciliados}/${total} (${percentual.toFixed(2)}%)`,
@@ -51,7 +59,9 @@ export class Pipeline {
         },
       },
     });
-    if (percentual < 80) {
+    const percentualMinimo = percentualMinimoPorFilial[filialId] ?? 90;
+
+    if (naoConciliados >= 10 && percentual < percentualMinimo) {
       await this.prisma.conciliacao.update({
         where: { id: conciliacao.id },
         data: {

@@ -84,7 +84,7 @@ export class ConciCardsCron {
 
     if (errors.length > 0) {
       this.logger.error(errors.join('\n'));
-      throw new Error(`${errors.length} conciliações ficaram abaixo de 80%`);
+      throw new Error(`${errors.length} conciliações ficaram abaixo de 90%`);
     }
     return { lastUpdatedByFilial: resultsLastDates };
   }
