@@ -15,7 +15,7 @@ import {
   LabelList,
   YAxis,
 } from "recharts";
-import { calculateDynamicMax } from "../utils";
+import { calculateDynamicMax } from "../../utils";
 import { useRouter, useSearchParams } from "next/navigation";
 
 const chartConfig = {

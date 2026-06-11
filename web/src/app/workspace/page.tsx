@@ -36,7 +36,7 @@ export default function Workspace() {
             Gerenciar Cofre
           </Link>
           <Link
-            href="/workspace/dashboard"
+            href="/workspace/dashboard/caixas"
             className="hover:bg-green-400 bg-white py-5 px-5 rounded-md"
           >
             Dashboard

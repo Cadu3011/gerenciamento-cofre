@@ -6,7 +6,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { formatDate } from "../utils";
+import DialogCronJobs from "../../../gerenciar-tarefas/components/DialogCronJobs";
+import { Button } from "@/components/ui/button";
+import { formatDate } from "../../utils";
 
 interface Props {
   data: {
