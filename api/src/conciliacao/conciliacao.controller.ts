@@ -160,15 +160,21 @@ export class ConciliacaoController {
   }
 
   @UseGuards(AuthGuard)
-  @Roles(Role.GESTOR)
+  @Roles(Role.GESTOR, Role.OPERADOR)
   @Get('/dashboard/cartoes')
   async getDashboard(
-    @Query('filialId') filialId: number,
+    @Req() req: Request,
+
     @Query('startDate') startDate: string,
     @Query('endDate') endDate: string,
     @Query('type')
     type: 'MANUAL_MENOR_2' | 'MANUAL_MAIOR_2' | 'UNICO' | 'DIVERGENTE',
+    @Query('filialId') filialId?: number,
   ) {
+    const user = req['sub'];
+    if (user.roles.includes('OPERADOR')) {
+      filialId = user.filialId;
+    }
     const cardsTotals = await this.conciliacaoService.totaisCards(
       {
         from: startDate,

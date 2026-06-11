@@ -143,7 +143,7 @@ export default function Sidebar({ role }: { role: string }) {
                         Gerenciar Cofre
                       </Link>
                       <Link
-                        href="/workspace/dashboard"
+                        href="/workspace/dashboard/caixas"
                         className="hover:text-green-400"
                       >
                         Dashboard
