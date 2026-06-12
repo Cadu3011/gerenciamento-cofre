@@ -14,13 +14,18 @@ import { Pipeline } from './cron/pipeline';
 import { AuthGuard } from 'src/auth/auth.guard';
 import { Role } from '@prisma/client';
 import { Roles } from 'src/auth/role.decorator';
+import { ConciliacaoDashboardService } from './dashboard/conciliacao-dashboard.service';
 
 @Controller('conciliacao')
 export class ConciliacaoController {
-  constructor(private readonly conciliacaoService: ConciliacaoService) {}
+  @Inject()
+  private readonly conciliacaoService: ConciliacaoService;
 
   @Inject()
   private readonly pipelineConciCards: Pipeline;
+
+  @Inject()
+  private readonly conciliacaoDashboardService: ConciliacaoDashboardService;
 
   @UseGuards(AuthGuard)
   @Roles(Role.GESTOR)
@@ -73,10 +78,16 @@ export class ConciliacaoController {
 
     if (user.roles === 'OPERADOR') {
       filialId = user.filialId;
-      return await this.conciliacaoService.totaisDias(+filialId, dateRange);
+      return await this.conciliacaoDashboardService.totaisDias(
+        +filialId,
+        dateRange,
+      );
     }
 
-    return await this.conciliacaoService.totaisDias(+filialId, dateRange);
+    return await this.conciliacaoDashboardService.totaisDias(
+      +filialId,
+      dateRange,
+    );
   }
 
   @UseGuards(AuthGuard)
@@ -175,33 +186,36 @@ export class ConciliacaoController {
     if (user.roles.includes('OPERADOR')) {
       filialId = user.filialId;
     }
-    const cardsTotals = await this.conciliacaoService.totaisCards(
+    const cardsTotals = await this.conciliacaoDashboardService.totaisCards(
       {
         from: startDate,
         to: endDate,
       },
       +filialId,
     );
-    const chartLinesCards = await this.conciliacaoService.chartLinesCards(
-      {
+    const chartLinesCards =
+      await this.conciliacaoDashboardService.chartLinesCards(
+        {
+          from: startDate,
+          to: endDate,
+        },
+        +filialId,
+      );
+    const chartRankingHealth =
+      await this.conciliacaoDashboardService.chartRankingHealth(
+        {
+          from: startDate,
+          to: endDate,
+        },
+        +filialId,
+      );
+    const rankings =
+      await this.conciliacaoDashboardService.chartRankingPendencias({
         from: startDate,
         to: endDate,
-      },
-      +filialId,
-    );
-    const chartRankingHealth = await this.conciliacaoService.chartRankingHealth(
-      {
-        from: startDate,
-        to: endDate,
-      },
-      +filialId,
-    );
-    const rankings = await this.conciliacaoService.chartRankingPendencias({
-      from: startDate,
-      to: endDate,
-    });
+      });
     const movesRankingByHealth =
-      await this.conciliacaoService.findMovimentosByHealthType(
+      await this.conciliacaoDashboardService.findMovimentosByHealthType(
         {
           from: startDate,
           to: endDate,

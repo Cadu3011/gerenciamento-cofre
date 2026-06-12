@@ -36,21 +36,6 @@ export class Pipeline {
     );
     await this.criarGruposEItens(filialId, date, groups);
 
-    const total = groups.length;
-
-    if (total === 0) {
-      this.logger.warn(
-        `Filial ${filialId} Data ${date} - Nenhum grupo encontrado`,
-      );
-      return;
-    }
-
-    const conciliados = groups.filter((g) => g.status === 'CONCILIADO').length;
-    const naoConciliados = total - conciliados;
-    const percentual = (conciliados / total) * 100;
-    this.logger.log(
-      `Filial ${filialId} Data ${date} - ${conciliados}/${total} (${percentual.toFixed(2)}%)`,
-    );
     const conciliacao = await this.prisma.conciliacao.findUnique({
       where: {
         filialId_startDate: {
@@ -59,6 +44,45 @@ export class Pipeline {
         },
       },
     });
+
+    if (!conciliacao) {
+      this.logger.warn(
+        `Filial ${filialId} Data ${date} - Conciliação não encontrada`,
+      );
+      return;
+    }
+
+    const [total, conciliados] = await Promise.all([
+      this.prisma.conciliacaoGrupo.count({
+        where: {
+          conciliacaoId: conciliacao.id,
+          status: {
+            not: 'CANCELADO',
+          },
+        },
+      }),
+
+      this.prisma.conciliacaoGrupo.count({
+        where: {
+          conciliacaoId: conciliacao.id,
+          status: 'CONCILIADO',
+        },
+      }),
+    ]);
+
+    if (total === 0) {
+      this.logger.warn(
+        `Filial ${filialId} Data ${date} - Nenhum grupo encontrado`,
+      );
+      return;
+    }
+
+    const naoConciliados = total - conciliados;
+    const percentual = (conciliados / total) * 100;
+
+    this.logger.log(
+      `Filial ${filialId} Data ${date} - ${conciliados}/${total} (${percentual.toFixed(2)}%)`,
+    );
     const percentualMinimo = percentualMinimoPorFilial[filialId] ?? 90;
 
     if (naoConciliados >= 10 && percentual < percentualMinimo) {
