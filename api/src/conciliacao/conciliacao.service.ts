@@ -33,9 +33,30 @@ export class ConciliacaoService {
       },
       include: {
         grupo: { include: { _count: { select: { itens: true } } } },
-        cielo: true,
-        rede: true,
-        trier: true,
+        cielo: {
+          select: {
+            nsu: true,
+            modalidade: true,
+            bandeira: true,
+            statusConciliacao: true,
+          },
+        },
+        rede: {
+          select: {
+            nsu: true,
+            modalidade: true,
+            bandeira: true,
+            statusConciliacao: true,
+          },
+        },
+        trier: {
+          select: {
+            documentoFiscal: true,
+            modalidade: true,
+            bandeira: true,
+            statusConciliacao: true,
+          },
+        },
       },
     });
 
