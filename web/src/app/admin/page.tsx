@@ -47,10 +47,10 @@ export default async function Admin() {
             Monitorar Cofres
           </Link>
           <Link
-            href="/admin/gerenciar-cartao"
+            href="/admin/concilia-cartao"
             className="hover:bg-green-400 bg-white py-5 px-5 rounded-md"
           >
-            Gerenciar Cartões
+            Conciliação de Cartões
           </Link>
           <Link
             href="/admin/conferir-caixas"

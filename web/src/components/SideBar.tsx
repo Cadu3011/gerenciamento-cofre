@@ -111,6 +111,12 @@ export default function Sidebar({ role }: { role: string }) {
                       >
                         Monitorar Cofres
                       </Link>
+                      <Link
+                        href="/admin/concilia-cartao"
+                        className="hover:text-green-400"
+                      >
+                        Conciliação de Cartões
+                      </Link>
                     </div>
                   )}
                   {role === "OPERADOR" && (
