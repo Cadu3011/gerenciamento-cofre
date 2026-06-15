@@ -39,6 +39,7 @@ export class ConciliacaoService {
             modalidade: true,
             bandeira: true,
             statusConciliacao: true,
+            timeVenda: true,
           },
         },
         rede: {
@@ -47,6 +48,7 @@ export class ConciliacaoService {
             modalidade: true,
             bandeira: true,
             statusConciliacao: true,
+            horaVenda: true,
           },
         },
         trier: {
@@ -55,6 +57,7 @@ export class ConciliacaoService {
             modalidade: true,
             bandeira: true,
             statusConciliacao: true,
+            hora: true,
           },
         },
       },
