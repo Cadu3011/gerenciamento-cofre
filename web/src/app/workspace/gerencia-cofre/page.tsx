@@ -3,7 +3,6 @@ import HeaderCofre from "@/app/workspace/gerencia-cofre/components/header-cofre"
 import ToggleModalClient from "@/app/workspace/gerencia-cofre/components/toggleModal";
 import { jwtDecode } from "jwt-decode";
 import { cookies } from "next/headers";
-import { redirect } from "next/navigation";
 import { BalanceFisicProvider } from "./components/BalanceFisicContext";
 import { CofreProvider } from "./components/cofreContext";
 

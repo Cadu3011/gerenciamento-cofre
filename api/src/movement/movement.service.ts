@@ -385,6 +385,7 @@ export class MovementService {
         if (createdMoveTrier !== undefined) {
           await this.updateSync(move.id, createdMoveTrier);
         }
+        this.logger.debug(`${createdMoveTrier}`);
       }
 
       if (move.type === 'DEPOSITO') {
