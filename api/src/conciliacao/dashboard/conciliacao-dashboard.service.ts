@@ -233,71 +233,47 @@ export class ConciliacaoDashboardService {
       ? Prisma.sql`AND c.filialId = ${filialId}`
       : Prisma.empty;
 
-    // 🔹 TRIER
-    const trier = await this.prisma.trierCartaoVendas.groupBy({
-      by: ['dataEmissao'],
-      where: {
-        ...(filialId && { filialId }),
-        dataEmissao: {
-          gte: start,
-          lte: end,
+    const [trier, rede, cielo, divergencias] = await Promise.all([
+      this.prisma.trierCartaoVendas.groupBy({
+        by: ['dataEmissao'],
+        where: {
+          ...(filialId && { filialId }),
+          dataEmissao: {
+            gte: start,
+            lte: end,
+          },
         },
-      },
-      _sum: {
-        valor: true,
-      },
-    });
-
-    // 🔹 REDE
-    const rede = await this.prisma.redeVenda.groupBy({
-      by: ['dataVenda'],
-      where: {
-        ...(filialId && { filialId }),
-        dataVenda: {
-          gte: start,
-          lte: end,
+        _sum: {
+          valor: true,
         },
-      },
-      _sum: {
-        valor: true,
-      },
-    });
-
-    // 🔹 CIELO
-    // const cielo = await this.prisma.cartaoVendas.groupBy({
-    //   by: ['dataVenda'],
-    //   where: {
-    //     ...(filial?.idCielo && {
-    //       estabelecimento: filial.idCielo,
-    //     }),
-    //     dataVenda: {
-    //       gte: dateRange.from,
-    //       lte: dateRange.to,
-    //     },
-    //   },
-    //   _sum: {
-    //     valorBruto: true,
-    //   },
-    // });
-
-    const cielo = await this.prisma.conciliacaoItem.groupBy({
-      by: ['dataReferencia'],
-      where: {
-        origem: 'CIELO',
-        dataReferencia: {
-          gte: start,
-          lte: end,
+      }),
+      this.prisma.redeVenda.groupBy({
+        by: ['dataVenda'],
+        where: {
+          ...(filialId && { filialId }),
+          dataVenda: {
+            gte: start,
+            lte: end,
+          },
         },
-        ...(filialId && { grupo: { conciliacao: { filialId } } }),
-      },
+        _sum: {
+          valor: true,
+        },
+      }),
+      this.prisma.conciliacaoItem.groupBy({
+        by: ['dataReferencia'],
+        where: {
+          origem: 'CIELO',
+          dataReferencia: {
+            gte: start,
+            lte: end,
+          },
+          ...(filialId && { grupo: { conciliacao: { filialId } } }),
+        },
 
-      _sum: { valor: true },
-    });
-
-    // 🔹 DIVERGÊNCIAS
-    const divergencias = await this.prisma.$queryRaw<
-      { dia: string; total: number }[]
-    >(Prisma.sql`
+        _sum: { valor: true },
+      }),
+      this.prisma.$queryRaw<{ dia: string; total: number }[]>(Prisma.sql`
     SELECT
       dia,
       SUM(valorFinal) as total
@@ -316,7 +292,9 @@ export class ConciliacaoDashboardService {
       GROUP BY cg.id, dia, cg.valorFinal
     ) t
     GROUP BY dia
-  `);
+  `),
+    ]);
+
     const resultado: Record<string, any> = {};
 
     // 🔹 Trier
@@ -459,10 +437,23 @@ export class ConciliacaoDashboardService {
         },
         include: {
           itens: {
-            include: {
-              trier: true,
-              rede: true,
-              cielo: true,
+            select: {
+              origem: true,
+              trier: {
+                select: {
+                  bandeira: true,
+                },
+              },
+              rede: {
+                select: {
+                  bandeira: true,
+                },
+              },
+              cielo: {
+                select: {
+                  bandeira: true,
+                },
+              },
             },
           },
         },

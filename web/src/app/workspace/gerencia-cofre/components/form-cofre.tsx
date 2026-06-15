@@ -4,14 +4,13 @@ import { useState } from "react";
 import InputComp from "../../../../components/input";
 import { handleFormSubmit } from "@/app/api/post";
 import ExibirMovimentos from "./movements";
-import SumMovements from "./sumMovements";
 import { useCofreFisic } from "@/app/workspace/gerencia-cofre/components/cofreContext";
 import CategoriasButton from "@/app/workspace/gerencia-cofre/components/categoriaButton";
 import SumMovementsOpe from "./sumMovementsOpe";
 import ToggleDepositoTransferir, {
   Conta,
 } from "@/app/workspace/gerencia-cofre/components/interruptorDepAndTransf";
-import Sangrias from "./Sangrias";
+
 interface Props {
   title: string;
   type: string;

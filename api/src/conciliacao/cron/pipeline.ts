@@ -85,7 +85,7 @@ export class Pipeline {
     );
     const percentualMinimo = percentualMinimoPorFilial[filialId] ?? 90;
 
-    if (naoConciliados >= 10 && percentual < percentualMinimo) {
+    if (naoConciliados >= 4 && percentual < percentualMinimo) {
       await this.prisma.conciliacao.update({
         where: { id: conciliacao.id },
         data: {

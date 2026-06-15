@@ -204,13 +204,6 @@ export class MovementService {
 
           const movimentosFlat = moveDetalhes.flat();
 
-          // await this.Prisma.salesDin.createMany({
-          //   data: movimentosFlat.map((m) => ({
-          //     ...m,
-          //   })),
-          //   skipDuplicates: true,
-          // });
-
           const BATCH_SIZE = 1000;
 
           for (let i = 0; i < movimentosFlat.length; i += BATCH_SIZE) {
@@ -280,17 +273,105 @@ export class MovementService {
     }
   }
 
-  private async processMovementCreated(movement: any) {
+  // private async processMovementCreated(movement: any) {
+  //   const token = (
+  //     await authTrier({
+  //       login: '95',
+  //       password: 'cadu3011',
+  //     })
+  //   ).token;
+  //   for (const move of movement) {
+  //     this.logger.log(`Processando movimentação ${move.id}`);
+  //     if (move.type === 'DESPESA') {
+  //       const createdMoveTrier: number = await this.moveTrier.createDesp({
+  //         idFilial: move.filialId,
+  //         descricao: move.descrition,
+  //         filialName: move.filial.name,
+  //         idCofre: move.filial.idCofreTrier,
+  //         valor: move.value,
+  //         idCategoria: Number(move.idCategoria),
+  //         date: move.createdAt,
+  //         token,
+  //       });
+  //       if (createdMoveTrier !== undefined) {
+  //         await this.updateSync(move.id, createdMoveTrier);
+  //       }
+  //     }
+  //     if (move.type === 'DEPOSITO') {
+  //       if (move.idContaDest === move.filial.idBancoDefault) {
+  //         const idTrierTransf: number = await this.moveTrier.createTransf({
+  //           idFilial: move.filialId,
+  //           descricao: move.descrition,
+  //           filialName: move.filial.name,
+  //           idCofre: move.filial.idCofreTrier,
+  //           idCofreDestino: move.filial.idBancoDefault,
+  //           idFilialDestino: move.filialId,
+  //           valor: move.value.mul(-1),
+  //           idCategoria: Number(move.idCategoria),
+  //           date: move.createdAt,
+  //           token,
+  //         });
+  //         if (idTrierTransf) {
+  //           await this.updateSync(move.id, idTrierTransf);
+  //           await this.updateIdContaDest(move.id, move.filial.idBancoDefault);
+  //         }
+  //       } else {
+  //         const filialDestino = await this.filial.findByCofreDest(
+  //           move.idContaDest,
+  //         );
+
+  //         const idTrierTransf: number = await this.moveTrier.createTransf({
+  //           idFilial: move.filialId,
+  //           descricao: move.descrition,
+  //           filialName: move.filial.name,
+  //           idCofre: move.filial.idCofreTrier,
+  //           idCofreDestino: move.idContaDest,
+  //           idFilialDestino: filialDestino.id,
+  //           valor: move.value.mul(-1),
+  //           idCategoria: Number(move.idCategoria),
+  //           date: move.createdAt,
+  //           token,
+  //         });
+  //         if (idTrierTransf) {
+  //           await this.updateSync(move.id, idTrierTransf);
+  //         }
+  //       }
+  //     }
+  //   }
+  // }
+
+  private async processMovementCreated(movements: any[]) {
     const token = (
       await authTrier({
         login: '95',
         password: 'cadu3011',
       })
     ).token;
-    for (const move of movement) {
+
+    for (const move of movements) {
       this.logger.log(`Processando movimentação ${move.id}`);
+
+      // Evita sincronização duplicada
+      const movementDb = await this.Prisma.movimentations.findUnique({
+        where: { id: move.id },
+        select: {
+          id: true,
+          idTrier: true,
+          status: true,
+        },
+      });
+
+      if (
+        !movementDb ||
+        movementDb.idTrier !== null ||
+        movementDb.status === 'SINCRONIZADO'
+      ) {
+        this.logger.warn(`Movimentação ${move.id} já sincronizada. Ignorando.`);
+        continue;
+      }
+
       if (move.type === 'DESPESA') {
-        const createdMoveTrier: number = await this.moveTrier.createDesp({
+        const createdMoveTrier = await this.moveTrier.createDesp({
           idFilial: move.filialId,
           descricao: move.descrition,
           filialName: move.filial.name,
@@ -300,13 +381,16 @@ export class MovementService {
           date: move.createdAt,
           token,
         });
+
         if (createdMoveTrier !== undefined) {
           await this.updateSync(move.id, createdMoveTrier);
         }
+        this.logger.debug(`${createdMoveTrier}`);
       }
+
       if (move.type === 'DEPOSITO') {
         if (move.idContaDest === move.filial.idBancoDefault) {
-          const idTrierTransf: number = await this.moveTrier.createTransf({
+          const idTrierTransf = await this.moveTrier.createTransf({
             idFilial: move.filialId,
             descricao: move.descrition,
             filialName: move.filial.name,
@@ -318,6 +402,7 @@ export class MovementService {
             date: move.createdAt,
             token,
           });
+
           if (idTrierTransf) {
             await this.updateSync(move.id, idTrierTransf);
             await this.updateIdContaDest(move.id, move.filial.idBancoDefault);
@@ -327,7 +412,7 @@ export class MovementService {
             move.idContaDest,
           );
 
-          const idTrierTransf: number = await this.moveTrier.createTransf({
+          const idTrierTransf = await this.moveTrier.createTransf({
             idFilial: move.filialId,
             descricao: move.descrition,
             filialName: move.filial.name,
@@ -339,6 +424,7 @@ export class MovementService {
             date: move.createdAt,
             token,
           });
+
           if (idTrierTransf) {
             await this.updateSync(move.id, idTrierTransf);
           }
@@ -347,23 +433,56 @@ export class MovementService {
     }
   }
 
-  private async processMovementDeleted(movement: any) {
+  // private async processMovementDeleted(movement: any) {
+  //   const tokenTrier = (
+  //     await authTrier({
+  //       login: '95',
+  //       password: 'cadu3011',
+  //     })
+  //   ).token;
+  //   for (const mov of movement) {
+  //     this.logger.log(`Processando movimentação ${mov.id}`);
+  //     const deletedMoveTrier = await this.moveTrier.deleteMoves(
+  //       mov.movementId,
+  //       tokenTrier,
+  //     );
+  //     this.logger.log(deletedMoveTrier);
+  //     if (deletedMoveTrier !== undefined) {
+  //       await this.Prisma.deletedMovements.delete({
+  //         where: { movementId: deletedMoveTrier },
+  //       });
+  //     }
+  //   }
+  // }
+
+  private async processMovementDeleted(movements: any[]) {
     const tokenTrier = (
       await authTrier({
         login: '95',
         password: 'cadu3011',
       })
     ).token;
-    for (const mov of movement) {
+
+    for (const mov of movements) {
       this.logger.log(`Processando movimentação ${mov.id}`);
+
+      if (!mov.movementId) {
+        this.logger.warn(
+          `Movimentação ${mov.id} sem idTrier. Ignorando exclusão.`,
+        );
+        continue;
+      }
+
       const deletedMoveTrier = await this.moveTrier.deleteMoves(
         mov.movementId,
         tokenTrier,
       );
-      this.logger.log(deletedMoveTrier);
+
       if (deletedMoveTrier !== undefined) {
         await this.Prisma.deletedMovements.delete({
-          where: { movementId: deletedMoveTrier },
+          where: {
+            movementId: deletedMoveTrier,
+          },
         });
       }
     }

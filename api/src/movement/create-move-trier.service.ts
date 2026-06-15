@@ -19,6 +19,10 @@ export class MoveTrier {
     'http://192.168.1.253:4647/sgfpod1/Rel_0047.pod';
   private urlTrier = 'farmargrande2.dyndns.org';
   async createDesp(move: iMoveTrier) {
+    const descricao =
+      move.descricao?.length > 100
+        ? move.descricao.substring(0, 100)
+        : move.descricao;
     const myHeaders = new Headers();
     myHeaders.append('Accept', 'application/json, text/plain, */*');
     myHeaders.append('Accept-Language', 'pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7');
@@ -39,7 +43,7 @@ export class MoveTrier {
         codFilial: move.idFilial,
         ativa: true,
       },
-      descricao: move.descricao,
+      descricao: descricao,
       fornecedor: {
         codFornecedor: 41,
       },
@@ -84,6 +88,8 @@ export class MoveTrier {
         requestOptions,
       );
       const moveIdTrier = await resp.json();
+      if (moveIdTrier.status === 400)
+        throw new Error(`Erro ao processar movimentação: ${moveIdTrier}`);
       return moveIdTrier.id;
     } catch (error) {
       return (error as Error).message;
