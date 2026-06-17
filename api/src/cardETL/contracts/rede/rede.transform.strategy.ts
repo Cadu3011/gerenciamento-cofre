@@ -17,3 +17,21 @@ export interface RedeCardTransformedMovement {
   dataVenda: Date;
   status: string;
 }
+
+export interface RedeParcTransformedMovement {
+  idempotencyKey: string;
+  dataVenda: string;
+  companyNumber: string;
+  nsu: string;
+  vencimento: string;
+  totalParcelas: number;
+  parcela: number;
+  valor: number | string;
+  valorLiquido: number | string;
+  taxa: number | string;
+}
+
+export interface RedeTransformedMovement {
+  sales: RedeCardTransformedMovement[];
+  parc: RedeParcTransformedMovement[];
+}

@@ -1,9 +1,9 @@
 import { Inject } from '@nestjs/common';
-import { TrierPipelineStrategy } from '../contracts/trier.pipeline.strategy';
-import { TrierCardExtractor } from '../extract/trier.cardExtractor';
-import { TrierAuth } from '../contracts/trier.extract.strategy';
+import { TrierCardExtractor } from '../extract/trier/trier.cardExtractor';
 import { TrierCardTransform } from '../transform/trier.cardTransform';
 import { TrierCardLoad } from '../load/trier.cardLoad';
+import { TrierAuth } from '../contracts/trier/trier.extract.strategy';
+import { TrierPipelineStrategy } from '../contracts/trier/trier.pipeline.strategy';
 
 export class TrierCardETLPipeline implements TrierPipelineStrategy {
   @Inject()

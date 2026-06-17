@@ -1,10 +1,11 @@
 import { Inject, Logger } from '@nestjs/common';
+
+import { RedeApiClient } from '../../infra/http/rede/rede-api.client';
+import { RedeCardsExtracted } from '../../infra/http/rede/rede-api.types';
 import {
-  RedeAuth,
   RedeExtractStrategy,
-} from '../contracts/rede.extract.strategy';
-import { RedeApiClient } from '../infra/http/rede-api.client';
-import { RedeCardsExtracted } from '../infra/http/rede-api.types';
+  RedeAuth,
+} from 'src/cardETL/contracts/rede/rede.extract.strategy';
 
 export class RedeCardsExtractor implements RedeExtractStrategy<
   RedeCardsExtracted[]

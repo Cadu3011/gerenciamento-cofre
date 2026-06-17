@@ -1,9 +1,9 @@
 import { Inject } from '@nestjs/common';
-import { RedeCardsExtractor } from '../extract/rede.cardExtractor';
+import { RedeCardsExtractor } from '../extract/rede/rede.cardExtractor';
 import { RedeCardTransform } from '../transform/rede.cardTransform';
 import { RedeCardLoad } from '../load/rede.cardLoad';
-import { RedeAuth } from '../contracts/rede.extract.strategy';
-import { RedePipelineStrategy } from '../contracts/rede.pipeline.strategy';
+import { RedeAuth } from '../contracts/rede/rede.extract.strategy';
+import { RedePipelineStrategy } from '../contracts/rede/rede.pipeline.strategy';
 
 export class RedeCardETLPipeline implements RedePipelineStrategy {
   @Inject()

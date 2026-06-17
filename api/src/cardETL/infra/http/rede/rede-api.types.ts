@@ -13,6 +13,23 @@ export type RedeCardsExtracted = {
   tracking: [{ amount: number | string; status: string }];
 };
 
+export type RedeParcExtracted = {
+  saleDate: string;
+  mdrAmount: number;
+  companyNumber: string;
+  nsu: string;
+  expirationDate: string;
+  installmentQuantity: number;
+  installmentNumber: number;
+  saleAmount: number;
+  saleSummaryNumber: number;
+  mdrFee: number;
+  amount: number;
+  discountAmount: number;
+  netAmount: number;
+};
+
+export type RedeExtracted = RedeCardsExtracted[] | RedeParcExtracted[];
 export const cardBrands = [
   { brandCode: 1, brand: 'Mastercard' },
   { brandCode: 2, brand: 'Visa' },

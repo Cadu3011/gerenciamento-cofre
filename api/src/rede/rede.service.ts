@@ -117,6 +117,55 @@ export class RedeService {
     const vendas = await res.json();
     return vendas.content.sales;
   }
+  async findParcDetails(idRede: number, date: string) {
+    const token = await this.getAccessToken();
+    const estRede = await this.filial.findOne(idRede);
+
+    const todasTransacoes: any[] = [];
+    let pageKey: string | undefined = undefined;
+
+    while (true) {
+      const url = new URL(
+        `https://api.userede.com.br/redelabs/merchant-statement/v1/sales/installments`,
+      );
+
+      url.searchParams.set('parentCompanyNumber', String(estRede.idRede));
+      url.searchParams.set('subsidiaries', String(estRede.idRede));
+      url.searchParams.set('startDate', date);
+      url.searchParams.set('endDate', date);
+      url.searchParams.set('size', '100');
+
+      if (pageKey) {
+        url.searchParams.set('pageKey', pageKey);
+      }
+
+      const res = await fetch(url.toString(), {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(`Erro na API Rede: ${res.status} - ${text}`);
+      }
+
+      const vendas = await res.json();
+      const transacoes = vendas?.content?.transactions ?? [];
+
+      todasTransacoes.push(...transacoes);
+
+      // Controle de paginação
+      const nextKey = vendas?.cursor?.nextKey;
+      const hasNext = vendas?.cursor?.hasNextKey;
+
+      if (!hasNext || !nextKey) break;
+
+      pageKey = nextKey;
+    }
+
+    return todasTransacoes;
+  }
 
   remove(id: number) {
     return `This action removes a #${id} rede`;
