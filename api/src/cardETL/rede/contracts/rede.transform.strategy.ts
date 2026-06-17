@@ -1,4 +1,4 @@
-import { RedeCardsExtracted } from '../infra/http/rede-api.types';
+import { RedeCardsExtracted } from 'src/cardETL/rede/infra/http/rede-api.types';
 
 export interface RedeTransformStrategy<TOut = unknown> {
   readonly key: string;
@@ -29,9 +29,4 @@ export interface RedeParcTransformedMovement {
   valor: number | string;
   valorLiquido: number | string;
   taxa: number | string;
-}
-
-export interface RedeTransformedMovement {
-  sales: RedeCardTransformedMovement[];
-  parc: RedeParcTransformedMovement[];
 }

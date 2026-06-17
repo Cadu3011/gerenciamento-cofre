@@ -4,11 +4,11 @@ import { UpdateJobDto } from './dto/update-job.dto';
 import { PrismaService } from 'src/database/prisma.service';
 import { Prisma } from '@prisma/client';
 import { Cron } from '@nestjs/schedule';
-import { TrierCardCron } from 'src/cardETL/cron/trier.cron';
+import { TrierCardCron } from 'src/cardETL/trier/cron/trier.cron';
 import { MovementService } from 'src/movement/movement.service';
 import { CieloService } from 'src/cielo/cielo.service';
 import { TrierDifCxETL } from 'src/trier/trierDIfCx.service';
-import { RedeCardCron } from 'src/cardETL/cron/rede.cron';
+import { RedeCardCron } from 'src/cardETL/rede/cron/rede.cron';
 import { ConciCardsCron } from 'src/conciliacao/cron/execute.cron';
 
 @Injectable()

@@ -1,7 +1,8 @@
 import { Inject, Injectable } from '@nestjs/common';
+
+import { PrismaService } from 'src/database/prisma.service';
 import { TrierLoadStrategy } from '../contracts/trier.load.strategy';
 import { TrierCardTransformedMovement } from '../contracts/trier.transform.strategyc';
-import { PrismaService } from 'src/database/prisma.service';
 
 @Injectable()
 export class TrierCardLoad implements TrierLoadStrategy {

@@ -1,7 +1,7 @@
 import { Inject } from '@nestjs/common';
-import { RedeAuth } from 'src/cardETL/contracts/rede.extract.strategy';
 import { RedeService } from 'src/rede/rede.service';
 import { RedeCardsExtracted, RedeParcExtracted } from './rede-api.types';
+import { RedeAuth } from '../../contracts/rede.extract.strategy';
 
 export class RedeApiClient {
   @Inject()

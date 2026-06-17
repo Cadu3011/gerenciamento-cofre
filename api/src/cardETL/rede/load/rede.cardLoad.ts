@@ -1,7 +1,7 @@
 import { Inject } from '@nestjs/common';
+import { PrismaService } from 'src/database/prisma.service';
 import { RedeLoadStrategy } from '../contracts/rede.load.strategy';
 import { RedeCardTransformedMovement } from '../contracts/rede.transform.strategy';
-import { PrismaService } from 'src/database/prisma.service';
 
 export class RedeCardLoad implements RedeLoadStrategy {
   key: string;

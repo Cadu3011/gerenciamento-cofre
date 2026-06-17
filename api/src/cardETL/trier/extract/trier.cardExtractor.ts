@@ -1,11 +1,11 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { TrierApiClient } from '../../infra/http/trier/trier-api.client';
+import { TrierApiClient } from '../infra/http/trier-api.client';
 import {
   TrierExtractStrategy,
   MoveCardsExtracted,
   TrierAuth,
   isApiError,
-} from 'src/cardETL/contracts/trier/trier.extract.strategy';
+} from '../contracts/trier.extract.strategy';
 
 @Injectable()
 export class TrierCardExtractor implements TrierExtractStrategy<MoveCardsExtracted> {

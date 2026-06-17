@@ -2,7 +2,7 @@ import { Body, Controller, Inject, Post, UseGuards } from '@nestjs/common';
 import { Role } from '@prisma/client';
 import { AuthGuard } from 'src/auth/auth.guard';
 import { Roles } from 'src/auth/role.decorator';
-import { TrierCardCron } from './cron/trier.cron';
+import { TrierCardCron } from './trier/cron/trier.cron';
 
 @Controller('ETL')
 export class CardETLController {

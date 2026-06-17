@@ -1,7 +1,7 @@
 import {
-  DevolucoesResponse,
   ParcelasResponse,
   VendasResponse,
+  DevolucoesResponse,
 } from './trier-api.types';
 
 export class TrierApiClient {

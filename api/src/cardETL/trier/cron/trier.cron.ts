@@ -1,5 +1,5 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
-import { TrierCardETLPipeline } from '../pipeline/trier.card-etl.pipeline.ts.js';
+import { TrierCardETLPipeline } from '../pipeline/trier.card-etl.pipeline.js';
 import { authTrier } from 'src/auth/authTrier/loginTrier';
 import { FilialService } from 'src/filial/filial.service';
 import { PrismaService } from 'src/database/prisma.service';

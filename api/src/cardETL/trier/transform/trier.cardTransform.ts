@@ -1,10 +1,11 @@
 import { Injectable } from '@nestjs/common';
+
+import { Decimal } from '@prisma/client/runtime/library';
 import { MoveCardsExtracted } from '../contracts/trier.extract.strategy';
 import {
-  TrierCardTransformedMovement,
   TrierTransformStrategy,
+  TrierCardTransformedMovement,
 } from '../contracts/trier.transform.strategyc';
-import { Decimal } from '@prisma/client/runtime/library';
 
 @Injectable()
 export class TrierCardTransform implements TrierTransformStrategy {

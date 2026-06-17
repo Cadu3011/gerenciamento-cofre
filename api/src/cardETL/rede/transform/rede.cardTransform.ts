@@ -1,14 +1,11 @@
 import { PrismaService } from 'src/database/prisma.service';
 
-import {
-  cardBrands,
-  RedeCardsExtracted,
-} from '../infra/http/rede/rede-api.types';
+import { cardBrands, RedeCardsExtracted } from '../infra/http/rede-api.types';
 import { Inject } from '@nestjs/common';
 import {
-  RedeCardTransformedMovement,
   RedeTransformStrategy,
-} from '../contracts/rede/rede.transform.strategy';
+  RedeCardTransformedMovement,
+} from '../contracts/rede.transform.strategy';
 
 export class RedeCardTransform implements RedeTransformStrategy<
   RedeCardTransformedMovement[]

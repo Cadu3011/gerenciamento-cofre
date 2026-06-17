@@ -1,8 +1,8 @@
 import {
+  VendasResponse,
   DevolucoesResponse,
   ParcelasResponse,
-  VendasResponse,
-} from '../infra/http/trier-api.types';
+} from 'src/cardETL/trier/infra/http/trier-api.types';
 
 export type TrierAuth = {
   date: string;
