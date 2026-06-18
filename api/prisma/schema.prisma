@@ -136,6 +136,7 @@ model Filial {
   balanceFisic     BalanceFisic[]      @relation("FiliaAndBalancyFisic")
   trierCartaoSales TrierCartaoVendas[] @relation("FilialAndTrierCartaoVendas")
   redeCartaoSales  RedeVenda[]         @relation("FilialAndRedeCartaoVendas")
+  redeCartaParc RedeParcela[] @relation("FilialAndRedeCartaoParcelas")
   conciliacoes     Conciliacao[]
   diferencas       DiferencaCaixa[]    @relation("DiferencaCaixaAndFilial")
 }
@@ -411,30 +412,21 @@ model RedeParcela {
   id Int @id @default(autoincrement())
 
   idempotencyKey String @unique
-
+  filialId       Int
+  filial         Filial   @relation("FilialAndRedeCartaoParcelas", fields: [filialId], references: [id])
   nsu String
 
-  saleSummaryNumber Int?
+  dataVenda       DateTime @db.Date
+  vencimento DateTime @db.Date
 
-  companyNumber String?
+  parcela   Int
+  totalParcelas Int
 
-  saleDate       DateTime @db.Date
-  expirationDate DateTime @db.Date
+  valor Decimal @db.Decimal(10, 2)
 
-  installmentNumber   Int
-  installmentQuantity Int
+  valorLiquido Decimal @db.Decimal(10, 2)
 
-  saleAmount Decimal @db.Decimal(10, 2)
-
-  amount Decimal @db.Decimal(10, 2)
-
-  discountAmount Decimal @db.Decimal(10, 2)
-
-  netAmount Decimal @db.Decimal(10, 2)
-
-  mdrAmount Decimal @db.Decimal(10, 2)
-
-  mdrFee Decimal @db.Decimal(10, 2)
+  taxa Decimal @db.Decimal(10, 2)
 
   vendaId Int?
   venda   RedeVenda? @relation(fields: [vendaId], references: [id])
@@ -446,7 +438,7 @@ model RedeParcela {
   createdAt DateTime @default(now())
 
   @@index([nsu])
-  @@index([expirationDate])
+  @@index([vencimento])
 }
 
 model ConciliacaoParcela {

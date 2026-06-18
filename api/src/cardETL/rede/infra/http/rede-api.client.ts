@@ -1,7 +1,7 @@
 import { Inject } from '@nestjs/common';
 import { RedeService } from 'src/rede/rede.service';
-import { RedeCardsExtracted, RedeParcExtracted } from './rede-api.types';
 import { RedeAuth } from '../../contracts/rede.extract.strategy';
+import { RedeCardsExtracted } from './rede-api.types';
 
 export class RedeApiClient {
   @Inject()
@@ -12,8 +12,5 @@ export class RedeApiClient {
       authData.idRede,
       authData.date,
     ) as Promise<RedeCardsExtracted[]>;
-  }
-  async getParcelasCartao(authData: RedeAuth): Promise<RedeParcExtracted[]> {
-    return this.redeService.findParcDetails(authData.idRede, authData.date);
   }
 }

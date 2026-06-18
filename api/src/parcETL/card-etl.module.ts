@@ -9,15 +9,17 @@ import { TrierCardCron } from './trier/cron/trier.cron';
 import { FilialModule } from 'src/filial/filial.module';
 import { DatabaseModule } from 'src/database/database.module';
 import { RedeModule } from 'src/rede/rede.module';
-import { RedeCardETLPipeline } from './rede/pipeline/rede.card-etl.pipeline';
-import { RedeApiClient } from './rede/infra/http/rede-api.client';
-import { RedeCardLoad } from './rede/load/rede.cardLoad';
-import { RedeCardTransform } from './rede/transform/rede.cardTransform';
-import { RedeCardsExtractor } from './rede/extract/rede.cardExtractor';
 
-import { RedeCardCron } from './rede/cron/rede.cron';
+import { RedeApiClient } from './rede/infra/http/rede-api.client';
+
 import { CardETLController } from './card-etl.controller';
 import { TrierCardETLPipeline } from './trier/pipeline/trier.card-etl.pipeline';
+
+import { RedeParcCron } from './rede/cron/rede.cron';
+import { RedeParcExtractor } from './rede/extract/rede.cardExtractor';
+import { RedeParcLoad } from './rede/load/rede.cardLoad';
+import { RedeParcETLPipeline } from './rede/pipeline/rede.card-etl.pipeline';
+import { RedeParcTransform } from './rede/transform/rede.cardTransform';
 
 // import { RedisService } from '../redis/redis.service'; futuramente
 
@@ -31,11 +33,11 @@ import { TrierCardETLPipeline } from './trier/pipeline/trier.card-etl.pipeline';
     TrierApiClient,
     PrismaService,
     TrierCardCron,
-    RedeCardCron,
-    RedeCardETLPipeline,
-    RedeCardsExtractor,
-    RedeCardTransform,
-    RedeCardLoad,
+    RedeParcCron,
+    RedeParcETLPipeline,
+    RedeParcExtractor,
+    RedeParcTransform,
+    RedeParcLoad,
     RedeApiClient,
     PrismaService,
 
@@ -44,9 +46,9 @@ import { TrierCardETLPipeline } from './trier/pipeline/trier.card-etl.pipeline';
   exports: [
     TrierCardETLPipeline,
     TrierCardCron,
-    RedeCardETLPipeline,
-    RedeCardCron,
+    RedeParcETLPipeline,
+    RedeParcCron,
   ],
   imports: [FilialModule, DatabaseModule, RedeModule],
 })
-export class CartEtlModule {}
+export class ParcEtlModule {}

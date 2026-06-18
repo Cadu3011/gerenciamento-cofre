@@ -38,6 +38,7 @@ export class JobsController {
       TrierCaixas: () => this.jobsService.runTrierCaixas(),
       RedeCards: () => this.jobsService.runRedeCards(),
       ConciCards: () => this.jobsService.runConciCards(),
+      RedeParc: () => this.jobsService.runRedeParc(),
     };
 
     const job = jobs[jobName];

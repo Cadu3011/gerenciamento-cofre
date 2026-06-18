@@ -1,16 +1,17 @@
-import { Decimal } from '@prisma/client/runtime/library';
-
-export type RedeCardsExtracted = {
-  nsu: string;
-  status: string;
-  amount: Decimal;
-  netAmount: Decimal;
-  modality: { type: string };
-  brandCode: number;
+export type RedeParcExtracted = {
   saleDate: string;
-  saleHour: string;
-  merchant: { companyNumber: number };
-  tracking: [{ amount: number | string; status: string }];
+  mdrAmount: number;
+  companyNumber: string;
+  nsu: string;
+  expirationDate: string;
+  installmentQuantity: number;
+  installmentNumber: number;
+  saleAmount: number;
+  saleSummaryNumber: number;
+  mdrFee: number;
+  amount: number;
+  discountAmount: number;
+  netAmount: number;
 };
 
 export const cardBrands = [

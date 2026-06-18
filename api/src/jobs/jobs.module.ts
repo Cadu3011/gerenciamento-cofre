@@ -7,6 +7,7 @@ import { MovementModule } from 'src/movement/movement.module';
 import { CieloModule } from 'src/cielo/cielo.module';
 import { TrierModule } from 'src/trier/trier.module';
 import { ConciliacaoModule } from 'src/conciliacao/conciliacao.module';
+import { ParcEtlModule } from 'src/parcETL/card-etl.module';
 
 @Module({
   controllers: [JobsController],
@@ -18,6 +19,7 @@ import { ConciliacaoModule } from 'src/conciliacao/conciliacao.module';
     CieloModule,
     TrierModule,
     ConciliacaoModule,
+    ParcEtlModule,
   ],
   exports: [JobsService],
 })

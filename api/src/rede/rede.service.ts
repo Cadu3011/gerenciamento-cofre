@@ -151,7 +151,8 @@ export class RedeService {
       }
 
       const vendas = await res.json();
-      const transacoes = vendas?.content?.transactions ?? [];
+
+      const transacoes = vendas?.content?.installments ?? [];
 
       todasTransacoes.push(...transacoes);
 

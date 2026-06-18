@@ -15,6 +15,7 @@ import { TrierModule } from './trier/trier.module';
 import { CartEtlModule } from './cardETL/card-etl.module';
 import { JobsModule } from './jobs/jobs.module';
 import { ConciliacaoModule } from './conciliacao/conciliacao.module';
+import { ParcEtlModule } from './parcETL/card-etl.module';
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { ConciliacaoModule } from './conciliacao/conciliacao.module';
     CieloModule,
     TrierModule,
     CartEtlModule,
+    ParcEtlModule,
     JobsModule,
     ConciliacaoModule,
   ],

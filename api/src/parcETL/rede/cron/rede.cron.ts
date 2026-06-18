@@ -1,11 +1,12 @@
 import { Inject, Logger } from '@nestjs/common';
-import { RedeCardETLPipeline } from '../pipeline/rede.card-etl.pipeline';
+
 import { FilialService } from 'src/filial/filial.service';
 import { PrismaService } from 'src/database/prisma.service';
+import { RedeParcETLPipeline } from '../pipeline/rede.card-etl.pipeline';
 
-export class RedeCardCron {
+export class RedeParcCron {
   @Inject()
-  private readonly pipeline: RedeCardETLPipeline;
+  private readonly pipeline: RedeParcETLPipeline;
 
   @Inject()
   private readonly filialService: FilialService;
@@ -16,7 +17,7 @@ export class RedeCardCron {
   private toISODate(d: Date) {
     return d.toISOString().slice(0, 10);
   }
-  private readonly logger = new Logger(RedeCardCron.name);
+  private readonly logger = new Logger(RedeParcCron.name);
 
   private addDays(dateStr: string, days: number) {
     const d = new Date(dateStr + 'T00:00:00');
@@ -41,14 +42,14 @@ export class RedeCardCron {
       lastUpdatedDate: string | null;
     }> = [];
     for (const f of filiais) {
-      const last = await this.prisma.redeVenda.aggregate({
+      const last = await this.prisma.redeParcela.aggregate({
         where: { filialId: f.id },
         _max: { dataVenda: true },
       });
       // se não tem nada ainda, você decide um "start" inicial
       const startBase = last._max.dataVenda
         ? this.toISODate(new Date(last._max.dataVenda))
-        : '2026-01-01'; // seu initDate (primeira carga)
+        : '2026-06-15'; // seu initDate (primeira carga)
 
       // datas faltantes = (startBase + 1) ... D-1
       const start = this.addDays(startBase, 1);
@@ -62,7 +63,7 @@ export class RedeCardCron {
       // roda dia a dia
       let current = start;
       while (this.diffDays(current, dMinus1) >= 0) {
-        this.logger.log(`ETL Rede filial ${f.name} - dia ${current}`);
+        this.logger.log(`ETL Rede Parc filial ${f.name} - dia ${current}`);
 
         await this.pipeline.execute({
           date: current,
