@@ -1,236 +1,89 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 
 import { Decimal } from '@prisma/client/runtime/library';
-import { MoveCardsExtracted } from '../contracts/trier.extract.strategy';
 import {
+  TrierParcTransformedMovement,
   TrierTransformStrategy,
-  TrierCardTransformedMovement,
 } from '../contracts/trier.transform.strategyc';
+import { MoveParcExtracted } from '../infra/http/trier-api.types';
+import { PrismaService } from 'src/database/prisma.service';
 
 @Injectable()
-export class TrierCardTransform implements TrierTransformStrategy {
+export class TrierParcTransform implements TrierTransformStrategy {
   key: string;
-
+  @Inject()
+  private readonly prisma: PrismaService;
   async execute(
-    ctx: MoveCardsExtracted,
-  ): Promise<TrierCardTransformedMovement[]> {
-    /**
-     * 0) INDEX DE METADATA
-     */
-    const metaByDoc = new Map<
-      string,
-      { hora: string; data: string; filialId: number }
-    >();
+    ctx: MoveParcExtracted[],
+  ): Promise<TrierParcTransformedMovement[]> {
+    const docs = [
+      ...new Set(
+        ctx.map((x) =>
+          Number(
+            x.documentoFiscal
+              ? x.documentoFiscal
+              : String(x.idTransacao.replace('RC:', '9000')),
+          ),
+        ),
+      ),
+    ];
 
-    for (const venda of ctx.vendas) {
-      metaByDoc.set(String(venda.numeroNota), {
-        hora: venda.horaEmissao?.split('-')[0] ?? '',
-        data: venda.dataEmissao,
-        filialId: venda.codFilial,
-      });
-    }
-
-    for (const dev of ctx.devolucoes) {
-      metaByDoc.set(String(dev.numeroNota), {
-        hora: dev.horaEmissao?.split('-')[0] ?? '',
-        data: dev.dataEmissao,
-        filialId: dev.codFilial,
-      });
-    }
-
-    /**
-     * 0.5) BLOQUEAR CARTÃO 34
-     */
-    const docsCartao34 = new Set<string>();
-
-    for (const t of ctx.vendasParcela.transacoes) {
-      if (t.codigoCartao === 34) {
-        const documento = t.documentoFiscal
-          ? String(t.documentoFiscal)
-          : String(t.idTransacao.replace('RC:', '9000'));
-
-        docsCartao34.add(documento);
-      }
-    }
-
-    /**
-     * 1) DEVOLUÇÕES
-     */
-    const devFormat = ctx.devolucoes
-      .filter((dev) => {
-        const ehCartao =
-          dev.condicaoPagamento.codigo === 6 ||
-          dev.condicaoPagamento.codigo === 8;
-
-        const origem = String(dev.numeroNotaOrigem);
-
-        const origemEhCartao34 = docsCartao34.has(origem);
-
-        return ehCartao && !origemEhCartao34;
-      })
-      .map((dev) => {
-        const idDev = dev.numeroNota;
-        const origemDev = dev.numeroNotaOrigem;
-        const hora = dev.horaEmissao?.split('-')[0] ?? '';
-        const data = dev.dataEmissao;
-        const filialId = dev.codFilial;
-
-        const valor = dev.itens.reduce(
-          (acc, t) => acc.plus(new Decimal(t.valorTotalLiquido).mul(-1)),
-          new Decimal(0),
+    const vendas = await this.prisma.trierCartaoVendas.findMany({
+      where: {
+        documentoFiscal: {
+          in: [...docs],
+        },
+        filialId: ctx[0].filialId,
+      },
+    });
+    const vendasMap = new Map(vendas.map((v) => [v.documentoFiscal, v]));
+    const parcTrasform: TrierParcTransformedMovement[] = ctx
+      .filter((vendaParc) => vendaParc.codigoCartao !== 34)
+      .map((vendaParc) => {
+        const documento = Number(
+          vendaParc.documentoFiscal
+            ? vendaParc.documentoFiscal
+            : String(vendaParc.idTransacao.replace('RC:', '9000')),
         );
-
-        return {
-          idVenda: idDev,
-          hora,
-          valor,
-          data,
-          filialId,
-          origemDev,
-        };
-      });
-
-    /**
-     * 2) AGRUPAR POR DOCUMENTO
-     */
-    const grupos = new Map<string, any[]>();
-
-    for (const t of ctx.vendasParcela.transacoes) {
-      if (t.codigoCartao === 34) continue;
-
-      const documento = t.documentoFiscal
-        ? String(t.documentoFiscal)
-        : String(t.idTransacao.replace('RC:', '9000'));
-
-      if (!grupos.has(documento)) {
-        grupos.set(documento, []);
-      }
-
-      grupos.get(documento)!.push(t);
-    }
-
-    /**
-     * 3) CALCULAR TOTAL POR DOCUMENTO
-     */
-    const listaVendas = [];
-
-    for (const [documentoFiscal, regs] of grupos.entries()) {
-      /**
-       * Precisamos identificar pagamentos reais únicos.
-       *
-       * Problemas que resolvemos:
-       *
-       * - Parcelado:
-       *   mesma venda vem repetida por parcela
-       *
-       * - Multi pagamento:
-       *   PIX + Débito + Crédito precisam somar
-       */
-      const pagamentosUnicos = new Map<string, Decimal>();
-
-      for (const t of regs) {
-        /**
-         * CHAVE DE PAGAMENTO ÚNICO
-         *
-         * Ex:
-         * CREDITO-5-63.97-2
-         * DEBITO-22-3-1
-         * PIX-22-9.6-1
-         */
-        const key = [
-          t.modalidadeVenda ?? '',
-          t.codigoCartao ?? '',
-          t.valorTotal ?? '',
-          t.totalParcelas ?? '',
-        ].join('-');
-
-        if (!pagamentosUnicos.has(key)) {
-          pagamentosUnicos.set(key, new Decimal(t.valorTotal));
+        const venda = vendasMap.get(documento);
+        if (!venda) {
+          throw new Error(
+            `Venda não encontrada. Documento=${documento} Filial=${vendaParc.filialId}`,
+          );
         }
-      }
-
-      let total = new Decimal(0);
-
-      for (const valor of pagamentosUnicos.values()) {
-        total = total.plus(valor);
-      }
-
-      const primeira = regs[0];
-
-      listaVendas.push({
-        documentoFiscal,
-        idTransacao: primeira.idTransacao,
-        valorTotal: total,
-        modalidade: primeira?.modalidadeVenda ?? null,
-        bandeira: primeira?.nomeCartao ?? null,
-        filialId: ctx.vendasParcela.codigoLoja,
-        dataEmissaoParcela: primeira?.dataEmissao ?? null,
-        dataVencimentoParcela: primeira?.dataVencimento ?? '',
-        dataPagamentoParcela: primeira?.dataPagamento ?? null,
-      });
-    }
-
-    /**
-     * 4) GERAR VENDAS
-     */
-    const listaFinalVendasCartao: TrierCardTransformedMovement[] =
-      listaVendas.map((vendaParc) => {
-        const meta = metaByDoc.get(String(vendaParc.documentoFiscal));
-
-        const hora = meta?.hora ?? '00:00:00';
-
-        const data = meta?.data ?? vendaParc.dataEmissaoParcela ?? undefined;
 
         const tipo = vendaParc.idTransacao.startsWith('RC:')
           ? 'RECEBIMENTO_CREDIARIO'
           : 'VENDA';
-
+        const valor = Decimal(vendaParc.valorParcela).plus(
+          Decimal(vendaParc.valorTaxas),
+        );
         return {
-          idempotencyKey: `TRIER|${vendaParc.filialId}|${data ?? 'SEM_DATA'}|${vendaParc.documentoFiscal}|${hora ?? 'SEM_HORA'}`,
-          documentoFiscal: Number(vendaParc.documentoFiscal),
-          valor: String(vendaParc.valorTotal),
-          hora,
-          modalidade: vendaParc.modalidade,
-          bandeira: vendaParc.bandeira ?? '',
+          idempotencyKey: `TRIER|${vendaParc.filialId}|${vendaParc.dataEmissao ?? 'SEM_DATA'}|${documento}|${vendaParc.nomeCartao}|${vendaParc.nsuAdministradora}|${vendaParc.valorParcela}|${vendaParc.numeroParcela}`,
+          documentoFiscal: Number(documento),
+          valor: valor,
+          valorLiquido: new Decimal(vendaParc.valorParcela),
+          modalidadeVenda: vendaParc.modalidadeVenda,
+          bandeira: vendaParc.nomeCartao ?? '',
           tipo,
-          dataEmissao: data,
+          vendaId: venda.id,
           filialId: vendaParc.filialId,
-          dataVencimento: vendaParc.dataVencimentoParcela,
-          dataPagamento: vendaParc.dataPagamentoParcela,
+          dataEmissao: new Date(`${vendaParc.dataEmissao}T00:00:00`),
+          dataPagamento: vendaParc.dataPagamento
+            ? new Date(`${vendaParc.dataPagamento}T00:00:00`)
+            : null,
+          dataVencimento: vendaParc.dataVencimento
+            ? new Date(`${vendaParc.dataVencimento}T00:00:00`)
+            : null,
+          nsuAdministradora: vendaParc.nsuAdministradora,
+          administradoraCartao: vendaParc.administradoraCartao,
+          totalParcelas: vendaParc.totalParcelas,
+          parcela: vendaParc.numeroParcela,
+          valorTaxas: new Decimal(vendaParc.valorTaxas),
+          prazoVenda: vendaParc.prazoVenda,
         };
       });
 
-    /**
-     * 5) DEVOLUÇÕES
-     */
-    const listaDevolucoes: TrierCardTransformedMovement[] = devFormat.map(
-      (dev) => ({
-        idempotencyKey: `TRIER|${dev.filialId}|${dev.data}|${dev.idVenda}|${dev.origemDev}|${dev.hora}`,
-        documentoFiscal: Number(dev.idVenda),
-        valor: String(dev.valor),
-        hora: dev.hora,
-        modalidade: 'DEVOLUCAO',
-        bandeira: '',
-        tipo: 'DEVOLUCAO',
-        dataEmissao: dev.data,
-        filialId: dev.filialId,
-        dataVencimento: '',
-        dataPagamento: null,
-      }),
-    );
-
-    /**
-     * 6) RESULTADO FINAL
-     */
-    const resultado = [...listaFinalVendasCartao, ...listaDevolucoes].sort(
-      (a, b) => {
-        if (!a.hora) return 1;
-        if (!b.hora) return -1;
-
-        return a.hora.localeCompare(b.hora);
-      },
-    );
-
-    return resultado;
+    return parcTrasform;
   }
 }

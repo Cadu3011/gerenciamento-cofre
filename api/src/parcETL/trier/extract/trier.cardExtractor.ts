@@ -2,51 +2,28 @@ import { Inject, Injectable } from '@nestjs/common';
 import { TrierApiClient } from '../infra/http/trier-api.client';
 import {
   TrierExtractStrategy,
-  MoveCardsExtracted,
   TrierAuth,
   isApiError,
 } from '../contracts/trier.extract.strategy';
+import { MoveParcExtracted } from '../infra/http/trier-api.types';
 
 @Injectable()
-export class TrierCardExtractor implements TrierExtractStrategy<MoveCardsExtracted> {
+export class TrierParcExtractor implements TrierExtractStrategy<MoveParcExtracted> {
   key: string;
   @Inject()
   private trierApiClient: TrierApiClient;
 
-  async execute(ctx: TrierAuth): Promise<MoveCardsExtracted> {
-    const [vendas, devolucoes, vendasParcela] = await Promise.all([
-      this.trierApiClient.getVendas(
-        ctx.date,
-        ctx.tokenLocalTrier,
-        ctx.urlLocalTrier,
-      ),
-      this.trierApiClient.getCancelamentos(
-        ctx.date,
-        ctx.tokenLocalTrier,
-        ctx.urlLocalTrier,
-      ),
-      this.trierApiClient.getParcelasCartao(
-        ctx.date,
-        ctx.tokenLocalTrier,
-        ctx.urlLocalTrier,
-      ),
-    ]);
-    if (isApiError(vendas)) {
-      console.error(vendas.message);
-      return;
-    }
-    if (isApiError(devolucoes)) {
-      console.error(devolucoes.message);
-      return;
-    }
+  async execute(ctx: TrierAuth): Promise<MoveParcExtracted[]> {
+    const vendasParcela = await this.trierApiClient.getParcelasCartao(
+      ctx.date,
+      ctx.tokenLocalTrier,
+      ctx.urlLocalTrier,
+    );
+
     if (isApiError(vendasParcela)) {
       console.error(vendasParcela.message);
       return;
     }
-    return {
-      vendas: vendas,
-      devolucoes: devolucoes,
-      vendasParcela: vendasParcela,
-    };
+    return vendasParcela;
   }
 }

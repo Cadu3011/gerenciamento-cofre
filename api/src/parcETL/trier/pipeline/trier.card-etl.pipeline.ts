@@ -1,21 +1,22 @@
 import { Inject } from '@nestjs/common';
-import { TrierCardExtractor } from '../extract/trier.cardExtractor';
-import { TrierCardTransform } from '../transform/trier.cardTransform';
-import { TrierCardLoad } from '../load/trier.cardLoad';
+
 import { TrierAuth } from '../contracts/trier.extract.strategy';
 import { TrierPipelineStrategy } from '../contracts/trier.pipeline.strategy';
+import { TrierParcExtractor } from '../extract/trier.cardExtractor';
+import { TrierParcLoad } from '../load/trier.cardLoad';
+import { TrierParcTransform } from '../transform/trier.cardTransform';
 
-export class TrierCardETLPipeline implements TrierPipelineStrategy {
+export class TrierParcETLPipeline implements TrierPipelineStrategy {
   @Inject()
-  private readonly extractor: TrierCardExtractor;
+  private readonly extractor: TrierParcExtractor;
 
   @Inject()
-  private readonly transform: TrierCardTransform;
+  private readonly transform: TrierParcTransform;
 
   @Inject()
-  private readonly loader: TrierCardLoad;
+  private readonly loader: TrierParcLoad;
 
-  key = 'CARD_ETL';
+  key = 'Parc_ETL';
   async execute(ctx: TrierAuth) {
     const rawData = await this.extractor.execute(ctx);
     const trasformed = await this.transform.execute(rawData);

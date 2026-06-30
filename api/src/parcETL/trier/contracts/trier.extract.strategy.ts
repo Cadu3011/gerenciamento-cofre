@@ -1,9 +1,3 @@
-import {
-  VendasResponse,
-  DevolucoesResponse,
-  ParcelasResponse,
-} from 'src/cardETL/trier/infra/http/trier-api.types';
-
 export type TrierAuth = {
   date: string;
   tokenLocalTrier: string;
@@ -12,14 +6,8 @@ export type TrierAuth = {
 
 export interface TrierExtractStrategy<TOut = unknown> {
   readonly key: string;
-  execute(ctx: TrierAuth): Promise<TOut>;
+  execute(ctx: TrierAuth): Promise<TOut[]>;
 }
-
-export type MoveCardsExtracted = {
-  vendas: VendasResponse;
-  devolucoes: DevolucoesResponse;
-  vendasParcela: ParcelasResponse;
-};
 
 type ApiError = {
   status: number;

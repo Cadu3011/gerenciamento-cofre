@@ -1,5 +1,5 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
-import { TrierCardETLPipeline } from '../pipeline/trier.card-etl.pipeline.js';
+import { TrierParcETLPipeline } from '../pipeline/trier.card-etl.pipeline.js';
 import { authTrier } from 'src/auth/authTrier/loginTrier';
 import { FilialService } from 'src/filial/filial.service';
 import { PrismaService } from 'src/database/prisma.service';
@@ -12,9 +12,9 @@ function sleep(ms: number) {
 }
 
 @Injectable()
-export class TrierCardCron {
+export class TrierParcCron {
   @Inject()
-  private readonly pipeline: TrierCardETLPipeline;
+  private readonly pipeline: TrierParcETLPipeline;
 
   @Inject()
   private readonly filialService: FilialService;
@@ -22,7 +22,7 @@ export class TrierCardCron {
   @Inject()
   private readonly prisma: PrismaService;
 
-  private readonly logger = new Logger(TrierCardCron.name);
+  private readonly logger = new Logger(TrierParcCron.name);
 
   private async authOnce(filial: {
     id: number;
@@ -173,7 +173,7 @@ export class TrierCardCron {
 
     for (const { token, url, filial } of tokensFinal) {
       // pega a última data processada PRA ESSA FILIAL
-      const last = await this.prisma.trierCartaoVendas.aggregate({
+      const last = await this.prisma.trierParcela.aggregate({
         where: { filialId: filial },
         _max: { dataEmissao: true },
       });
@@ -181,7 +181,7 @@ export class TrierCardCron {
       // se não tem nada ainda, você decide um "start" inicial
       const startBase = last._max.dataEmissao
         ? this.toISODate(new Date(last._max.dataEmissao))
-        : '2026-01-01'; // seu initDate (primeira carga)
+        : '2026-06-15'; // seu initDate (primeira carga)
 
       // datas faltantes = (startBase + 1) ... D-1
       const start = this.addDays(startBase, 1);
@@ -195,7 +195,7 @@ export class TrierCardCron {
       // roda dia a dia
       let current = start;
       while (this.diffDays(current, dMinus1) >= 0) {
-        this.logger.log(`ETL Trier filial ${filial} - dia ${current}`);
+        this.logger.log(`ETL Trier Parc filial ${filial} - dia ${current}`);
 
         await this.pipeline.execute({
           date: current,
@@ -246,7 +246,7 @@ export class TrierCardCron {
     }
 
     // 3) Executar ETL
-    this.logger.log(`ETL manual filial ${filialId} - dia ${date}`);
+    this.logger.log(`ETL Parc manual filial ${filialId} - dia ${date}`);
 
     await this.pipeline.execute({
       date,
