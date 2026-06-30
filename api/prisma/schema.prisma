@@ -137,6 +137,7 @@ model Filial {
   trierCartaoSales TrierCartaoVendas[] @relation("FilialAndTrierCartaoVendas")
   redeCartaoSales  RedeVenda[]         @relation("FilialAndRedeCartaoVendas")
   redeCartaParc RedeParcela[] @relation("FilialAndRedeCartaoParcelas")
+  trierCartaoParc TrierParcela[] @relation("FilialAndTrierCartaoParcelas")
   conciliacoes     Conciliacao[]
   diferencas       DiferencaCaixa[]    @relation("DiferencaCaixaAndFilial")
 }
@@ -364,35 +365,30 @@ model TrierParcela {
   id Int @id @default(autoincrement())
 
   idempotencyKey String @unique
-
-  idTransacao String
-  idParcela   Int
+  filialId       Int
+  filial         Filial   @relation("FilialAndTrierCartaoParcelas", fields: [filialId], references: [id])
 
   documentoFiscal Int?
-
-  nsuOrigem         String?
+  tipo String
   nsuAdministradora String?
-
-  codigoAutorizacao String?
 
   modalidadeVenda String?
   prazoVenda      String?
 
-  numeroParcela Int
+  parcela Int
   totalParcelas Int
 
   dataEmissao    DateTime  @db.Date
   dataVencimento DateTime  @db.Date
   dataPagamento  DateTime? @db.Date
 
-  valorParcela Decimal @db.Decimal(10, 2)
+  valor Decimal @db.Decimal(10, 2)
   valorTaxas   Decimal @db.Decimal(10, 2)
-  valorTotal   Decimal @db.Decimal(10, 2)
+  valorLiquido   Decimal @db.Decimal(10, 2)
 
   administradoraCartao String?
 
-  codigoCartao Int?
-  nomeCartao   String?
+  bandeira   String?
 
   vendaId           Int?
   venda             TrierCartaoVendas? @relation(fields: [vendaId], references: [id])
@@ -403,7 +399,7 @@ model TrierParcela {
 
   createdAt DateTime @default(now())
 
-  @@index([nsuOrigem])
+  @@index([nsuAdministradora])
   @@index([dataVencimento])
   @@index([documentoFiscal])
 }

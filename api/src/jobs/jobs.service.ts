@@ -11,6 +11,7 @@ import { TrierDifCxETL } from 'src/trier/trierDIfCx.service';
 import { RedeCardCron } from 'src/cardETL/rede/cron/rede.cron';
 import { ConciCardsCron } from 'src/conciliacao/cron/execute.cron';
 import { RedeParcCron } from 'src/parcETL/rede/cron/rede.cron';
+import { TrierParcCron } from 'src/parcETL/trier/cron/trier.cron';
 
 @Injectable()
 export class JobsService {
@@ -18,6 +19,8 @@ export class JobsService {
   private readonly prisma: PrismaService;
   @Inject()
   private readonly redePipelineParc: RedeParcCron;
+  @Inject()
+  private readonly trierPipelineParc: TrierParcCron;
   @Inject()
   private readonly redePipelineCard: RedeCardCron;
   @Inject()
@@ -188,6 +191,13 @@ export class JobsService {
   async runConciCards() {
     return await this.runCronJob('ConciCards', async () => {
       await this.conciCardsPipeline.execute();
+    });
+  }
+
+  @Cron('10,38 7,9,10,12,13 * * 1-7')
+  async runTrierParc() {
+    return await this.runCronJob('TrierParc', async () => {
+      await this.trierPipelineParc.execute();
     });
   }
 }
