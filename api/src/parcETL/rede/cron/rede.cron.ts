@@ -1,15 +1,11 @@
 import { Inject, Logger } from '@nestjs/common';
 
-import { FilialService } from 'src/filial/filial.service';
 import { PrismaService } from 'src/database/prisma.service';
 import { RedeParcETLPipeline } from '../pipeline/rede.card-etl.pipeline';
 
 export class RedeParcCron {
   @Inject()
   private readonly pipeline: RedeParcETLPipeline;
-
-  @Inject()
-  private readonly filialService: FilialService;
 
   @Inject()
   private readonly prisma: PrismaService;

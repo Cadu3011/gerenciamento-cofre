@@ -59,14 +59,14 @@ export class RedeParcTransform implements RedeTransformStrategy<
         );
       }
       movements.push({
-        idempotencyKey: `|${item.nsu}|${item.saleDate}|${filial.id}`,
+        idempotencyKey: `|${item.nsu}|${item.saleDate}|${filial.id}|${item.installmentNumber}`,
         nsu: String(item.nsu),
         valor: String(item.amount),
         valorLiquido: String(item.netAmount),
         dataVenda: new Date(`${item.saleDate}T00:00:00`),
         filialId: filial.id,
         taxa: item.discountAmount,
-        parcela: item.installmentQuantity,
+        parcela: item.installmentNumber,
         totalParcelas: item.installmentQuantity,
         vencimento: new Date(`${item.expirationDate}T00:00:00`),
         vendaId: venda.id,
