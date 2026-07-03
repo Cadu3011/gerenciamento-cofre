@@ -1,6 +1,7 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { readFileSync } from 'fs';
 import { PrismaService } from 'src/database/prisma.service';
+import { JobExecutionContext } from 'src/jobs/jobs.execContext.service';
 
 export interface SimplifiedParc {
   idempotencyKey: string;
@@ -14,9 +15,11 @@ export interface SimplifiedParc {
   modalidade: string;
   bandeira: string;
   filialId: number;
+  estabelecimento: string;
   nsu: string;
   codigoAutorizacao: string;
   codigoTransacao: string;
+  vendaId?: number;
 }
 
 @Injectable()
@@ -24,7 +27,9 @@ export class CieloParcTransform {
   @Inject()
   private readonly Prisma: PrismaService;
 
-  async execute(fileNames: string[]) {
+  private readonly logger = new Logger(CieloParcTransform.name);
+
+  async execute(fileNames: string[], context: JobExecutionContext) {
     const parcelas: SimplifiedParc[] = [];
     const filiais = await this.Prisma.filial.findMany({
       select: {
@@ -34,6 +39,7 @@ export class CieloParcTransform {
     });
 
     const filialMap = new Map(filiais.map((f) => [f.idCielo, f.id]));
+
     for (const fileName of fileNames) {
       const isFileSale = fileName.substring(0, 8);
       // const isFileSale = fileName.substring(0, 8);
@@ -42,7 +48,9 @@ export class CieloParcTransform {
         `${process.env.PATH_LOCAL_UPLOADS}\\${fileName}`,
         'utf8',
       );
+      context.incrementFiles();
 
+      context.info('TRANSFORM', `Arquivo ${fileName} processado`);
       try {
         const lines = filePath.trim().split('\n');
 
@@ -62,11 +70,14 @@ export class CieloParcTransform {
           }
         }
       } catch (err) {
-        console.error(`Erro ao ler/parsing do arquivo ${fileName}:`, err);
+        this.logger.error(`Erro ao ler/parsing do arquivo ${fileName}:`, err);
         throw err;
       }
     }
+    context.incrementExtracted(parcelas.length);
+    context.info('TRANSFORM', `${parcelas.length} parcelas encontradas`);
 
+    this.logger.log('TRANSFORM ✅');
     return parcelas;
   }
 
@@ -89,10 +100,11 @@ export class CieloParcTransform {
       );
 
       const filialId = filialMap.get(estabelecimento);
+
       return {
         idempotencyKey: `|${codigoTransacao}|${dataVenda}|${filialId}|${1}`,
         dataVenda: new Date(dataVenda),
-
+        estabelecimento,
         dataVencimento: new Date(dataVencimento),
         parcela: 1,
         totalParcelas: 1,
@@ -107,7 +119,7 @@ export class CieloParcTransform {
         codigoTransacao,
       };
     } catch (error) {
-      console.error('Erro ao parsear registro PIX:', error);
+      this.logger.error('Erro ao parsear registro PIX:', error);
       return null;
     }
   }
@@ -143,7 +155,7 @@ export class CieloParcTransform {
       return {
         idempotencyKey: `|${codigoTransacao}|${dataVenda}|${filialId}|${parcela}`,
         dataVenda: new Date(dataVenda),
-
+        estabelecimento,
         dataVencimento: new Date(dataVencimento),
         parcela,
         totalParcelas:
@@ -161,7 +173,7 @@ export class CieloParcTransform {
         codigoTransacao,
       };
     } catch (error) {
-      console.error('Erro ao parsear registro de venda:', error);
+      this.logger.error('Erro ao parsear registro de venda:', error);
       return null;
     }
   }

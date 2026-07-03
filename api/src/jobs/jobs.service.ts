@@ -13,6 +13,7 @@ import { ConciCardsCron } from 'src/conciliacao/cron/execute.cron';
 import { RedeParcCron } from 'src/parcETL/rede/cron/rede.cron';
 import { TrierParcCron } from 'src/parcETL/trier/cron/trier.cron';
 import { CieloParcETLCron } from 'src/parcETL/cielo/cron/cielo.cron';
+import { JobExecutionContext } from './jobs.execContext.service';
 
 @Injectable()
 export class JobsService {
@@ -90,11 +91,14 @@ export class JobsService {
       data: updateJobDto,
     });
   }
-  async runCronJob(jobName: string, execute: () => Promise<void>) {
+  async runCronJob(
+    jobName: string,
+    execute: (context: JobExecutionContext) => Promise<void>,
+  ) {
     const today = new Date().toISOString().split('T')[0];
 
     let job;
-
+    const context = new JobExecutionContext();
     try {
       job = await this.prisma.cronJobs.upsert({
         where: {
@@ -111,6 +115,7 @@ export class JobsService {
         },
         update: {
           message: 'Retentativa',
+          logs: JSON.parse(JSON.stringify(context.finish())),
         },
       });
     } catch (error: any) {
@@ -128,15 +133,17 @@ export class JobsService {
     }
 
     try {
-      await execute();
+      await execute(context);
 
       await this.prisma.cronJobs.update({
         where: { id: job.id },
         data: {
           status: 'SUCCESS',
           finishedAt: new Date(),
+          logs: JSON.parse(JSON.stringify(context.finish())),
         },
       });
+      this.logger.log(`Job ${jobName} finalizado`);
     } catch (error: any) {
       await this.prisma.cronJobs.update({
         where: { id: job.id },
@@ -144,6 +151,7 @@ export class JobsService {
           status: 'FAILED',
           message: error.message,
           finishedAt: new Date(),
+          logs: JSON.parse(JSON.stringify(context.finish())),
         },
       });
     }
@@ -207,8 +215,8 @@ export class JobsService {
 
   @Cron('25,58 8,9,10,12,13 * * 1-7')
   async runCieloParc() {
-    return await this.runCronJob('CieloParc', async () => {
-      await this.cieloPipelineParc.execute();
+    return await this.runCronJob('CieloParc', async (context) => {
+      await this.cieloPipelineParc.execute(context);
     });
   }
 }

@@ -26,6 +26,7 @@ import { CieloParcETLPipeline } from './cielo/pipeline/cielo.pipeline';
 import { CieloParcTransform } from './cielo/transform/cielo.cardTransform';
 import { CieloParcLoad } from './cielo/load/cielo.cardLoad';
 import { CieloParcETLCron } from './cielo/cron/cielo.cron';
+import { JobExecutionContext } from 'src/jobs/jobs.execContext.service';
 
 // import { RedisService } from '../redis/redis.service'; futuramente
 
@@ -50,7 +51,7 @@ import { CieloParcETLCron } from './cielo/cron/cielo.cron';
     CieloParcLoad,
     CieloParcETLCron,
     PrismaService,
-
+    JobExecutionContext,
     // RedisService,  futuramente
   ],
   exports: [

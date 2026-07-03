@@ -8,10 +8,11 @@ import { CieloModule } from 'src/cielo/cielo.module';
 import { TrierModule } from 'src/trier/trier.module';
 import { ConciliacaoModule } from 'src/conciliacao/conciliacao.module';
 import { ParcEtlModule } from 'src/parcETL/card-etl.module';
+import { JobExecutionContext } from './jobs.execContext.service';
 
 @Module({
   controllers: [JobsController],
-  providers: [JobsService],
+  providers: [JobsService, JobExecutionContext],
   imports: [
     DatabaseModule,
     CartEtlModule,
@@ -21,6 +22,6 @@ import { ParcEtlModule } from 'src/parcETL/card-etl.module';
     ConciliacaoModule,
     ParcEtlModule,
   ],
-  exports: [JobsService],
+  exports: [JobsService, JobExecutionContext],
 })
 export class JobsModule {}

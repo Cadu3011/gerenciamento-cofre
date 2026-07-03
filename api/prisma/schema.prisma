@@ -288,6 +288,7 @@ model CronJobs {
   finishedAt DateTime?
   status     StatusCronJobs
   runDate    DateTime       @db.Date
+  logs Json?
 
   @@unique([jobName, runDate])
 }

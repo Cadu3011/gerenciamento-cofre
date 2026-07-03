@@ -2,15 +2,16 @@ import { Inject, Injectable, Logger } from '@nestjs/common';
 import { readdir } from 'fs/promises';
 
 import { CieloParcETLPipeline } from '../pipeline/cielo.pipeline';
+import { JobExecutionContext } from 'src/jobs/jobs.execContext.service';
 
 @Injectable()
 export class CieloParcETLCron {
   @Inject()
-  private readonly parcela: CieloParcETLPipeline;
+  private readonly pipeline: CieloParcETLPipeline;
 
   private readonly logger = new Logger(CieloParcETLCron.name);
 
-  async execute() {
+  async execute(context: JobExecutionContext) {
     try {
       const uploadsPath = process.env.PATH_LOCAL_UPLOADS;
 
@@ -38,8 +39,7 @@ export class CieloParcETLCron {
         throw new Error(`Nenhum arquivo da data ${todayString} encontrado.`);
       }
 
-      await this.parcela.execute(fileList);
-
+      await this.pipeline.execute(fileList, context);
       this.logger.log(
         `✅ ${fileList.length} arquivo(s) processado(s) com sucesso.`,
       );
