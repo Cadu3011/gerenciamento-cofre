@@ -22,6 +22,10 @@ import { TrierParcCron } from './trier/cron/trier.cron';
 import { TrierParcExtractor } from './trier/extract/trier.cardExtractor';
 import { TrierParcLoad } from './trier/load/trier.cardLoad';
 import { TrierParcTransform } from './trier/transform/trier.cardTransform';
+import { CieloParcETLPipeline } from './cielo/pipeline/cielo.pipeline';
+import { CieloParcTransform } from './cielo/transform/cielo.cardTransform';
+import { CieloParcLoad } from './cielo/load/cielo.cardLoad';
+import { CieloParcETLCron } from './cielo/cron/cielo.cron';
 
 // import { RedisService } from '../redis/redis.service'; futuramente
 
@@ -41,6 +45,10 @@ import { TrierParcTransform } from './trier/transform/trier.cardTransform';
     RedeParcTransform,
     RedeParcLoad,
     RedeApiClient,
+    CieloParcETLPipeline,
+    CieloParcTransform,
+    CieloParcLoad,
+    CieloParcETLCron,
     PrismaService,
 
     // RedisService,  futuramente
@@ -50,6 +58,7 @@ import { TrierParcTransform } from './trier/transform/trier.cardTransform';
     TrierParcCron,
     RedeParcETLPipeline,
     RedeParcCron,
+    CieloParcETLCron,
   ],
   imports: [FilialModule, DatabaseModule, RedeModule],
 })

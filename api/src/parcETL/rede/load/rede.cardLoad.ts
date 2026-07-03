@@ -10,6 +10,7 @@ export class RedeParcLoad implements RedeLoadStrategy {
   private readonly prisma: PrismaService;
 
   async execute(ctx: RedeParcTransformedMovement[]) {
+    if (ctx.length == 0) return;
     try {
       const BATCH_SIZE = 1000;
 

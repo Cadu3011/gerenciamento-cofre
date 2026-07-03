@@ -12,6 +12,7 @@ import { RedeCardCron } from 'src/cardETL/rede/cron/rede.cron';
 import { ConciCardsCron } from 'src/conciliacao/cron/execute.cron';
 import { RedeParcCron } from 'src/parcETL/rede/cron/rede.cron';
 import { TrierParcCron } from 'src/parcETL/trier/cron/trier.cron';
+import { CieloParcETLCron } from 'src/parcETL/cielo/cron/cielo.cron';
 
 @Injectable()
 export class JobsService {
@@ -35,6 +36,9 @@ export class JobsService {
 
   @Inject()
   private readonly conciCardsPipeline: ConciCardsCron;
+
+  @Inject()
+  private readonly cieloPipelineParc: CieloParcETLCron;
 
   private readonly logger = new Logger(JobsService.name);
 
@@ -173,13 +177,6 @@ export class JobsService {
     });
   }
 
-  @Cron('18,53 7,8,9,10,14 * * 1-7')
-  async runCieloETL() {
-    return await this.runCronJob('CieloETL', async () => {
-      await this.cieloService.pipelineETL();
-    });
-  }
-
   @Cron('5,38 5,7,10,12 * * 1-7')
   async runTrierCaixas() {
     return await this.runCronJob('TrierCaixas', async () => {
@@ -198,6 +195,20 @@ export class JobsService {
   async runTrierParc() {
     return await this.runCronJob('TrierParc', async () => {
       await this.trierPipelineParc.execute();
+    });
+  }
+
+  @Cron('18,53 7,8,9,10,14 * * 1-7')
+  async runCieloETL() {
+    return await this.runCronJob('CieloETL', async () => {
+      await this.cieloService.pipelineETL();
+    });
+  }
+
+  @Cron('25,58 8,9,10,12,13 * * 1-7')
+  async runCieloParc() {
+    return await this.runCronJob('CieloParc', async () => {
+      await this.cieloPipelineParc.execute();
     });
   }
 }

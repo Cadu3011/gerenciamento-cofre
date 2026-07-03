@@ -18,7 +18,7 @@ export class RedeParcTransform implements RedeTransformStrategy<
     ctx: RedeParcExtracted[],
   ): Promise<RedeParcTransformedMovement[]> {
     const movements: RedeParcTransformedMovement[] = [];
-
+    if (ctx.length == 0) return [];
     const nsus = [...new Set(ctx.map((x) => String(x.nsu)))];
 
     const filial = await this.prisma.filial.findFirst({
