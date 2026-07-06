@@ -1,3 +1,4 @@
+import { JobExecutionContext } from 'src/jobs/jobs.execContext.service';
 import { RedeAuth } from './rede.extract.strategy';
 
 export interface RedePipelineStrategy<TResult = unknown> {
@@ -9,5 +10,5 @@ export interface RedePipelineStrategy<TResult = unknown> {
   /**
    * Executa o ETL completo
    */
-  execute(ctx: RedeAuth): Promise<TResult>;
+  execute(ctx: RedeAuth, context: JobExecutionContext): Promise<TResult>;
 }

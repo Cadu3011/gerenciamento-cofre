@@ -2,6 +2,7 @@ import { Inject } from '@nestjs/common';
 import { PrismaService } from 'src/database/prisma.service';
 import { RedeLoadStrategy } from '../contracts/rede.load.strategy';
 import { RedeParcTransformedMovement } from '../contracts/rede.transform.strategy';
+import { JobExecutionContext } from 'src/jobs/jobs.execContext.service';
 
 export class RedeParcLoad implements RedeLoadStrategy {
   key: string;
@@ -9,7 +10,10 @@ export class RedeParcLoad implements RedeLoadStrategy {
   @Inject()
   private readonly prisma: PrismaService;
 
-  async execute(ctx: RedeParcTransformedMovement[]) {
+  async execute(
+    ctx: RedeParcTransformedMovement[],
+    context: JobExecutionContext,
+  ) {
     if (ctx.length == 0) return;
     try {
       const BATCH_SIZE = 1000;
@@ -18,12 +22,18 @@ export class RedeParcLoad implements RedeLoadStrategy {
         const chunk = ctx.slice(i, i + BATCH_SIZE);
 
         try {
-          await this.prisma.redeParcela.createMany({
+          const result = await this.prisma.redeParcela.createMany({
             data: chunk,
             skipDuplicates: true,
           });
+          context.incrementInserted(result.count);
+          context.info('LOAD', `${result.count} linhas registradas`);
         } catch (batchError) {
           console.error(
+            `❌ Erro no batch ${i}-${i + BATCH_SIZE}, tentando individual...`,
+          );
+          context.warn(
+            'LOAD',
             `❌ Erro no batch ${i}-${i + BATCH_SIZE}, tentando individual...`,
           );
 
@@ -43,6 +53,7 @@ export class RedeParcLoad implements RedeLoadStrategy {
         }
       }
     } catch (error) {
+      context.error('LOAD', error.message);
       throw error;
     }
   }

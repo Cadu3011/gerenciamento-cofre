@@ -9,10 +9,11 @@ import { TrierModule } from 'src/trier/trier.module';
 import { ConciliacaoModule } from 'src/conciliacao/conciliacao.module';
 import { ParcEtlModule } from 'src/parcETL/card-etl.module';
 import { JobExecutionContext } from './jobs.execContext.service';
+import { JobsGateway } from './jobs.gateway';
 
 @Module({
   controllers: [JobsController],
-  providers: [JobsService, JobExecutionContext],
+  providers: [JobsService, JobExecutionContext, JobsGateway],
   imports: [
     DatabaseModule,
     CartEtlModule,

@@ -48,7 +48,7 @@ export class CieloParcETLCron {
         'Erro ao processar arquivos da Cielo.',
         error instanceof Error ? error.stack : String(error),
       );
-
+      context.error('CRON', error.message);
       throw error; // opcional: relança o erro para quem chamou o cron
     }
   }

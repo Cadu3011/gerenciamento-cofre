@@ -14,6 +14,7 @@ import { RedeParcCron } from 'src/parcETL/rede/cron/rede.cron';
 import { TrierParcCron } from 'src/parcETL/trier/cron/trier.cron';
 import { CieloParcETLCron } from 'src/parcETL/cielo/cron/cielo.cron';
 import { JobExecutionContext } from './jobs.execContext.service';
+import { JobsGateway } from './jobs.gateway';
 
 @Injectable()
 export class JobsService {
@@ -40,6 +41,9 @@ export class JobsService {
 
   @Inject()
   private readonly cieloPipelineParc: CieloParcETLCron;
+
+  @Inject()
+  private readonly jobsGateway: JobsGateway;
 
   private readonly logger = new Logger(JobsService.name);
 
@@ -91,62 +95,47 @@ export class JobsService {
       data: updateJobDto,
     });
   }
-  async runCronJob(
+
+  private async emitJob(jobName: string) {
+    const job = await this.prisma.jobs.findUnique({
+      where: {
+        jobName,
+      },
+      include: {
+        cronJobs: {
+          orderBy: {
+            createdAt: 'desc',
+          },
+          take: 10,
+        },
+      },
+    });
+
+    if (job) {
+      this.jobsGateway.emitJob(job);
+    }
+  }
+
+  private async executeJob(
+    jobId: number,
     jobName: string,
+    context: JobExecutionContext,
     execute: (context: JobExecutionContext) => Promise<void>,
   ) {
-    const today = new Date().toISOString().split('T')[0];
-
-    let job;
-    const context = new JobExecutionContext();
-    try {
-      job = await this.prisma.cronJobs.upsert({
-        where: {
-          jobName_runDate: { jobName, runDate: new Date(today) },
-          status: { not: 'SUCCESS' },
-          jobs: { status: { equals: true } },
-        },
-        create: {
-          jobName,
-          status: 'RUNNING',
-          message: '',
-          runDate: new Date(today),
-          jobs: { connect: { jobName, status: true } },
-        },
-        update: {
-          message: 'Retentativa',
-          logs: JSON.parse(JSON.stringify(context.finish())),
-        },
-      });
-    } catch (error: any) {
-      if (error?.code === 'P2002') {
-        this.logger.log(`Job ${jobName} já finalizado`);
-        return { error: `Tarefa ${jobName} já finalizada hoje` };
-      }
-
-      if (error?.code === 'P2025') {
-        this.logger.warn(`Job ${jobName} não está ativo ou não existe`);
-        return { error: `Tarefa ${jobName} não está ativo ou não existe` };
-      }
-
-      throw error;
-    }
-
     try {
       await execute(context);
 
       await this.prisma.cronJobs.update({
-        where: { id: job.id },
+        where: { id: jobId },
         data: {
           status: 'SUCCESS',
           finishedAt: new Date(),
           logs: JSON.parse(JSON.stringify(context.finish())),
         },
       });
-      this.logger.log(`Job ${jobName} finalizado`);
     } catch (error: any) {
       await this.prisma.cronJobs.update({
-        where: { id: job.id },
+        where: { id: jobId },
         data: {
           status: 'FAILED',
           message: error.message,
@@ -154,68 +143,136 @@ export class JobsService {
           logs: JSON.parse(JSON.stringify(context.finish())),
         },
       });
+    } finally {
+      await this.emitJob(jobName);
     }
   }
 
+  async runCronJob(
+    jobName: string,
+    execute: (context: JobExecutionContext) => Promise<void>,
+  ) {
+    const today = new Date().toISOString().split('T')[0];
+    const context = new JobExecutionContext();
+
+    let job;
+
+    try {
+      job = await this.prisma.cronJobs.upsert({
+        where: {
+          jobName_runDate: {
+            jobName,
+            runDate: new Date(today),
+          },
+          jobs: { status: true },
+        },
+        create: {
+          jobName,
+          status: 'RUNNING',
+          message: '',
+          runDate: new Date(today),
+          jobs: {
+            connect: {
+              jobName,
+              status: true,
+            },
+          },
+        },
+        update: {
+          status: 'RUNNING',
+          finishedAt: null,
+          message: 'Retentativa',
+          logs: Prisma.JsonNull,
+        },
+      });
+
+      await this.emitJob(jobName);
+
+      // Executa em background
+      void this.executeJob(job.id, jobName, context, execute);
+
+      return {
+        ok: `Tarefa ${jobName} iniciada.`,
+      };
+    } catch (error: any) {
+      if (error?.code === 'P2002') {
+        return {
+          error: `Tarefa ${jobName} já foi executada hoje.`,
+        };
+      }
+
+      if (error?.code === 'P2025') {
+        return {
+          error: `Tarefa ${jobName} não existe ou está inativa.`,
+        };
+      }
+
+      this.logger.error(error);
+
+      return {
+        error: 'Erro ao iniciar a tarefa.',
+      };
+    }
+  }
   @Cron('20,50 6,8,9,13 * * 1-7')
-  async runTrierCards() {
-    return await this.runCronJob('TrierCards', async () => {
+  runTrierCards() {
+    return this.runCronJob('TrierCards', async () => {
       await this.trierPipelineCard.execute();
     });
   }
 
   @Cron('20,50 6,8,9,13 * * 1-7')
-  async runRedeCards() {
-    return await this.runCronJob('RedeCards', async () => {
+  runRedeCards() {
+    return this.runCronJob('RedeCards', async () => {
       await this.redePipelineCard.execute();
     });
   }
 
   @Cron('20,50 6,8,9,13 * * 1-7')
-  async runRedeParc() {
-    return await this.runCronJob('RedeParc', async () => {
-      await this.redePipelineParc.execute();
+  runRedeParc() {
+    return this.runCronJob('RedeParc', async (context) => {
+      await this.redePipelineParc.execute(context);
     });
   }
 
   @Cron('20,50 6,8,9,13 * * 1-7')
-  async runTrierMovements() {
-    return await this.runCronJob('TrierMovements', async () => {
+  runTrierMovements() {
+    return this.runCronJob('TrierMovements', async () => {
       await this.trierPipelineMovement.getVendasCaixasTrier();
     });
   }
 
   @Cron('5,38 5,7,10,12 * * 1-7')
-  async runTrierCaixas() {
-    return await this.runCronJob('TrierCaixas', async () => {
+  runTrierCaixas() {
+    return this.runCronJob('TrierCaixas', async () => {
       await this.trierPipelineCaixa.init();
     });
   }
 
   @Cron('10,38 7,9,10,12,13 * * 1-7')
-  async runConciCards() {
-    return await this.runCronJob('ConciCards', async () => {
+  runConciCards() {
+    return this.runCronJob('ConciCards', async () => {
       await this.conciCardsPipeline.execute();
     });
   }
 
   @Cron('10,38 7,9,10,12,13 * * 1-7')
-  async runTrierParc() {
-    return await this.runCronJob('TrierParc', async () => {
+  runTrierParc() {
+    return this.runCronJob('TrierParc', async () => {
       await this.trierPipelineParc.execute();
     });
   }
 
   @Cron('18,53 7,8,9,10,14 * * 1-7')
-  async runCieloETL() {
-    return await this.runCronJob('CieloETL', async () => {
+  runCieloETL() {
+    return this.runCronJob('CieloETL', async () => {
       await this.cieloService.pipelineETL();
     });
   }
 
   @Cron('25,58 8,9,10,12,13 * * 1-7')
-  async runCieloParc() {
-    return await this.runCronJob('CieloParc', async (context) => {
+  runCieloParc() {
+    return this.runCronJob('CieloParc', async (context) => {
       await this.cieloPipelineParc.execute(context);
     });
   }

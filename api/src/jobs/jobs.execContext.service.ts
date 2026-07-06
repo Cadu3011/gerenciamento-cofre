@@ -15,13 +15,7 @@ export class JobExecutionContext {
 
     extracted: 0,
 
-    transformed: 0,
-
     inserted: 0,
-
-    duplicated: 0,
-
-    ignored: 0,
   };
 
   info(step: string, message: string) {

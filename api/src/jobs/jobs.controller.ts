@@ -7,6 +7,7 @@ import {
   Param,
   Inject,
   UseGuards,
+  NotFoundException,
 } from '@nestjs/common';
 import { JobsService } from './jobs.service';
 import { CreateJobDto } from './dto/create-job.dto';
@@ -46,7 +47,7 @@ export class JobsController {
     const job = jobs[jobName];
 
     if (!job) {
-      throw new Error('Job não encontrado');
+      throw new NotFoundException('Job não encontrado');
     }
 
     return job();

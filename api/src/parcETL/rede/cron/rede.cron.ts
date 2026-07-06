@@ -2,6 +2,7 @@ import { Inject, Logger } from '@nestjs/common';
 
 import { PrismaService } from 'src/database/prisma.service';
 import { RedeParcETLPipeline } from '../pipeline/rede.card-etl.pipeline';
+import { JobExecutionContext } from 'src/jobs/jobs.execContext.service';
 
 export class RedeParcCron {
   @Inject()
@@ -27,7 +28,7 @@ export class RedeParcCron {
     return Math.floor((b - a) / (1000 * 60 * 60 * 24));
   }
 
-  async execute() {
+  async execute(context: JobExecutionContext) {
     const filiais = await this.prisma.filial.findMany({
       where: { NOT: { id: 1 } },
     });
@@ -61,10 +62,13 @@ export class RedeParcCron {
       while (this.diffDays(current, dMinus1) >= 0) {
         this.logger.log(`ETL Rede Parc filial ${f.name} - dia ${current}`);
 
-        await this.pipeline.execute({
-          date: current,
-          idRede: f.id,
-        });
+        await this.pipeline.execute(
+          {
+            date: current,
+            idRede: f.id,
+          },
+          context,
+        );
 
         current = this.addDays(current, 1);
       }

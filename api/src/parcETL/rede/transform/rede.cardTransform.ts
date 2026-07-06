@@ -6,6 +6,7 @@ import {
   RedeParcTransformedMovement,
   RedeTransformStrategy,
 } from '../contracts/rede.transform.strategy';
+import { JobExecutionContext } from 'src/jobs/jobs.execContext.service';
 
 export class RedeParcTransform implements RedeTransformStrategy<
   RedeParcTransformedMovement[]
@@ -16,63 +17,69 @@ export class RedeParcTransform implements RedeTransformStrategy<
 
   async execute(
     ctx: RedeParcExtracted[],
+    context: JobExecutionContext,
   ): Promise<RedeParcTransformedMovement[]> {
-    const movements: RedeParcTransformedMovement[] = [];
-    if (ctx.length == 0) return [];
-    const nsus = [...new Set(ctx.map((x) => String(x.nsu)))];
+    try {
+      const movements: RedeParcTransformedMovement[] = [];
+      if (ctx.length == 0) return [];
+      const nsus = [...new Set(ctx.map((x) => String(x.nsu)))];
 
-    const filial = await this.prisma.filial.findFirst({
-      where: {
-        idRede: String(ctx[0].companyNumber),
-      },
-    });
-
-    if (!filial) {
-      throw new Error('Filial não encontrada');
-    }
-    const vendas = await this.prisma.redeVenda.findMany({
-      where: {
-        nsu: {
-          in: [...nsus],
+      const filial = await this.prisma.filial.findFirst({
+        where: {
+          idRede: String(ctx[0].companyNumber),
         },
-        filialId: filial.id,
-      },
-    });
-
-    const vendasMap = new Map(vendas.map((v) => [v.nsu, v]));
-    for (const item of ctx) {
-      // const filial = await this.prisma.filial.findFirst({
-      //   where: { idRede: String(item.companyNumber) },
-      // });
-      // const venda = await this.prisma.redeVenda.findFirst({
-      //   where: {
-      //     nsu: String(item.nsu),
-      //     filialId: filial.id,
-      //   },
-      //   select: { id: true },
-      // });
-
-      const venda = vendasMap.get(String(item.nsu));
-      if (!venda) {
-        throw new Error(
-          `Venda não encontrada. NSU=${item.nsu} Filial=${filial.id}`,
-        );
-      }
-      movements.push({
-        idempotencyKey: `|${item.nsu}|${item.saleDate}|${filial.id}|${item.installmentNumber}`,
-        nsu: String(item.nsu),
-        valor: String(item.amount),
-        valorLiquido: String(item.netAmount),
-        dataVenda: new Date(`${item.saleDate}T00:00:00`),
-        filialId: filial.id,
-        taxa: item.discountAmount,
-        parcela: item.installmentNumber,
-        totalParcelas: item.installmentQuantity,
-        vencimento: new Date(`${item.expirationDate}T00:00:00`),
-        vendaId: venda.id,
       });
-    }
 
-    return movements;
+      if (!filial) {
+        throw new Error('Filial não encontrada');
+      }
+      const vendas = await this.prisma.redeVenda.findMany({
+        where: {
+          nsu: {
+            in: [...nsus],
+          },
+          filialId: filial.id,
+        },
+      });
+
+      const vendasMap = new Map(vendas.map((v) => [v.nsu, v]));
+      for (const item of ctx) {
+        // const filial = await this.prisma.filial.findFirst({
+        //   where: { idRede: String(item.companyNumber) },
+        // });
+        // const venda = await this.prisma.redeVenda.findFirst({
+        //   where: {
+        //     nsu: String(item.nsu),
+        //     filialId: filial.id,
+        //   },
+        //   select: { id: true },
+        // });
+
+        const venda = vendasMap.get(String(item.nsu));
+        if (!venda) {
+          throw new Error(
+            `Venda não encontrada. NSU=${item.nsu} Filial=${filial.id}`,
+          );
+        }
+        movements.push({
+          idempotencyKey: `|${item.nsu}|${item.saleDate}|${filial.id}|${item.installmentNumber}`,
+          nsu: String(item.nsu),
+          valor: String(item.amount),
+          valorLiquido: String(item.netAmount),
+          dataVenda: new Date(`${item.saleDate}T00:00:00`),
+          filialId: filial.id,
+          taxa: item.discountAmount,
+          parcela: item.installmentNumber,
+          totalParcelas: item.installmentQuantity,
+          vencimento: new Date(`${item.expirationDate}T00:00:00`),
+          vendaId: venda.id,
+        });
+      }
+      context.info('TRANSFORM', `${movements.length} Registros Transformados`);
+      return movements;
+    } catch (error) {
+      context.error('TRANSFORM', error.message);
+      throw error;
+    }
   }
 }

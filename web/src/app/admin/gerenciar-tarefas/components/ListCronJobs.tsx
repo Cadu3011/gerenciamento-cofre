@@ -1,5 +1,7 @@
 import { CronJob } from "@/app/types/jobs";
+import { Button } from "@/components/ui/button";
 import { TableBody, TableCell, TableRow } from "@/components/ui/table";
+import DialogLogsCronJobs from "./DialogLogsCronJob";
 
 export default function ListCronJobs({ cronJobs }: { cronJobs: CronJob[] }) {
   if (cronJobs.length === 0) {
@@ -26,6 +28,9 @@ export default function ListCronJobs({ cronJobs }: { cronJobs: CronJob[] }) {
           <TableCell>{cj.jobName}</TableCell>
           <TableCell>{cj.status}</TableCell>
           <TableCell>{cj.message}</TableCell>
+          <TableCell>
+            <DialogLogsCronJobs jobName={cj.jobName} logs={cj.logs} />
+          </TableCell>
         </TableRow>
       ))}
     </TableBody>
