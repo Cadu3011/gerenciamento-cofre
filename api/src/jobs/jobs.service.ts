@@ -258,8 +258,8 @@ export class JobsService {
 
   @Cron('10,38 7,9,10,12,13 * * 1-7')
   runTrierParc() {
-    return this.runCronJob('TrierParc', async () => {
-      await this.trierPipelineParc.execute();
+    return this.runCronJob('TrierParc', async (context) => {
+      await this.trierPipelineParc.execute(context);
     });
   }
 

@@ -1,9 +1,13 @@
 import { Decimal } from '@prisma/client/runtime/library';
 import { MoveParcExtracted } from '../infra/http/trier-api.types';
+import { JobExecutionContext } from 'src/jobs/jobs.execContext.service';
 
 export interface TrierTransformStrategy<TOut = unknown> {
   readonly key: string;
-  execute(ctx: MoveParcExtracted[]): Promise<TOut[]>;
+  execute(
+    ctx: MoveParcExtracted[],
+    context: JobExecutionContext,
+  ): Promise<TOut[]>;
 }
 
 export interface TrierParcTransformedMovement {

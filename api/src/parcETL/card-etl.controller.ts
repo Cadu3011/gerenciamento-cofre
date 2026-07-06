@@ -3,6 +3,7 @@ import { Role } from '@prisma/client';
 import { AuthGuard } from 'src/auth/auth.guard';
 import { Roles } from 'src/auth/role.decorator';
 import { TrierParcCron } from './trier/cron/trier.cron';
+import { JobExecutionContext } from 'src/jobs/jobs.execContext.service';
 
 @Controller('ETL')
 export class ParcETLController {
@@ -13,6 +14,7 @@ export class ParcETLController {
   @Roles(Role.GESTOR)
   @Post('trier')
   async execute(@Body() body: { date: string; filialId: number }) {
-    return await this.trierParcCron.executeByFilialAndDate(body);
+    const context = new JobExecutionContext();
+    return await this.trierParcCron.executeByFilialAndDate(body, context);
   }
 }

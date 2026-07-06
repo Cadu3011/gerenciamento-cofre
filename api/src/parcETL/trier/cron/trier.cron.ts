@@ -3,6 +3,7 @@ import { TrierParcETLPipeline } from '../pipeline/trier.card-etl.pipeline.js';
 import { authTrier } from 'src/auth/authTrier/loginTrier';
 import { FilialService } from 'src/filial/filial.service';
 import { PrismaService } from 'src/database/prisma.service';
+import { JobExecutionContext } from 'src/jobs/jobs.execContext.service.js';
 
 type AuthOk = { filial: number; url: string; token: string };
 type AuthFail = { filial: number; url: string; error: unknown };
@@ -106,7 +107,7 @@ export class TrierParcCron {
     return Math.floor((b - a) / (1000 * 60 * 60 * 24));
   }
 
-  async execute() {
+  async execute(context) {
     const filiais = await this.filialService.findAll();
 
     // 1) Primeira rodada (todas em paralelo)
@@ -197,11 +198,14 @@ export class TrierParcCron {
       while (this.diffDays(current, dMinus1) >= 0) {
         this.logger.log(`ETL Trier Parc filial ${filial} - dia ${current}`);
 
-        await this.pipeline.execute({
-          date: current,
-          tokenLocalTrier: token,
-          urlLocalTrier: url,
-        });
+        await this.pipeline.execute(
+          {
+            date: current,
+            tokenLocalTrier: token,
+            urlLocalTrier: url,
+          },
+          context,
+        );
 
         current = this.addDays(current, 1);
       }
@@ -212,10 +216,13 @@ export class TrierParcCron {
     return { lastUpdatedByFilial: resultsLastDates };
   }
 
-  async executeByFilialAndDate(params: {
-    filialId: number;
-    date: string; // formato YYYY-MM-DD
-  }) {
+  async executeByFilialAndDate(
+    params: {
+      filialId: number;
+      date: string; // formato YYYY-MM-DD
+    },
+    context: JobExecutionContext,
+  ) {
     const { filialId, date } = params;
 
     // 1) Buscar filial
@@ -248,11 +255,14 @@ export class TrierParcCron {
     // 3) Executar ETL
     this.logger.log(`ETL Parc manual filial ${filialId} - dia ${date}`);
 
-    await this.pipeline.execute({
-      date,
-      tokenLocalTrier: tokenData.token,
-      urlLocalTrier: tokenData.url,
-    });
+    await this.pipeline.execute(
+      {
+        date,
+        tokenLocalTrier: tokenData.token,
+        urlLocalTrier: tokenData.url,
+      },
+      context,
+    );
 
     return {
       success: true,

@@ -5,6 +5,7 @@ import { TrierPipelineStrategy } from '../contracts/trier.pipeline.strategy';
 import { TrierParcExtractor } from '../extract/trier.cardExtractor';
 import { TrierParcLoad } from '../load/trier.cardLoad';
 import { TrierParcTransform } from '../transform/trier.cardTransform';
+import { JobExecutionContext } from 'src/jobs/jobs.execContext.service';
 
 export class TrierParcETLPipeline implements TrierPipelineStrategy {
   @Inject()
@@ -17,12 +18,11 @@ export class TrierParcETLPipeline implements TrierPipelineStrategy {
   private readonly loader: TrierParcLoad;
 
   key = 'Parc_ETL';
-  async execute(ctx: TrierAuth) {
-    const rawData = await this.extractor.execute(ctx);
-    const trasformed = await this.transform.execute(rawData);
-    return {
-      message: await this.loader.execute(trasformed),
-      lastUpdatedDate: ctx.date,
-    };
+  async execute(ctx: TrierAuth, context: JobExecutionContext) {
+    context.info('PIPELINE', 'Pipeline Iniciada');
+    const rawData = await this.extractor.execute(ctx, context);
+    const trasformed = await this.transform.execute(rawData, context);
+    await this.loader.execute(trasformed, context);
+    context.info('PIPELINE', 'Pipeline Encerrada');
   }
 }

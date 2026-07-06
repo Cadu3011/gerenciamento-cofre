@@ -1,3 +1,5 @@
+import { JobExecutionContext } from 'src/jobs/jobs.execContext.service';
+
 export type TrierAuth = {
   date: string;
   tokenLocalTrier: string;
@@ -6,7 +8,7 @@ export type TrierAuth = {
 
 export interface TrierExtractStrategy<TOut = unknown> {
   readonly key: string;
-  execute(ctx: TrierAuth): Promise<TOut[]>;
+  execute(ctx: TrierAuth, context: JobExecutionContext): Promise<TOut[]>;
 }
 
 type ApiError = {
