@@ -158,7 +158,11 @@ export class JobsService {
       where: {
         jobName,
         runDate: new Date(today),
-        OR: [{ status: 'RUNNING' }, { status: 'SUCCESS' }],
+        OR: [
+          { status: 'RUNNING' },
+          { status: 'SUCCESS' },
+          { jobs: { status: false } },
+        ],
       },
       orderBy: { id: 'desc' },
     });
@@ -241,7 +245,7 @@ export class JobsService {
   @Cron('20,50 6,8,9,13 * * 1-7')
   runTrierMovements() {
     return this.runCronJob('TrierMovements', async (context) => {
-      await this.trierPipelineMovement.getVendasCaixasTrier();
+      await this.trierPipelineMovement.getVendasCaixasTrier(context);
     });
   }
 
@@ -255,7 +259,7 @@ export class JobsService {
   @Cron('10,38 7,9,10,12,13 * * 1-7')
   runConciCards() {
     return this.runCronJob('ConciCards', async (context) => {
-      await this.conciCardsPipeline.execute();
+      await this.conciCardsPipeline.execute(context);
     });
   }
 
@@ -269,7 +273,7 @@ export class JobsService {
   @Cron('18,53 7,8,9,10,14 * * 1-7')
   runCieloETL() {
     return this.runCronJob('CieloETL', async (context) => {
-      await this.cieloService.pipelineETL();
+      await this.cieloService.pipelineETL(context);
     });
   }
 

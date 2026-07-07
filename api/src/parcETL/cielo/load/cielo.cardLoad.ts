@@ -10,7 +10,7 @@ export class CieloParcLoad {
 
   @Inject()
   private readonly Prisma: PrismaService;
-  async execute(data: SimplifiedParc[], context: JobExecutionContext) {
+  async execute(data: SimplifiedParc[]) {
     try {
       const movements: SimplifiedParc[] = [];
       const codTrans = [...new Set(data.map((x) => String(x.codigoTransacao)))];
@@ -41,13 +41,10 @@ export class CieloParcLoad {
         data: movements.map(({ estabelecimento, ...movement }) => movement),
         skipDuplicates: true,
       });
-      context.incrementInserted(result.count);
-      context.info('LOAD', `${result.count} linhas registradas`);
-
       this.logger.log('LOAD ✅');
+      return result.count;
     } catch (error) {
-      context.error('LOAD', `${error.message}`);
-      this.logger.error(`❌ Erro ao inserir itens`);
+      this.logger.error(`❌ Erro ao inserir itens, ${error}`);
       throw error;
     }
   }

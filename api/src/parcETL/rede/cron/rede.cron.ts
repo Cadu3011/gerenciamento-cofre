@@ -61,7 +61,10 @@ export class RedeParcCron {
       let current = start;
       while (this.diffDays(current, dMinus1) >= 0) {
         this.logger.log(`ETL Rede Parc filial ${f.name} - dia ${current}`);
-
+        context.info(
+          'PIPELINE',
+          `Pipeline Iniciada filial ${f.name} - dia ${current}`,
+        );
         await this.pipeline.execute(
           {
             date: current,

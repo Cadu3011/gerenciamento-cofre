@@ -2,6 +2,7 @@ import { Inject, Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from 'src/database/prisma.service';
 import { FilialService } from 'src/filial/filial.service';
 import { Pipeline } from './pipeline';
+import { JobExecutionContext } from 'src/jobs/jobs.execContext.service';
 
 @Injectable()
 export class ConciCardsCron {
@@ -32,7 +33,7 @@ export class ConciCardsCron {
     return Math.floor((b - a) / (1000 * 60 * 60 * 24));
   }
 
-  async execute() {
+  async execute(context: JobExecutionContext) {
     const filiais = await this.filialService.findAll();
     const today = this.toISODate(new Date());
     const dMinus1 = this.addDays(today, -1);
@@ -63,8 +64,12 @@ export class ConciCardsCron {
       // roda dia a dia
       let current = start;
       while (this.diffDays(current, dMinus1) >= 0) {
+        context.info(
+          'PIPELINE',
+          `Pipeline iniciada Filial ${f.id} Data ${current} `,
+        );
         try {
-          await this.pipeline.execute(f.id, current);
+          await this.pipeline.execute(f.id, current, context);
           this.logger.debug(
             `Filial ${f.id} Data ${current} processada com sucesso`,
           );
@@ -72,7 +77,9 @@ export class ConciCardsCron {
           const message =
             error instanceof Error ? error.message : String(error);
 
-          errors.push(`Filial ${f.id} - Data ${current} - ${message}`);
+          const log = `Filial ${f.id} - Data ${current} - ${message}`;
+
+          errors.push(log);
         }
 
         current = this.addDays(current, 1);

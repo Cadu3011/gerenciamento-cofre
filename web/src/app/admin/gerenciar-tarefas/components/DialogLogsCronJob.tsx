@@ -54,6 +54,25 @@ export default function DialogLogsCronJobs({
     return `${formattedDate} ${formattedTime}`;
   };
   if (!logs) return;
+  function formatDuration(ms: number) {
+    const totalSeconds = Math.floor(ms / 1000);
+
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+    if (ms < 1000) {
+      return `${ms / 1000} ms`;
+    }
+    if (hours > 0) {
+      return `${hours}h ${minutes}m ${seconds}s`;
+    }
+
+    if (minutes > 0) {
+      return `${minutes}m ${seconds}s`;
+    }
+
+    return `${seconds}s`;
+  }
   return (
     <Dialog>
       <DialogTrigger asChild>
@@ -79,6 +98,12 @@ export default function DialogLogsCronJobs({
               <span className="text-xs text-muted-foreground">Fim</span>
               <span className="rounded-md bg-white px-3 py-2 shadow-sm border">
                 {formatDateTime(logs.finishedAt)}
+              </span>
+            </div>
+            <div className="flex flex-col">
+              <span className="text-xs text-muted-foreground">Tempo</span>
+              <span className="rounded-md bg-white px-3 py-2 shadow-sm border">
+                {formatDuration(logs.durationMs)}
               </span>
             </div>
           </div>
@@ -148,7 +173,7 @@ export default function DialogLogsCronJobs({
                     {l.message}
                   </TableCell>
                   <TableCell className="text-sm text-zinc-500">
-                    {l.durationMs}
+                    {l.durationMs && formatDuration(l.durationMs)}
                   </TableCell>
                   <TableCell className="text-sm text-zinc-500">
                     {formatDateTime(l.timestamp)}

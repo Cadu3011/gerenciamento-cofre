@@ -3,10 +3,7 @@ import { RedeParcExtracted } from '../infra/http/rede-api.types';
 
 export interface RedeTransformStrategy<TOut = unknown> {
   readonly key: string;
-  execute(
-    ctx: RedeParcExtracted[],
-    context: JobExecutionContext,
-  ): Promise<TOut>;
+  execute(ctx: RedeParcExtracted[]): Promise<TOut>;
 }
 
 export interface RedeParcTransformedMovement {

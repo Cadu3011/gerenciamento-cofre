@@ -18,21 +18,33 @@ export class RedeCardETLPipeline implements RedePipelineStrategy {
 
   key = 'CARD_ETL';
   async execute(ctx: RedeAuth, context: JobExecutionContext) {
+    let currentStep = '';
+
     try {
-      context.startStep('EXTRACT');
+      currentStep = 'EXTRACT';
+      context.startStep(currentStep);
       const rawData = await this.extractor.execute(ctx);
       context.incrementExtracted(rawData.length);
-      await context.endStep('EXTRACT', `${rawData.length} registros extraídos`);
-      context.startStep('TRANSFORM');
+      await context.endStep(
+        currentStep,
+        `${rawData.length} registros extraídos`,
+      );
+      currentStep = 'TRANSFORM';
+      context.startStep(currentStep);
       const transformed = await this.transform.execute(rawData);
       await context.endStep(
-        'TRANSFORM',
+        currentStep,
         `${transformed.length} registros transformados`,
       );
-      context.startStep('LOAD');
+      currentStep = 'LOAD';
+      context.startStep(currentStep);
       const inserteds = await this.loader.execute(transformed);
       context.incrementInserted(inserteds);
-      await context.endStep('LOAD', `${inserteds} linhas inseridas`);
+      await context.endStep(currentStep, `${inserteds} linhas inseridas`);
+    } catch (error) {
+      context.error(currentStep, error.message);
+
+      throw error.message;
     } finally {
       context.info('PIPELINE', `Pipeline encerrada`);
     }

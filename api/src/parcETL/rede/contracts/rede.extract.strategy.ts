@@ -7,5 +7,5 @@ export interface RedeAuth {
 
 export interface RedeExtractStrategy<TOut = unknown> {
   readonly key: string;
-  execute(ctx: RedeAuth, context: JobExecutionContext): Promise<TOut>;
+  execute(ctx: RedeAuth): Promise<TOut>;
 }

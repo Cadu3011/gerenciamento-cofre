@@ -12,7 +12,7 @@ export class ParcETLController {
 
   @UseGuards(AuthGuard)
   @Roles(Role.GESTOR)
-  @Post('trier')
+  @Post('trierParc')
   async execute(@Body() body: { date: string; filialId: number }) {
     const context = new JobExecutionContext();
     return await this.trierParcCron.executeByFilialAndDate(body, context);

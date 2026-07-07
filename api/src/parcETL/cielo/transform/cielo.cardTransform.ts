@@ -29,7 +29,7 @@ export class CieloParcTransform {
 
   private readonly logger = new Logger(CieloParcTransform.name);
 
-  async execute(fileNames: string[], context: JobExecutionContext) {
+  async execute(fileNames: string[]) {
     const parcelas: SimplifiedParc[] = [];
     const filiais = await this.Prisma.filial.findMany({
       select: {
@@ -48,9 +48,7 @@ export class CieloParcTransform {
         `${process.env.PATH_LOCAL_UPLOADS}\\${fileName}`,
         'utf8',
       );
-      context.incrementFiles();
 
-      context.info('TRANSFORM', `Arquivo ${fileName} processado`);
       try {
         const lines = filePath.trim().split('\n');
 
@@ -74,8 +72,6 @@ export class CieloParcTransform {
         throw err;
       }
     }
-    context.incrementExtracted(parcelas.length);
-    context.info('TRANSFORM', `${parcelas.length} parcelas encontradas`);
 
     this.logger.log('TRANSFORM ✅');
     return parcelas;

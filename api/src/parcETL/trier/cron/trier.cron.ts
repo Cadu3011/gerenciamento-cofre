@@ -126,11 +126,16 @@ export class TrierParcCron {
         authFailed.push(filial);
         if (r.reason.code === 'ETIMEDOUT') {
           console.error(`[IP NÃO ACESSÍVEL] ${filial.urlLocalTrier}`);
+          context.warn('CRON', `[IP NÃO ACESSÍVEL] ${filial.urlLocalTrier}`);
           return { success: false, message: 'IP não acessível' };
         }
         this.logger.warn(
           `[AUTH FAIL 1ª] filial=${filial.id} url=${filial.urlLocalTrier}`,
           r.reason,
+        );
+        context.warn(
+          'CRON',
+          `[AUTH FAIL 1ª] filial=${filial.id} url=${filial.urlLocalTrier} ${r.reason}`,
         );
       }
     });
@@ -139,6 +144,10 @@ export class TrierParcCron {
     let retriedOk: AuthOk[] = [];
     if (authFailed.length) {
       this.logger.warn(
+        `Iniciando retentativas de auth para ${authFailed.length} filiais...`,
+      );
+      context.warn(
+        'CRON',
         `Iniciando retentativas de auth para ${authFailed.length} filiais...`,
       );
 
@@ -153,12 +162,20 @@ export class TrierParcCron {
         this.logger.error(
           `Auth falhou definitivamente em ${retried.fail.length} filiais:`,
         );
-        retried.fail.forEach((f) =>
+        context.error(
+          'CRON',
+          `Auth falhou definitivamente em ${retried.fail.length} filiais:`,
+        );
+        retried.fail.forEach((f) => {
           this.logger.error(
             `[AUTH FAIL FINAL] filial=${f.filial} url=${f.url}`,
             f.error,
-          ),
-        );
+          );
+          context.error(
+            'CRON',
+            `[AUTH FAIL FINAL] filial=${f.filial} url=${f.url}`,
+          );
+        });
       }
     }
 
@@ -197,7 +214,10 @@ export class TrierParcCron {
       let current = start;
       while (this.diffDays(current, dMinus1) >= 0) {
         this.logger.log(`ETL Trier Parc filial ${filial} - dia ${current}`);
-
+        context.info(
+          'PIPELINE',
+          `Pipeline iniciada filial ${filial} - dia ${current}`,
+        );
         await this.pipeline.execute(
           {
             date: current,
@@ -239,7 +259,7 @@ export class TrierParcCron {
       tokenData = await this.authOnce(filial);
     } catch (err) {
       this.logger.warn(`[AUTH FAIL] Tentando retry...`);
-
+      context.warn('CRON', `[AUTH FAIL] Tentando retry...`);
       const retry = await this.authWithRetriesAfter([filial], {
         maxAttempts: 3,
         baseDelayMs: 800,
@@ -254,7 +274,10 @@ export class TrierParcCron {
 
     // 3) Executar ETL
     this.logger.log(`ETL Parc manual filial ${filialId} - dia ${date}`);
-
+    context.info(
+      'PIPELINE',
+      `Pipeline iniciada filial${filial.name} - dia ${date}`,
+    );
     await this.pipeline.execute(
       {
         date,
@@ -263,11 +286,5 @@ export class TrierParcCron {
       },
       context,
     );
-
-    return {
-      success: true,
-      filial: filialId,
-      date,
-    };
   }
 }

@@ -19,10 +19,31 @@ export class TrierParcETLPipeline implements TrierPipelineStrategy {
 
   key = 'Parc_ETL';
   async execute(ctx: TrierAuth, context: JobExecutionContext) {
-    context.info('PIPELINE', 'Pipeline Iniciada');
-    const rawData = await this.extractor.execute(ctx, context);
-    const trasformed = await this.transform.execute(rawData, context);
-    await this.loader.execute(trasformed, context);
+    let currentStep = '';
+    try {
+      currentStep = 'EXTRACT';
+      context.startStep(currentStep);
+      const rawData = await this.extractor.execute(ctx);
+      context.incrementExtracted(rawData.length);
+      context.endStep(currentStep, `${rawData.length} Registros extraidos`);
+      currentStep = 'TRANSFORM';
+      context.startStep(currentStep);
+      const trasformed = await this.transform.execute(rawData);
+      context.endStep(
+        currentStep,
+        `${trasformed.length} Registros transformados`,
+      );
+      currentStep = 'LOAD';
+      context.startStep(currentStep);
+      const inserteds = await this.loader.execute(trasformed);
+      context.incrementInserted(inserteds);
+      context.endStep(currentStep, `${inserteds} Linhas Inseridas`);
+    } catch (error) {
+      context.error(currentStep, error.message);
+
+      throw error;
+    } finally {
+    }
     context.info('PIPELINE', 'Pipeline Encerrada');
   }
 }

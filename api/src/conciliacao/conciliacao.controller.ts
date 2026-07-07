@@ -15,6 +15,7 @@ import { AuthGuard } from 'src/auth/auth.guard';
 import { Role } from '@prisma/client';
 import { Roles } from 'src/auth/role.decorator';
 import { ConciliacaoDashboardService } from './dashboard/conciliacao-dashboard.service';
+import { JobExecutionContext } from 'src/jobs/jobs.execContext.service';
 
 @Controller('conciliacao')
 export class ConciliacaoController {
@@ -31,7 +32,8 @@ export class ConciliacaoController {
   @Roles(Role.GESTOR)
   @Post()
   async execute(@Body() body: { filialId: number; date: string }) {
-    await this.pipelineConciCards.execute(body.filialId, body.date);
+    const context = new JobExecutionContext();
+    await this.pipelineConciCards.execute(body.filialId, body.date, context);
   }
 
   @UseGuards(AuthGuard)

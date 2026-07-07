@@ -38,7 +38,7 @@ export class CieloParcETLCron {
         this.logger.error(`Nenhum arquivo da data ${todayString} encontrado.`);
         throw new Error(`Nenhum arquivo da data ${todayString} encontrado.`);
       }
-
+      context.info('PIPELINE', 'Pipeline iniciada');
       await this.pipeline.execute(fileList, context);
       this.logger.log(
         `✅ ${fileList.length} arquivo(s) processado(s) com sucesso.`,

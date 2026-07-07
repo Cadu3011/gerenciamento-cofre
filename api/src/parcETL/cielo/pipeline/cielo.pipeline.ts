@@ -11,10 +11,25 @@ export class CieloParcETLPipeline {
   @Inject()
   private readonly load: CieloParcLoad;
   async execute(fileNames: string[], context: JobExecutionContext) {
-    context.info('PIPELINE', 'Pipeline iniciada');
-    const data = await this.transform.execute(fileNames, context);
+    let currentStep = '';
+    try {
+      currentStep = 'TRANSFORM';
+      context.startStep(currentStep);
+      const data = await this.transform.execute(fileNames);
+      context.incrementExtracted(data.length);
+      context.incrementFiles(fileNames.length);
+      context.endStep(currentStep, `Registros extraidos`);
+      currentStep = 'LOAD';
+      context.startStep(currentStep);
+      const inserteds = await this.load.execute(data);
+      context.incrementInserted(inserteds);
+      context.endStep(currentStep, `${inserteds} Linhas registradas`);
+    } catch (error) {
+      context.error(currentStep, error.message);
 
-    await this.load.execute(data, context);
-    context.info('PIPELINE', 'Pipeline encerrada');
+      throw error;
+    } finally {
+      context.info('PIPELINE', 'Pipeline encerrada');
+    }
   }
 }

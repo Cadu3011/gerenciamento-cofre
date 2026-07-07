@@ -18,25 +18,37 @@ export class TrierCardETLPipeline implements TrierPipelineStrategy {
 
   key = 'CARD_ETL';
   async execute(ctx: TrierAuth, context: JobExecutionContext) {
+    let currentStep = '';
+
     try {
-      context.startStep('EXTRACT');
+      currentStep = 'EXTRACT';
+      context.startStep(currentStep);
       const rawData = await this.extractor.execute(ctx);
       const totalExtractCount =
         rawData.devolucoes.length +
         rawData.vendas.length +
         rawData.vendasParcela.transacoes.length;
       context.incrementExtracted(totalExtractCount);
-      context.endStep('EXTRACT', `${totalExtractCount} Registros extraidos`);
-      context.startStep('TRANSFORM');
+      context.endStep(currentStep, `${totalExtractCount} Registros extraidos`);
+      currentStep = 'TRANSFORM';
+      context.startStep(currentStep);
       const trasformed = await this.transform.execute(rawData);
       context.endStep(
-        'TRANSFORM',
+        currentStep,
         `${trasformed.length} Registros transformados`,
       );
-      context.startStep('LOAD');
+      currentStep = 'LOAD';
+      context.startStep(currentStep);
       const inserteds = await this.loader.execute(trasformed);
       context.incrementInserted(inserteds);
-      context.endStep('LOAD', `${inserteds} Linhas registradas`);
+      context.endStep(currentStep, `${inserteds} Linhas registradas`);
+    } catch (error) {
+      context.error(
+        currentStep,
+        error?.stack ?? error?.message ?? 'Erro desconhecido',
+      );
+
+      throw error;
     } finally {
       context.info('PIPELINE', 'Pipeline encerrada');
     }
