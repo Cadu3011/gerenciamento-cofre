@@ -10,7 +10,7 @@ export class TrierCardLoad implements TrierLoadStrategy {
   @Inject()
   private readonly prisma: PrismaService;
 
-  async execute(ctx: TrierCardTransformedMovement[]): Promise<string> {
+  async execute(ctx: TrierCardTransformedMovement[]): Promise<number> {
     let inserted = 0;
     let duplicates = 0;
     const sampleKeys: string[] = [];
@@ -58,6 +58,6 @@ export class TrierCardLoad implements TrierLoadStrategy {
       );
     }
 
-    return 'success';
+    return inserted;
   }
 }

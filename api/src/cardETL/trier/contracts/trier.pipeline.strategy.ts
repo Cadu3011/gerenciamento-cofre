@@ -1,3 +1,4 @@
+import { JobExecutionContext } from 'src/jobs/jobs.execContext.service';
 import { TrierAuth } from './trier.extract.strategy';
 
 export interface TrierPipelineStrategy<TResult = unknown> {
@@ -9,5 +10,5 @@ export interface TrierPipelineStrategy<TResult = unknown> {
   /**
    * Executa o ETL completo
    */
-  execute(ctx: TrierAuth): Promise<TResult>;
+  execute(ctx: TrierAuth, context: JobExecutionContext): Promise<TResult>;
 }

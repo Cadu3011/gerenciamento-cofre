@@ -33,15 +33,15 @@ export class TrierCardExtractor implements TrierExtractStrategy<MoveCardsExtract
     ]);
     if (isApiError(vendas)) {
       console.error(vendas.message);
-      return;
+      throw vendas.message;
     }
     if (isApiError(devolucoes)) {
       console.error(devolucoes.message);
-      return;
+      throw devolucoes.message;
     }
     if (isApiError(vendasParcela)) {
       console.error(vendasParcela.message);
-      return;
+      throw vendasParcela.message;
     }
     return {
       vendas: vendas,

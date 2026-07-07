@@ -3,64 +3,105 @@ export interface JobLog {
   level: 'INFO' | 'WARN' | 'ERROR';
   step: string;
   message: string;
+  durationMs?: number;
 }
 
 export class JobExecutionContext {
-  readonly startedAt = new Date().toISOString();
+  constructor(
+    private readonly onUpdate?: (ctx: JobExecutionContext) => Promise<void>,
+  ) {}
+
+  private readonly startedAtDate = new Date();
+  readonly startedAt = this.startedAtDate.toISOString();
 
   logs: JobLog[] = [];
 
   metrics = {
     files: 0,
-
     extracted: 0,
-
     inserted: 0,
   };
 
-  info(step: string, message: string) {
-    this.logs.push({
-      timestamp: new Date().toISOString(),
-      level: 'INFO',
-      step,
-      message,
-    });
+  private readonly stepStartTimes = new Map<string, number>();
+
+  /**
+   * Marca o início de uma etapa
+   */
+  startStep(step: string) {
+    this.stepStartTimes.set(step, Date.now());
   }
 
-  warn(step: string, message: string) {
-    this.logs.push({
-      timestamp: new Date().toISOString(),
-      level: 'WARN',
-      step,
-      message,
-    });
+  /**
+   * Finaliza uma etapa e registra sua duração
+   */
+  async endStep(step: string, message: string) {
+    const startedAt = this.stepStartTimes.get(step);
+
+    if (!startedAt) {
+      throw new Error(`A etapa "${step}" não foi iniciada.`);
+    }
+
+    try {
+      await this.addLog('INFO', step, message, Date.now() - startedAt);
+    } finally {
+      this.stepStartTimes.delete(step);
+    }
   }
 
-  error(step: string, message: string) {
+  /**
+   * Método interno responsável por registrar logs
+   */
+  private async addLog(
+    level: JobLog['level'],
+    step: string,
+    message: string,
+    durationMs?: number,
+  ) {
     this.logs.push({
       timestamp: new Date().toISOString(),
-      level: 'ERROR',
+      level,
       step,
       message,
+      durationMs,
     });
+
+    await this.onUpdate?.(this);
   }
 
-  incrementInserted(count = 1) {
+  async info(step: string, message: string) {
+    await this.addLog('INFO', step, message);
+  }
+
+  async warn(step: string, message: string) {
+    await this.addLog('WARN', step, message);
+  }
+
+  async error(step: string, message: string) {
+    await this.addLog('ERROR', step, message);
+  }
+
+  async incrementInserted(count = 1) {
     this.metrics.inserted += count;
+    await this.onUpdate?.(this);
   }
 
-  incrementExtracted(count = 1) {
+  async incrementExtracted(count = 1) {
     this.metrics.extracted += count;
+    await this.onUpdate?.(this);
   }
 
-  incrementFiles() {
-    this.metrics.files++;
+  async incrementFiles(count = 1) {
+    this.metrics.files += count;
+    await this.onUpdate?.(this);
   }
 
   finish() {
+    const finishedAt = new Date();
+
     return {
       startedAt: this.startedAt,
-      finishedAt: new Date().toISOString(),
+      finishedAt: finishedAt.toISOString(),
+      durationMs: finishedAt.getTime() - this.startedAtDate.getTime(),
       metrics: this.metrics,
       logs: this.logs,
     };

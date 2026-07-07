@@ -43,7 +43,7 @@ export default function DialogCronJobs({
                 disabled={loading}
                 onClick={async () => {
                   const result = await runCronJob(jobName);
-
+                  console.log(result.error);
                   setMessage(result);
                 }}
               >

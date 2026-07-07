@@ -290,7 +290,6 @@ model CronJobs {
   runDate    DateTime       @db.Date
   logs Json?
 
-  @@unique([jobName, runDate])
 }
 
 model Jobs {

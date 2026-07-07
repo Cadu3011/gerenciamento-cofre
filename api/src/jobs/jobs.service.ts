@@ -81,7 +81,7 @@ export class JobsService {
 
   findAll() {
     return this.prisma.jobs.findMany({
-      include: { cronJobs: { take: 10, orderBy: { createdAt: 'desc' } } },
+      include: { cronJobs: { take: 6, orderBy: { createdAt: 'desc' } } },
     });
   }
 
@@ -106,7 +106,7 @@ export class JobsService {
           orderBy: {
             createdAt: 'desc',
           },
-          take: 10,
+          take: 6,
         },
       },
     });
@@ -153,37 +153,40 @@ export class JobsService {
     execute: (context: JobExecutionContext) => Promise<void>,
   ) {
     const today = new Date().toISOString().split('T')[0];
-    const context = new JobExecutionContext();
 
+    const jobAnt = await this.prisma.cronJobs.findFirst({
+      where: {
+        jobName,
+        runDate: new Date(today),
+        OR: [{ status: 'RUNNING' }, { status: 'SUCCESS' }],
+      },
+      orderBy: { id: 'desc' },
+    });
+
+    if (jobAnt)
+      return {
+        error: `Tarefa ${jobName} ja finalizada ou executando.`,
+      };
     let job;
 
     try {
-      job = await this.prisma.cronJobs.upsert({
-        where: {
-          jobName_runDate: {
-            jobName,
-            runDate: new Date(today),
-          },
-          jobs: { status: true },
-        },
-        create: {
+      job = await this.prisma.cronJobs.create({
+        data: {
           jobName,
-          status: 'RUNNING',
-          message: '',
+          jobs: { connect: { jobName } },
           runDate: new Date(today),
-          jobs: {
-            connect: {
-              jobName,
-              status: true,
-            },
-          },
-        },
-        update: {
           status: 'RUNNING',
-          finishedAt: null,
           message: 'Retentativa',
-          logs: Prisma.JsonNull,
         },
+      });
+      const context = new JobExecutionContext(async (ctx) => {
+        await this.prisma.cronJobs.update({
+          where: { id: job.id },
+          data: {
+            logs: JSON.parse(JSON.stringify(ctx.finish())),
+          },
+        });
+        await this.emitJob(jobName);
       });
 
       await this.emitJob(jobName);
@@ -216,15 +219,15 @@ export class JobsService {
   }
   @Cron('20,50 6,8,9,13 * * 1-7')
   runTrierCards() {
-    return this.runCronJob('TrierCards', async () => {
-      await this.trierPipelineCard.execute();
+    return this.runCronJob('TrierCards', async (context) => {
+      await this.trierPipelineCard.execute(context);
     });
   }
 
   @Cron('20,50 6,8,9,13 * * 1-7')
   runRedeCards() {
-    return this.runCronJob('RedeCards', async () => {
-      await this.redePipelineCard.execute();
+    return this.runCronJob('RedeCards', async (context) => {
+      await this.redePipelineCard.execute(context);
     });
   }
 
@@ -237,21 +240,21 @@ export class JobsService {
 
   @Cron('20,50 6,8,9,13 * * 1-7')
   runTrierMovements() {
-    return this.runCronJob('TrierMovements', async () => {
+    return this.runCronJob('TrierMovements', async (context) => {
       await this.trierPipelineMovement.getVendasCaixasTrier();
     });
   }
 
-  @Cron('5,38 5,7,10,12 * * 1-7')
-  runTrierCaixas() {
-    return this.runCronJob('TrierCaixas', async () => {
-      await this.trierPipelineCaixa.init();
-    });
-  }
+  // @Cron('5,38 5,7,10,12 * * 1-7')
+  // runTrierCaixas() {
+  //   return this.runCronJob('TrierCaixas', async () => {
+  //     await this.trierPipelineCaixa.init();
+  //   });
+  // }
 
   @Cron('10,38 7,9,10,12,13 * * 1-7')
   runConciCards() {
-    return this.runCronJob('ConciCards', async () => {
+    return this.runCronJob('ConciCards', async (context) => {
       await this.conciCardsPipeline.execute();
     });
   }
@@ -265,7 +268,7 @@ export class JobsService {
 
   @Cron('18,53 7,8,9,10,14 * * 1-7')
   runCieloETL() {
-    return this.runCronJob('CieloETL', async () => {
+    return this.runCronJob('CieloETL', async (context) => {
       await this.cieloService.pipelineETL();
     });
   }

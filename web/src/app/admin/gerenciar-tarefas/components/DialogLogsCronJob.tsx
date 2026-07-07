@@ -35,8 +35,9 @@ export default function DialogLogsCronJobs({
       level: string;
       message: string;
       timestamp: string;
+      durationMs: number;
     }[];
-
+    durationMs: number;
     startedAt: string;
     finishedAt: string;
   };
@@ -113,6 +114,7 @@ export default function DialogLogsCronJobs({
                 <TableHead className="font-semibold">Passo</TableHead>
                 <TableHead className="font-semibold">Nível</TableHead>
                 <TableHead className="font-semibold">Mensagem</TableHead>
+                <TableHead className="font-semibold">Tempo</TableHead>
                 <TableHead className="font-semibold">Horário</TableHead>
               </TableRow>
             </TableHeader>
@@ -145,7 +147,9 @@ export default function DialogLogsCronJobs({
                   <TableCell className="max-w-lg break-words">
                     {l.message}
                   </TableCell>
-
+                  <TableCell className="text-sm text-zinc-500">
+                    {l.durationMs}
+                  </TableCell>
                   <TableCell className="text-sm text-zinc-500">
                     {formatDateTime(l.timestamp)}
                   </TableCell>

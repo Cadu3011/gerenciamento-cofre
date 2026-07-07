@@ -36,7 +36,7 @@ export class JobsController {
       TrierCards: () => this.jobsService.runTrierCards(),
       TrierMovements: () => this.jobsService.runTrierMovements(),
       CieloETL: () => this.jobsService.runCieloETL(),
-      TrierCaixas: () => this.jobsService.runTrierCaixas(),
+
       RedeCards: () => this.jobsService.runRedeCards(),
       ConciCards: () => this.jobsService.runConciCards(),
       RedeParc: () => this.jobsService.runRedeParc(),

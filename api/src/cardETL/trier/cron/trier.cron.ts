@@ -3,6 +3,7 @@ import { TrierCardETLPipeline } from '../pipeline/trier.card-etl.pipeline.js';
 import { authTrier } from 'src/auth/authTrier/loginTrier';
 import { FilialService } from 'src/filial/filial.service';
 import { PrismaService } from 'src/database/prisma.service';
+import { JobExecutionContext } from 'src/jobs/jobs.execContext.service.js';
 
 type AuthOk = { filial: number; url: string; token: string };
 type AuthFail = { filial: number; url: string; error: unknown };
@@ -106,7 +107,7 @@ export class TrierCardCron {
     return Math.floor((b - a) / (1000 * 60 * 60 * 24));
   }
 
-  async execute() {
+  async execute(context: JobExecutionContext) {
     const filiais = await this.filialService.findAll();
 
     // 1) Primeira rodada (todas em paralelo)
@@ -125,11 +126,16 @@ export class TrierCardCron {
         authFailed.push(filial);
         if (r.reason.code === 'ETIMEDOUT') {
           console.error(`[IP NÃO ACESSÍVEL] ${filial.urlLocalTrier}`);
+          context.warn('CRON', `[IP NÃO ACESSÍVEL] ${filial.urlLocalTrier}`);
           return { success: false, message: 'IP não acessível' };
         }
         this.logger.warn(
           `[AUTH FAIL 1ª] filial=${filial.id} url=${filial.urlLocalTrier}`,
           r.reason,
+        );
+        context.error(
+          'CRON',
+          `[AUTH FAIL 1ª] filial=${filial.id} url=${filial.urlLocalTrier}`,
         );
       }
     });
@@ -138,6 +144,10 @@ export class TrierCardCron {
     let retriedOk: AuthOk[] = [];
     if (authFailed.length) {
       this.logger.warn(
+        `Iniciando retentativas de auth para ${authFailed.length} filiais...`,
+      );
+      context.warn(
+        'CRON',
         `Iniciando retentativas de auth para ${authFailed.length} filiais...`,
       );
 
@@ -152,12 +162,20 @@ export class TrierCardCron {
         this.logger.error(
           `Auth falhou definitivamente em ${retried.fail.length} filiais:`,
         );
-        retried.fail.forEach((f) =>
-          this.logger.error(
+        context.error(
+          'CRON',
+          `Auth falhou definitivamente em ${retried.fail.length} filiais:`,
+        );
+        retried.fail.forEach((f) => {
+          (this.logger.error(
             `[AUTH FAIL FINAL] filial=${f.filial} url=${f.url}`,
             f.error,
           ),
-        );
+            context.error(
+              'CRON',
+              `[AUTH FAIL FINAL] filial=${f.filial} url=${f.url}`,
+            ));
+        });
       }
     }
 
@@ -196,12 +214,18 @@ export class TrierCardCron {
       let current = start;
       while (this.diffDays(current, dMinus1) >= 0) {
         this.logger.log(`ETL Trier filial ${filial} - dia ${current}`);
-
-        await this.pipeline.execute({
-          date: current,
-          tokenLocalTrier: token,
-          urlLocalTrier: url,
-        });
+        context.info(
+          'PIPELINE',
+          `Pipeline Iniciada filial ${filial} - dia ${current}`,
+        );
+        await this.pipeline.execute(
+          {
+            date: current,
+            tokenLocalTrier: token,
+            urlLocalTrier: url,
+          },
+          context,
+        );
 
         current = this.addDays(current, 1);
       }
@@ -212,10 +236,13 @@ export class TrierCardCron {
     return { lastUpdatedByFilial: resultsLastDates };
   }
 
-  async executeByFilialAndDate(params: {
-    filialId: number;
-    date: string; // formato YYYY-MM-DD
-  }) {
+  async executeByFilialAndDate(
+    params: {
+      filialId: number;
+      date: string; // formato YYYY-MM-DD
+    },
+    context: JobExecutionContext,
+  ) {
     const { filialId, date } = params;
 
     // 1) Buscar filial
@@ -248,11 +275,14 @@ export class TrierCardCron {
     // 3) Executar ETL
     this.logger.log(`ETL manual filial ${filialId} - dia ${date}`);
 
-    await this.pipeline.execute({
-      date,
-      tokenLocalTrier: tokenData.token,
-      urlLocalTrier: tokenData.url,
-    });
+    await this.pipeline.execute(
+      {
+        date,
+        tokenLocalTrier: tokenData.token,
+        urlLocalTrier: tokenData.url,
+      },
+      context,
+    );
 
     return {
       success: true,
