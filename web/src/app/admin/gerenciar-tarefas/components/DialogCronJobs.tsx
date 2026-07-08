@@ -22,16 +22,11 @@ export default function DialogCronJobs({
   jobName: string;
   cronJobs: CronJob[];
 }) {
-  const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{
     ok?: string;
     error?: string;
   } | null>(null);
-  useEffect(() => {
-    if (cronJobs.length > 0 && cronJobs[0].status === "RUNNING") {
-      setLoading(true);
-    }
-  }, [cronJobs]);
+  const loading = cronJobs.length > 0 && cronJobs[0].status === "RUNNING";
   return (
     <Dialog>
       <DialogTrigger asChild>
@@ -47,15 +42,10 @@ export default function DialogCronJobs({
               <Button
                 disabled={loading}
                 onClick={async () => {
-                  setLoading(true);
-                  try {
-                    const result = await runCronJob(jobName);
-                    setMessage(result);
-                  } finally {
-                    setLoading(false);
-                  }
+                  const result = await runCronJob(jobName);
+                  console.log(result.error);
+                  setMessage(result);
                 }}
-                className="mx-5"
               >
                 {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {loading ? "Executando..." : "Executar"}
@@ -82,6 +72,7 @@ export default function DialogCronJobs({
               <TableHead>Nome da Tarefa</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Mensagem</TableHead>
+              <TableHead>Logs</TableHead>
             </TableRow>
           </TableHeader>
           <ListCronJobs cronJobs={cronJobs} />

@@ -16,4 +16,21 @@ export interface CronJob {
   finishedAt: Date;
   status: string;
   runDate: string;
+  logs: {
+    metrics: {
+      files: number;
+      inserted: number;
+      extracted: number;
+    };
+    logs: {
+      step: string;
+      level: string;
+      message: string;
+      timestamp: string;
+      durationMs: number;
+    }[];
+    durationMs: number;
+    startedAt: string;
+    finishedAt: string;
+  };
 }

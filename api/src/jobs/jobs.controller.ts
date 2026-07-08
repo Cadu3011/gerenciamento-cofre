@@ -7,6 +7,7 @@ import {
   Param,
   Inject,
   UseGuards,
+  NotFoundException,
 } from '@nestjs/common';
 import { JobsService } from './jobs.service';
 import { CreateJobDto } from './dto/create-job.dto';
@@ -35,15 +36,18 @@ export class JobsController {
       TrierCards: () => this.jobsService.runTrierCards(),
       TrierMovements: () => this.jobsService.runTrierMovements(),
       CieloETL: () => this.jobsService.runCieloETL(),
-      TrierCaixas: () => this.jobsService.runTrierCaixas(),
+
       RedeCards: () => this.jobsService.runRedeCards(),
       ConciCards: () => this.jobsService.runConciCards(),
+      RedeParc: () => this.jobsService.runRedeParc(),
+      TrierParc: () => this.jobsService.runTrierParc(),
+      CieloParc: () => this.jobsService.runCieloParc(),
     };
 
     const job = jobs[jobName];
 
     if (!job) {
-      throw new Error('Job não encontrado');
+      throw new NotFoundException('Job não encontrado');
     }
 
     return job();

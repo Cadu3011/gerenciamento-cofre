@@ -11,6 +11,7 @@ import { MoveTrier } from './create-move-trier.service';
 import { FilialService } from 'src/filial/filial.service';
 import { Prisma } from '@prisma/client';
 import { TrierService } from 'src/trier/trier.service';
+import { JobExecutionContext } from 'src/jobs/jobs.execContext.service';
 
 interface SalesTrierDin {
   financeiroMovimentacaoId: number;
@@ -71,7 +72,11 @@ export class MovementService {
 `;
   }
 
-  async getVendasCaixasTrier() {
+  async getVendasCaixasTrier(context: JobExecutionContext) {
+    context.info('PIPELINE', 'Pipeline iniciada');
+
+    let totalInserted = 0;
+
     const lastDate = (await this.Prisma.salesDin.findFirst({
       orderBy: {
         sale_date: 'desc',
@@ -81,21 +86,10 @@ export class MovementService {
       },
     })) ?? { sale_date: new Date('2026-03-17') };
 
-    const dateInit = new Date(lastDate.sale_date);
-    // dateInit.setDate(dateInit.getDate() + 1);
-    // const dataAtual = new Date();
-    // const dataAtualFormat = new Date(
-    //   Date.UTC(
-    //     dataAtual.getUTCFullYear(),
-    //     dataAtual.getUTCMonth(),
-    //     dataAtual.getUTCDate(),
-    //     0,
-    //     0,
-    //     0,
-    //     0,
-    //   ),
-    // );
     const diasReprocessar = 3;
+
+    const dateInit = new Date(lastDate.sale_date);
+    dateInit.setUTCDate(dateInit.getUTCDate() - diasReprocessar);
 
     const dataAtual = new Date();
 
@@ -111,10 +105,6 @@ export class MovementService {
       ),
     );
 
-    // 🔥 começa 3 dias atrás
-
-    dateInit.setUTCDate(dateInit.getUTCDate() - diasReprocessar);
-
     const token = (
       await authTrier({
         login: '95',
@@ -122,123 +112,162 @@ export class MovementService {
       })
     ).token;
 
-    for (
-      let current = new Date(dateInit);
-      current < dataAtualFormat;
-      current.setDate(current.getDate() + 1)
-    ) {
-      const initDay = new Date(
-        Date.UTC(
-          current.getUTCFullYear(),
-          current.getUTCMonth(),
-          current.getUTCDate(),
-          3,
-          0,
-          0,
-          0,
-        ),
-      );
+    try {
+      for (
+        let current = new Date(dateInit);
+        current < dataAtualFormat;
+        current.setUTCDate(current.getUTCDate() + 1)
+      ) {
+        const dataProcessamento = current.toISOString().slice(0, 10);
 
-      const finalDay = new Date(
-        Date.UTC(
-          current.getUTCFullYear(),
-          current.getUTCMonth(),
-          current.getUTCDate(),
-          23,
-          59,
-          59,
-          999,
-        ),
-      );
+        let currentStep = 'EXTRACT';
+        context.startStep(currentStep);
 
-      const totais = await this.moveTrier.getVendasTotais(
-        initDay,
-        finalDay,
-        token,
-      );
+        const initDay = new Date(
+          Date.UTC(
+            current.getUTCFullYear(),
+            current.getUTCMonth(),
+            current.getUTCDate(),
+            3,
+            0,
+            0,
+            0,
+          ),
+        );
 
-      if (totais) {
-        try {
-          const idMoveTotais = totais.map((move) => ({ id: move.id }));
-          const moveDetalhes = await Promise.all(
-            idMoveTotais.map(async ({ id }) => {
-              const res = await this.moveTrier.getVendasDetalhes(id, token);
+        const finalDay = new Date(
+          Date.UTC(
+            current.getUTCFullYear(),
+            current.getUTCMonth(),
+            current.getUTCDate(),
+            23,
+            59,
+            59,
+            999,
+          ),
+        );
 
-              if (!res || !Array.isArray(res.detalhes)) {
-                this.logger.warn(`⚠️ Nenhum detalhe encontrado para id=${id}`);
-                return [];
-              }
+        const totais = await this.moveTrier.getVendasTotais(
+          initDay,
+          finalDay,
+          token,
+        );
 
-              const moveDet = res.detalhes.map(
-                (d: SalesTrierDin, index: number) => ({
-                  filialId: res.movimentacao.filial.codFilial,
-                  numCaixa: d.numCaixa,
-                  numNota: d.numNota
-                    ? d.numNota
-                    : Number(`${d.codFilial}${d.numCaixa}${index}`),
-                  idempotencyKey: `${d.codFilial}-${d.numCaixa}-${d.numNota}-${
-                    d.observacao === 'RECEBIMENTO CREDIÁRIO'
-                      ? 'REC_CREDIARIO'
-                      : d.observacao === 'OUTRAS FORMAS PAGTO'
-                        ? 'REC_CREDIARIO_CARTAO'
-                        : 'REC_VENDA'
-                  }-${index}`,
-                  sale_date:
-                    d.observacao === 'RECEBIMENTO CREDIÁRIO'
-                      ? new Date(`${d.datReceb}T00:00:00-03:00`)
-                      : new Date(d.datEmissao),
-                  valor: Number(d.vlrRecebido.toFixed(2)),
-                  financeiroMovimentacaoId: d.financeiroMovimentacaoId,
-                  tipo:
-                    d.observacao === 'RECEBIMENTO CREDIÁRIO'
-                      ? 'REC_CREDIARIO'
-                      : d.observacao === 'OUTRAS FORMAS PAGTO'
-                        ? 'REC_CREDIARIO_CARTAO'
-                        : 'REC_VENDA',
-                }),
-              );
-
-              return moveDet;
-            }),
+        if (!totais?.length) {
+          context.endStep(
+            currentStep,
+            `Nenhuma venda encontrada (${dataProcessamento})`,
           );
+          continue;
+        }
 
-          const movimentosFlat = moveDetalhes.flat();
+        const idMoveTotais = totais.map((move) => ({ id: move.id }));
 
-          const BATCH_SIZE = 1000;
+        const moveDetalhes = await Promise.all(
+          idMoveTotais.map(async ({ id }) => {
+            const res = await this.moveTrier.getVendasDetalhes(id, token);
 
-          for (let i = 0; i < movimentosFlat.length; i += BATCH_SIZE) {
-            const chunk = movimentosFlat.slice(i, i + BATCH_SIZE);
-
-            try {
-              await this.Prisma.salesDin.createMany({
-                data: chunk,
-                skipDuplicates: true,
-              });
-            } catch (batchError) {
-              console.error(
-                `❌ Erro no batch ${i}-${i + BATCH_SIZE}, tentando individual...`,
+            if (!res || !Array.isArray(res.detalhes)) {
+              this.logger.warn(`Nenhum detalhe encontrado para id=${id}`);
+              context.warn(
+                currentStep,
+                `Nenhum detalhe encontrado para id=${id}`,
               );
+              return [];
+            }
 
-              // 🔥 fallback item por item
-              for (const item of chunk) {
-                try {
-                  await this.Prisma.salesDin.create({
-                    data: item,
-                  });
-                } catch (itemError: any) {
-                  console.error(`❌ Erro ao inserir item:`, {
-                    idempotencyKey: item.idempotencyKey,
-                    erro: itemError.message,
-                  });
-                }
+            return res.detalhes.map((d: SalesTrierDin, index: number) => ({
+              filialId: res.movimentacao.filial.codFilial,
+              numCaixa: d.numCaixa,
+              numNota: d.numNota
+                ? d.numNota
+                : Number(`${d.codFilial}${d.numCaixa}${index}`),
+              idempotencyKey: `${d.codFilial}-${d.numCaixa}-${d.numNota}-${
+                d.observacao === 'RECEBIMENTO CREDIÁRIO'
+                  ? 'REC_CREDIARIO'
+                  : d.observacao === 'OUTRAS FORMAS PAGTO'
+                    ? 'REC_CREDIARIO_CARTAO'
+                    : 'REC_VENDA'
+              }-${index}`,
+              sale_date:
+                d.observacao === 'RECEBIMENTO CREDIÁRIO'
+                  ? new Date(`${d.datReceb}T00:00:00-03:00`)
+                  : new Date(d.datEmissao),
+              valor: Number(d.vlrRecebido.toFixed(2)),
+              financeiroMovimentacaoId: d.financeiroMovimentacaoId,
+              tipo:
+                d.observacao === 'RECEBIMENTO CREDIÁRIO'
+                  ? 'REC_CREDIARIO'
+                  : d.observacao === 'OUTRAS FORMAS PAGTO'
+                    ? 'REC_CREDIARIO_CARTAO'
+                    : 'REC_VENDA',
+            }));
+          }),
+        );
+
+        const movimentosFlat = moveDetalhes.flat();
+
+        context.incrementExtracted(movimentosFlat.length);
+        context.endStep(
+          currentStep,
+          `${movimentosFlat.length} registros extraídos`,
+        );
+
+        currentStep = 'LOAD';
+        context.startStep(currentStep);
+
+        let inserted = 0;
+        const BATCH_SIZE = 1000;
+
+        for (let i = 0; i < movimentosFlat.length; i += BATCH_SIZE) {
+          const chunk = movimentosFlat.slice(i, i + BATCH_SIZE);
+
+          try {
+            const created = await this.Prisma.salesDin.createMany({
+              data: chunk,
+              skipDuplicates: true,
+            });
+
+            inserted += created.count;
+          } catch (batchError: any) {
+            context.error(
+              currentStep,
+              `Erro no batch ${i}-${i + BATCH_SIZE}: ${batchError.message}`,
+            );
+
+            for (const item of chunk) {
+              try {
+                await this.Prisma.salesDin.create({
+                  data: item,
+                });
+
+                inserted++;
+              } catch (itemError: any) {
+                context.error(
+                  currentStep,
+                  `Erro ao inserir ${item.idempotencyKey}: ${itemError.message}`,
+                );
               }
             }
           }
-        } catch (error) {
-          this.logger.warn(error);
-          throw 'Erro ao processar movimentações.';
         }
+
+        totalInserted += inserted;
+
+        context.incrementInserted(inserted);
+        context.endStep(
+          currentStep,
+          `${inserted} linhas inseridas (${dataProcessamento})`,
+        );
       }
+
+      return totalInserted;
+    } catch (error: any) {
+      context.error('PIPELINE', error?.message ?? 'Erro desconhecido');
+
+      throw new Error(error?.message ?? 'Erro ao processar movimentações.');
+    } finally {
+      context.info('PIPELINE', 'Pipeline encerrada');
     }
   }
 

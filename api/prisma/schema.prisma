@@ -12,232 +12,259 @@ datasource db {
   provider = "mysql"
   url      = env("DATABASE_URL")
 }
-enum Role{
+
+enum Role {
   GESTOR
   OPERADOR
 }
 
-enum StatusConciliacao{
+enum StatusConciliacao {
   PENDENTE
   CONCILIADO
   DIVERGENTE
   CANCELADO
 }
-enum Category{
+
+enum Category {
   SANGRIA
   OUTRAS_ENTRADAS
   DESPESA
   DEPOSITO
 }
-enum Status{
+
+enum Status {
   SINCRONIZADO
   PENDENTE
 }
-enum StatusCronJobs{
-  RUNNING 
+
+enum StatusCronJobs {
+  RUNNING
   SUCCESS
   FAILED
 }
 
-enum TypeSalesDin{
+enum TypeSalesDin {
   REC_CREDIARIO
   REC_VENDA
   REC_CREDIARIO_CARTAO
 }
 
-model User {
-  id Int @default(autoincrement()) @id
-  login Int @unique
-  password String
-  name String
-  role Role
-  filialId Int?
-  filial Filial? @relation("FiliaAndlUser",fields: [filialId],references: [id])
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+enum ParcelStatus {
+  PENDENTE
+  CONCILIADO
+  DIVERGENTE
+  NAO_ENCONTRADO
 }
-model Movimentations{
-  id Int @default(autoincrement()) @id
-  idTrier Int?
-  status Status @default(PENDENTE)
-  category String?
-  idCategoria Int?
-  idContaDest Int?
-  idempotencyKey String? @unique
-  valueSangriaTrier Decimal? @db.Decimal(9,2)
-  descrition String
-  value Decimal?  @db.Decimal(9,2)
-  type Category
-  filialId Int
-  filial Filial @relation("FiliaAndMovimentations",fields: [filialId],references: [id])
-  cashRegister SalesDin[] @relation("MovimentationsAndSalesDin")
+
+enum ReceivableStatus {
+  ABERTO
+  FECHADO
+  ENVIADO_ERP
+  CONCILIADO
+  DIVERGENTE
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  login     Int      @unique
+  password  String
+  name      String
+  role      Role
+  filialId  Int?
+  filial    Filial?  @relation("FiliaAndlUser", fields: [filialId], references: [id])
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
-model SalesDin{
-  id Int @default(autoincrement()) @id
-  sale_date DateTime
+model Movimentations {
+  id                Int        @id @default(autoincrement())
+  idTrier           Int?
+  status            Status     @default(PENDENTE)
+  category          String?
+  idCategoria       Int?
+  idContaDest       Int?
+  idempotencyKey    String?    @unique
+  valueSangriaTrier Decimal?   @db.Decimal(9, 2)
+  descrition        String
+  value             Decimal?   @db.Decimal(9, 2)
+  type              Category
+  filialId          Int
+  filial            Filial     @relation("FiliaAndMovimentations", fields: [filialId], references: [id])
+  cashRegister      SalesDin[] @relation("MovimentationsAndSalesDin")
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+}
+
+model SalesDin {
+  id                       Int             @id @default(autoincrement())
+  sale_date                DateTime
   financeiroMovimentacaoId Int
-  filialId Int
-  filial Filial @relation("FilialAndSalesDin",fields: [filialId],references: [id])
-  idempotencyKey String @unique
-  numNota Int
-  numCaixa Int
-  tipo TypeSalesDin
-  valor Decimal @db.Decimal(10,2)
-  moveId Int?
-  move Movimentations? @relation("MovimentationsAndSalesDin", fields: [moveId], references: [id])
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  filialId                 Int
+  filial                   Filial          @relation("FilialAndSalesDin", fields: [filialId], references: [id])
+  idempotencyKey           String          @unique
+  numNota                  Int
+  numCaixa                 Int
+  tipo                     TypeSalesDin
+  valor                    Decimal         @db.Decimal(10, 2)
+  moveId                   Int?
+  move                     Movimentations? @relation("MovimentationsAndSalesDin", fields: [moveId], references: [id])
+  createdAt                DateTime        @default(now())
+  updatedAt                DateTime        @updatedAt
 }
 
 model DailyBalance {
-  id        Int      @default(autoincrement()) @id
-  balance   Decimal  @db.Decimal(9,2)
-  filialId Int?
-  filial Filial? @relation("FiliaAndDayBalancy",fields: [filialId],references: [id])
+  id        Int      @id @default(autoincrement())
+  balance   Decimal  @db.Decimal(9, 2)
+  filialId  Int?
+  filial    Filial?  @relation("FiliaAndDayBalancy", fields: [filialId], references: [id])
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
-model Filial{
-  id Int @default(autoincrement()) @id
-  name String
-  user User[] @relation("FiliaAndlUser")
-  idCofreTrier Int?
-  idBancoDefault Int?
-  idCielo String?
-  idRede String?
-  urlLocalTrier String?
-  cashRegister SalesDin[] @relation("FilialAndSalesDin")
-  saldo DailyBalance[] @relation("FiliaAndDayBalancy")
-  movements Movimentations[] @relation("FiliaAndMovimentations")
-  balanceFisic BalanceFisic[] @relation("FiliaAndBalancyFisic")
+
+model Filial {
+  id               Int                 @id @default(autoincrement())
+  name             String
+  user             User[]              @relation("FiliaAndlUser")
+  idCofreTrier     Int?
+  idBancoDefault   Int?
+  idCielo          String?
+  idRede           String?
+  urlLocalTrier    String?
+  cashRegister     SalesDin[]          @relation("FilialAndSalesDin")
+  saldo            DailyBalance[]      @relation("FiliaAndDayBalancy")
+  movements        Movimentations[]    @relation("FiliaAndMovimentations")
+  balanceFisic     BalanceFisic[]      @relation("FiliaAndBalancyFisic")
   trierCartaoSales TrierCartaoVendas[] @relation("FilialAndTrierCartaoVendas")
-  redeCartaoSales RedeVenda[] @relation("FilialAndRedeCartaoVendas")
-  conciliacoes Conciliacao[]
-  diferencas DiferencaCaixa[] @relation("DiferencaCaixaAndFilial")
-
+  redeCartaoSales  RedeVenda[]         @relation("FilialAndRedeCartaoVendas")
+  redeCartaParc RedeParcela[] @relation("FilialAndRedeCartaoParcelas")
+  trierCartaoParc TrierParcela[] @relation("FilialAndTrierCartaoParcelas")
+  cieloCartaoParc CieloParcela[] @relation("FilialAndCieloCartaoParcelas")
+  conciliacoes     Conciliacao[]
+  diferencas       DiferencaCaixa[]    @relation("DiferencaCaixaAndFilial")
 }
 
-model CartaoVendas{
-  id Int @default(autoincrement()) @id
-  dataVenda String
-  timeVenda String
-    valorBruto Decimal
-    valorLiquido Decimal
-    taxaAdministrativa Decimal
-    modalidade String
-    bandeira String
-    estabelecimento String
-    nsu String
-    codigoAutorizacao String
-    codigoTransacao String
-    statusConciliacao StatusConciliacao? @default(PENDENTE)
-
-   conciliacaoItens ConciliacaoItem[]
-   
-  @@index([valorBruto, dataVenda])
-}
-model TrierCartaoVendas{
-  id Int @default(autoincrement()) @id
-  idempotencyKey String @unique
-  documentoFiscal Int
-  valor Decimal
-  modalidade String?
-  hora DateTime @db.Time(0)
-  tipo String
-  filialId Int
-  filial Filial @relation("FilialAndTrierCartaoVendas",fields: [filialId],references: [id])
-  bandeira String
-  dataEmissao DateTime @db.Date
-  dataVencimento DateTime? @db.Date
-  dataPagamento DateTime? @db.Date
-  statusConciliacao StatusConciliacao @default(PENDENTE)
+model CartaoVendas {
+  id                 Int                @id @default(autoincrement())
+  dataVenda          String
+  timeVenda          String
+  valorBruto         Decimal
+  valorLiquido       Decimal
+  taxaAdministrativa Decimal
+  modalidade         String
+  bandeira           String
+  estabelecimento    String
+  nsu                String
+  codigoAutorizacao  String
+  codigoTransacao    String
+  statusConciliacao  StatusConciliacao? @default(PENDENTE)
+  parcelas          CieloParcela[]
   conciliacaoItens ConciliacaoItem[]
 
-  @@index([filialId, dataEmissao,hora])
+  @@index([valorBruto, dataVenda])
+}
+
+model TrierCartaoVendas {
+  id                Int               @id @default(autoincrement())
+  idempotencyKey    String            @unique
+  documentoFiscal   Int
+  valor             Decimal
+  modalidade        String?
+  hora              DateTime          @db.Time(0)
+  tipo              String
+  filialId          Int
+  filial            Filial            @relation("FilialAndTrierCartaoVendas", fields: [filialId], references: [id])
+  bandeira          String
+  dataEmissao       DateTime          @db.Date
+  dataVencimento    DateTime?         @db.Date
+  dataPagamento     DateTime?         @db.Date
+  statusConciliacao StatusConciliacao @default(PENDENTE)
+  conciliacaoItens  ConciliacaoItem[]
+  parcelas          TrierParcela[]
+
+  @@index([filialId, dataEmissao, hora])
   @@index([valor, dataEmissao, hora])
 }
 
 model RedeVenda {
-  id              Int      @id @default(autoincrement())
-  idempotencyKey  String   @unique
-  nsu             String?
-  valor           Decimal  @db.Decimal(10,2)
-  valorLiquido    Decimal  @db.Decimal(10,2)
-  bandeira        String?
-  modalidade      String?
-  status String
-  dataVenda DateTime @db.Date
-  horaVenda DateTime @db.Time(0)
-  filialId        Int
-  filial          Filial   @relation("FilialAndRedeCartaoVendas",fields: [filialId], references: [id])
+  id             Int      @id @default(autoincrement())
+  idempotencyKey String   @unique
+  nsu            String?
+  valor          Decimal  @db.Decimal(10, 2)
+  valorLiquido   Decimal  @db.Decimal(10, 2)
+  bandeira       String?
+  modalidade     String?
+  status         String
+  dataVenda      DateTime @db.Date
+  horaVenda      DateTime @db.Time(0)
+  filialId       Int
+  filial         Filial   @relation("FilialAndRedeCartaoVendas", fields: [filialId], references: [id])
 
   statusConciliacao StatusConciliacao @default(PENDENTE)
-   conciliacaoItens ConciliacaoItem[]
-   
+  conciliacaoItens  ConciliacaoItem[]
+  parcelas          RedeParcela[]
+
   @@index([filialId, dataVenda])
   @@index([valor, dataVenda])
 }
+
 model Conciliacao {
-  id          Int      @id @default(autoincrement())
-  filialId    Int
-  filial      Filial   @relation(fields: [filialId], references: [id])
+  id       Int    @id @default(autoincrement())
+  filialId Int
+  filial   Filial @relation(fields: [filialId], references: [id])
 
-  status      StatusConciliacao @default(CONCILIADO)
-  metodo      MetodoConciliacao
-  motivo      String?
-  createdAt   DateTime @default(now())
-  startDate   DateTime @db.Date
+  status    StatusConciliacao @default(CONCILIADO)
+  metodo    MetodoConciliacao
+  motivo    String?
+  createdAt DateTime          @default(now())
+  startDate DateTime          @db.Date
 
-  grupos      ConciliacaoGrupo[]
+  grupos ConciliacaoGrupo[]
 
-  @@index([filialId, startDate])
   @@unique([filialId, startDate])
+  @@index([filialId, startDate])
 }
 
 model ConciliacaoGrupo {
-  id             Int @id @default(autoincrement())
-  conciliacaoId  Int
-  conciliacao    Conciliacao @relation(fields: [conciliacaoId], references: [id])
+  id               Int               @id @default(autoincrement())
+  conciliacaoId    Int
+  conciliacao      Conciliacao       @relation(fields: [conciliacaoId], references: [id])
   migradoDeGrupoId Int?
-  status         StatusConciliacao @default(PENDENTE)
-  metodo         MetodoConciliacao
+  status           StatusConciliacao @default(PENDENTE)
+  metodo           MetodoConciliacao
 
-  valorTrier     Decimal? @db.Decimal(10,2)
-  valorRede      Decimal? @db.Decimal(10,2)
-  valorCielo     Decimal? @db.Decimal(10,2)
-  valorFinal     Decimal? @db.Decimal(10,2)
-  idempotencyKey String @unique
+  valorTrier     Decimal? @db.Decimal(10, 2)
+  valorRede      Decimal? @db.Decimal(10, 2)
+  valorCielo     Decimal? @db.Decimal(10, 2)
+  valorFinal     Decimal? @db.Decimal(10, 2)
+  idempotencyKey String   @unique
   motivo         String?
 
-  itens          ConciliacaoItem[]
+  itens ConciliacaoItem[]
 }
 
 model ConciliacaoItem {
-  id        Int @id @default(autoincrement())
+  id Int @id @default(autoincrement())
 
-  grupoId   Int
-  grupo     ConciliacaoGrupo @relation(fields: [grupoId], references: [id])
-  origemGrupoId Int?
-  origem    OrigemConciliacao
-  trierId   Int?
-  redeId    Int?
-  cieloId   Int?
-  valor     Decimal @db.Decimal(10,2)
-  dataReferencia DateTime @db.Date
-  trier     TrierCartaoVendas? @relation(fields: [trierId], references: [id])
-  rede      RedeVenda?         @relation(fields: [redeId], references: [id])
-  cielo     CartaoVendas?      @relation(fields: [cieloId], references: [id])
+  grupoId        Int
+  grupo          ConciliacaoGrupo   @relation(fields: [grupoId], references: [id])
+  origemGrupoId  Int?
+  origem         OrigemConciliacao
+  trierId        Int?
+  redeId         Int?
+  cieloId        Int?
+  valor          Decimal            @db.Decimal(10, 2)
+  dataReferencia DateTime           @db.Date
+  trier          TrierCartaoVendas? @relation(fields: [trierId], references: [id])
+  rede           RedeVenda?         @relation(fields: [redeId], references: [id])
+  cielo          CartaoVendas?      @relation(fields: [cieloId], references: [id])
 
+  @@unique([trierId])
+  @@unique([redeId])
+  @@unique([cieloId])
   @@index([trierId])
   @@index([redeId])
   @@index([cieloId])
   @@index([grupoId])
-  @@unique([trierId])
-  @@unique([redeId])
-  @@unique([cieloId]) 
 }
 
 enum OrigemConciliacao {
@@ -251,48 +278,47 @@ enum MetodoConciliacao {
   MANUAL
 }
 
-
-model CronJobs{
-  id Int @default(autoincrement()) @id
-  jobName String
-  message String
-  idJobs Int
-  jobs Jobs @relation(fields: [idJobs], references: [id])
-  createdAt DateTime @default(now())
+model CronJobs {
+  id         Int            @id @default(autoincrement())
+  jobName    String
+  message    String
+  idJobs     Int
+  jobs       Jobs           @relation(fields: [idJobs], references: [id])
+  createdAt  DateTime       @default(now())
   finishedAt DateTime?
-  status StatusCronJobs
-  runDate    DateTime  @db.Date
-  @@unique([jobName,runDate])
+  status     StatusCronJobs
+  runDate    DateTime       @db.Date
+  logs Json?
+
 }
 
-model Jobs{
-  id Int @default(autoincrement()) @id
-  jobName String @unique
-  cronJobs CronJobs[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  status Boolean
+model Jobs {
+  id        Int        @id @default(autoincrement())
+  jobName   String     @unique
+  cronJobs  CronJobs[]
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  status    Boolean
 }
 
-model BalanceFisic{
-  id Int @default(autoincrement()) @id
-  value_100_50 Decimal  @db.Decimal(9,2) @default(0)
-  value_20 Decimal  @db.Decimal(9,2) @default(0)
-  value_10 Decimal  @db.Decimal(9,2) @default(0)
-  value_5 Decimal  @db.Decimal(9,2) @default(0)
-  value_2 Decimal  @db.Decimal(9,2) @default(0)
-  value_moedas Decimal  @db.Decimal(9,2) @default(0)
-  value_reserva Decimal  @db.Decimal(9,2) @default(0)
-  filialId Int?
-  filial Filial? @relation("FiliaAndBalancyFisic",fields: [filialId],references: [id])
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
+model BalanceFisic {
+  id            Int      @id @default(autoincrement())
+  value_100_50  Decimal  @default(0) @db.Decimal(9, 2)
+  value_20      Decimal  @default(0) @db.Decimal(9, 2)
+  value_10      Decimal  @default(0) @db.Decimal(9, 2)
+  value_5       Decimal  @default(0) @db.Decimal(9, 2)
+  value_2       Decimal  @default(0) @db.Decimal(9, 2)
+  value_moedas  Decimal  @default(0) @db.Decimal(9, 2)
+  value_reserva Decimal  @default(0) @db.Decimal(9, 2)
+  filialId      Int?
+  filial        Filial?  @relation("FiliaAndBalancyFisic", fields: [filialId], references: [id])
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 }
 
 model DeletedMovements {
- id         Int      @id @default(autoincrement())
-  movementId Int  @unique()
+  id         Int      @id @default(autoincrement())
+  movementId Int      @unique()
   status     Status   @default(PENDENTE)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
@@ -314,24 +340,217 @@ model excel_staging_diferenca_caixa {
 }
 
 model DiferencaCaixa {
-  id Int @default(autoincrement()) @id
-  filial Filial @relation("DiferencaCaixaAndFilial",fields: [filialId], references: [id])
-  filialId Int
-  data DateTime? @db.Date
-  caixa String?
-  operador String?
-  idOperador Int?
-  total_vendas_dinheiro Decimal? @db.Decimal(10, 2)
-  valor_recebido Decimal?  @db.Decimal(10, 2)
-  sobra            Decimal?  @db.Decimal(10, 2)
-  falta            Decimal?  @db.Decimal(10, 2)
-  diferenca Decimal?  @db.Decimal(10, 2)
-  status String?
-  created_at DateTime @default(now())
-  obsConf String? @db.VarChar(450)
-  obsFinal String?
-  idempotencyKey String @unique
+  id                    Int       @id @default(autoincrement())
+  filial                Filial    @relation("DiferencaCaixaAndFilial", fields: [filialId], references: [id])
+  filialId              Int
+  data                  DateTime? @db.Date
+  caixa                 String?
+  operador              String?
+  idOperador            Int?
+  total_vendas_dinheiro Decimal?  @db.Decimal(10, 2)
+  valor_recebido        Decimal?  @db.Decimal(10, 2)
+  sobra                 Decimal?  @db.Decimal(10, 2)
+  falta                 Decimal?  @db.Decimal(10, 2)
+  diferenca             Decimal?  @db.Decimal(10, 2)
+  status                String?
+  created_at            DateTime  @default(now())
+  obsConf               String?   @db.VarChar(450)
+  obsFinal              String?
+  idempotencyKey        String    @unique
 
   @@index([filialId, data, operador], name: "idx_dashboard")
   @@index([filialId, data])
+}
+
+model TrierParcela {
+  id Int @id @default(autoincrement())
+
+  idempotencyKey String @unique
+  filialId       Int
+  filial         Filial   @relation("FilialAndTrierCartaoParcelas", fields: [filialId], references: [id])
+
+  documentoFiscal Int?
+  tipo String
+  nsuAdministradora String?
+
+  modalidadeVenda String?
+  prazoVenda      String?
+
+  parcela Int
+  totalParcelas Int
+
+  dataEmissao    DateTime  @db.Date
+  dataVencimento DateTime  @db.Date
+  dataPagamento  DateTime? @db.Date
+
+  valor Decimal @db.Decimal(10, 2)
+  valorTaxas   Decimal @db.Decimal(10, 2)
+  valorLiquido   Decimal @db.Decimal(10, 2)
+
+  administradoraCartao String?
+
+  bandeira   String?
+
+  vendaId           Int?
+  venda             TrierCartaoVendas? @relation(fields: [vendaId], references: [id])
+  receivableItems   ReceivableItem[]
+  statusConciliacao ParcelStatus       @default(PENDENTE)
+
+  conciliacoes ConciliacaoParcela[]
+
+  createdAt DateTime @default(now())
+
+  @@index([nsuAdministradora])
+  @@index([dataVencimento])
+  @@index([documentoFiscal])
+}
+
+model RedeParcela {
+  id Int @id @default(autoincrement())
+
+  idempotencyKey String @unique
+  filialId       Int
+  filial         Filial   @relation("FilialAndRedeCartaoParcelas", fields: [filialId], references: [id])
+  nsu String
+
+  dataVenda       DateTime @db.Date
+  vencimento DateTime @db.Date
+
+  parcela   Int
+  totalParcelas Int
+
+  valor Decimal @db.Decimal(10, 2)
+
+  valorLiquido Decimal @db.Decimal(10, 2)
+
+  taxa Decimal @db.Decimal(10, 2)
+
+  vendaId Int?
+  venda   RedeVenda? @relation(fields: [vendaId], references: [id])
+
+  statusConciliacao ParcelStatus         @default(PENDENTE)
+  receivableItems   ReceivableItem[]
+  conciliacoes      ConciliacaoParcela[]
+
+  createdAt DateTime @default(now())
+
+  @@index([nsu])
+  @@index([vencimento])
+}
+
+model CieloParcela {
+  id Int @id @default(autoincrement())
+
+  idempotencyKey String @unique
+
+  filialId Int
+  filial   Filial @relation("FilialAndCieloCartaoParcelas", fields: [filialId], references: [id])
+
+  codigoTransacao   String
+  codigoAutorizacao String?
+  nsu               String?
+
+  dataVenda       DateTime @db.Date
+  dataVencimento  DateTime @db.Date
+
+  parcela        Int
+  totalParcelas  Int
+
+  modalidade String?
+  bandeira   String?
+
+  valor Decimal @db.Decimal(10, 2)
+
+  valorLiquido Decimal @db.Decimal(10, 2)
+
+  taxaAdministrativa Decimal @db.Decimal(10, 2)
+
+  vendaId Int?
+  venda   CartaoVendas? @relation(fields: [vendaId], references: [id])
+
+  statusConciliacao ParcelStatus @default(PENDENTE)
+
+  receivableItems ReceivableItem[]
+  conciliacoes    ConciliacaoParcela[]
+
+  createdAt DateTime @default(now())
+
+  @@index([codigoTransacao])
+  @@index([codigoAutorizacao])
+  @@index([nsu])
+  @@index([dataVencimento])
+}
+
+model ConciliacaoParcela {
+  id Int @id @default(autoincrement())
+
+  trierParcelaId Int?
+  redeParcelaId  Int?
+
+  trierParcela TrierParcela? @relation(fields: [trierParcelaId], references: [id])
+
+  redeParcela RedeParcela? @relation(fields: [redeParcelaId], references: [id])
+  cieloParcelaId Int?
+
+  cieloParcela CieloParcela? @relation(fields:[cieloParcelaId], references:[id])
+  status ParcelStatus
+
+  divergenciaValor Boolean @default(false)
+
+  divergenciaVencimento Boolean @default(false)
+
+  observacao String?
+
+  createdAt DateTime @default(now())
+
+  @@index([status])
+}
+
+model Receivable {
+  id Int @id @default(autoincrement())
+
+  adquirente String
+
+  dataRecebimento DateTime @db.Date
+
+  valorEsperado Decimal @db.Decimal(12, 2)
+
+  valorRecebido Decimal? @db.Decimal(12, 2)
+
+  diferenca Decimal? @db.Decimal(12, 2)
+
+  status ReceivableStatus @default(ABERTO)
+
+  movimentoTrierId Int?
+
+  createdAt DateTime @default(now())
+
+  itens ReceivableItem[]
+
+  @@unique([adquirente, dataRecebimento])
+  @@index([dataRecebimento])
+}
+
+model ReceivableItem {
+  id Int @id @default(autoincrement())
+
+  receivableId Int
+  cieloParcelaId Int?
+
+  cieloParcela CieloParcela? @relation(fields:[cieloParcelaId], references:[id])
+  receivable Receivable @relation(fields: [receivableId], references: [id])
+
+  redeParcelaId Int?
+
+  redeParcela RedeParcela? @relation(fields: [redeParcelaId], references: [id])
+
+  trierParcelaId Int?
+
+  trierParcela TrierParcela? @relation(fields: [trierParcelaId], references: [id])
+
+  valor Decimal @db.Decimal(10, 2)
+  dataVencimento DateTime @db.Date
+  createdAt DateTime @default(now())
+
+  @@index([receivableId])
 }

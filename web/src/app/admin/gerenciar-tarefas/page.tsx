@@ -37,6 +37,7 @@ export default async function GerenciarTarefas() {
             </TableHead>
             <TableHead className="text-white text-lg">Tarefa</TableHead>
             <TableHead className="text-white text-lg">Status</TableHead>
+            <TableHead className="text-white text-lg">Situação</TableHead>
             <TableHead className="text-white text-lg w-20">Ações</TableHead>
           </TableRow>
         </TableHeader>

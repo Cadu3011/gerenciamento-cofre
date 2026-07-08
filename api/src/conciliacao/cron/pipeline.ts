@@ -8,6 +8,7 @@ import {
 import { PrismaService } from 'src/database/prisma.service';
 import { MatchService } from './match.service';
 import { Decimal } from '@prisma/client/runtime/library';
+import { JobExecutionContext } from 'src/jobs/jobs.execContext.service';
 type CardsCielo = Awaited<ReturnType<MatchService['getCardsCielo']>>;
 type CardCielo = CardsCielo[number];
 
@@ -21,7 +22,7 @@ export class Pipeline {
 
   private readonly logger = new Logger(Pipeline.name);
 
-  async execute(filialId: number, date: string) {
+  async execute(filialId: number, date: string, context: JobExecutionContext) {
     const percentualMinimoPorFilial = {
       1: 92.32,
       2: 91.67,
@@ -30,82 +31,117 @@ export class Pipeline {
       5: 81.57,
       6: 97.0,
     };
-    const groups = await this.matchService.matchMovements(filialId, date);
-    this.logger.log(
-      `Filial ${filialId} Data ${date} - Groups: ${groups.length}`,
-    );
-    await this.criarGruposEItens(filialId, date, groups);
+    let currentStep = '';
+    try {
+      currentStep = 'MATCH';
 
-    const conciliacao = await this.prisma.conciliacao.findUnique({
-      where: {
-        filialId_startDate: {
-          filialId,
-          startDate: new Date(`${date}T00:00:00.000Z`),
-        },
-      },
-    });
-
-    if (!conciliacao) {
-      this.logger.warn(
-        `Filial ${filialId} Data ${date} - Conciliação não encontrada`,
+      context.startStep(currentStep);
+      const groups = await this.matchService.matchMovements(filialId, date);
+      this.logger.log(
+        `Filial ${filialId} Data ${date} - Groups: ${groups.length}`,
       );
-      return;
-    }
-
-    const [total, conciliados] = await Promise.all([
-      this.prisma.conciliacaoGrupo.count({
+      context.incrementExtracted(groups.length);
+      context.endStep(
+        currentStep,
+        `Filial ${filialId} Data ${date} - Groups: ${groups.length}`,
+      );
+      currentStep = 'LOAD';
+      context.startStep(currentStep);
+      await this.criarGruposEItens(filialId, date, groups);
+      context.endStep(currentStep, 'Inserção de linhas encerrada');
+      currentStep = 'VALIDATE';
+      context.startStep(currentStep);
+      const conciliacao = await this.prisma.conciliacao.findUnique({
         where: {
-          conciliacaoId: conciliacao.id,
-          status: {
-            not: 'CANCELADO',
+          filialId_startDate: {
+            filialId,
+            startDate: new Date(`${date}T00:00:00.000Z`),
           },
-        },
-      }),
-
-      this.prisma.conciliacaoGrupo.count({
-        where: {
-          conciliacaoId: conciliacao.id,
-          status: 'CONCILIADO',
-        },
-      }),
-    ]);
-
-    if (total === 0) {
-      this.logger.warn(
-        `Filial ${filialId} Data ${date} - Nenhum grupo encontrado`,
-      );
-      return;
-    }
-
-    const naoConciliados = total - conciliados;
-    const percentual = (conciliados / total) * 100;
-
-    this.logger.log(
-      `Filial ${filialId} Data ${date} - ${conciliados}/${total} (${percentual.toFixed(2)}%)`,
-    );
-    const percentualMinimo = percentualMinimoPorFilial[filialId] ?? 90;
-
-    if (naoConciliados >= 4 && percentual < percentualMinimo) {
-      await this.prisma.conciliacao.update({
-        where: { id: conciliacao.id },
-        data: {
-          status: 'DIVERGENTE',
-          motivo: `${percentual}% concluido`,
         },
       });
 
-      throw new Error(
-        `Taxa de conciliação abaixo do esperado (${percentual.toFixed(2)}%)`,
-      );
-    }
+      if (!conciliacao) {
+        this.logger.warn(
+          `Filial ${filialId} Data ${date} - Conciliação não encontrada`,
+        );
 
-    await this.prisma.conciliacao.update({
-      where: { id: conciliacao.id },
-      data: {
-        status: 'CONCILIADO',
-        motivo: `${percentual}% concluido`,
-      },
-    });
+        context.endStep(currentStep, 'Conciliação não encontrada');
+        throw new Error(
+          `Filial ${filialId} Data ${date} - Conciliação não encontrada`,
+        );
+      }
+
+      const [total, conciliados] = await Promise.all([
+        this.prisma.conciliacaoGrupo.count({
+          where: {
+            conciliacaoId: conciliacao.id,
+            status: {
+              not: 'CANCELADO',
+            },
+          },
+        }),
+
+        this.prisma.conciliacaoGrupo.count({
+          where: {
+            conciliacaoId: conciliacao.id,
+            status: 'CONCILIADO',
+          },
+        }),
+      ]);
+
+      if (total === 0) {
+        this.logger.warn(
+          `Filial ${filialId} Data ${date} - Nenhum grupo encontrado`,
+        );
+        context.endStep(currentStep, 'Nenhum grupo encontrado');
+        throw new Error(
+          `Filial ${filialId} Data ${date} - Nenhum grupo encontrado`,
+        );
+      }
+
+      const naoConciliados = total - conciliados;
+      const percentual = (conciliados / total) * 100;
+
+      this.logger.log(
+        `Filial ${filialId} Data ${date} - ${conciliados}/${total} (${percentual.toFixed(2)}%)`,
+      );
+      context.info(
+        currentStep,
+        `Filial ${filialId} Data ${date} - ${conciliados}/${total} (${percentual.toFixed(2)}%)`,
+      );
+      const percentualMinimo = percentualMinimoPorFilial[filialId] ?? 90;
+
+      if (naoConciliados >= 4 && percentual < percentualMinimo) {
+        await this.prisma.conciliacao.update({
+          where: { id: conciliacao.id },
+          data: {
+            status: 'DIVERGENTE',
+            motivo: `${percentual}% concluido`,
+          },
+        });
+        throw new Error(
+          `Taxa de conciliação abaixo do esperado (${percentual.toFixed(2)}%) de (${percentualMinimo}%)`,
+        );
+      }
+
+      await this.prisma.conciliacao.update({
+        where: { id: conciliacao.id },
+        data: {
+          status: 'CONCILIADO',
+          motivo: `${percentual}% concluido`,
+        },
+      });
+      context.endStep(
+        currentStep,
+        `Conciliação validada (${percentual.toFixed(2)}%)`,
+      );
+    } catch (error: any) {
+      context.error(currentStep, error?.message ?? 'Erro desconhecido');
+
+      throw error;
+    } finally {
+      context.info('PIPELINE', `Pipeline encerrada`);
+    }
   }
 
   gerarItensParaGrupo(group: any, grupoId: number) {

@@ -8,6 +8,7 @@ import { PrismaService } from 'src/database/prisma.service';
 import { Prisma } from '@prisma/client';
 import { FilialService } from 'src/filial/filial.service';
 import { readSftpKey } from './_utils';
+import { JobExecutionContext } from 'src/jobs/jobs.execContext.service';
 
 @Injectable()
 export class CieloService {
@@ -29,8 +30,12 @@ export class CieloService {
     privateKey: readSftpKey('PATH_SFTP_KEY'),
   };
 
-  async pipelineETL() {
+  async pipelineETL(context: JobExecutionContext) {
+    context.info('PIPELINE', 'Pipeline iniciada');
+    let currentStep = '';
     try {
+      currentStep = 'EXTRACT';
+      context.startStep(currentStep);
       const fileList = await this.uploadExtract(
         process.env.PATH_VM_CIELO_UPLOADS,
         process.env.PATH_LOCAL_UPLOADS,
@@ -38,20 +43,34 @@ export class CieloService {
 
       if (fileList.length === 0) {
         this.logger.log('Nenhum arquivo encontrado. Processo encerrado.');
+        context.error(
+          'PIPELINE',
+          '❌ Nenhum arquivo encontrado. Processo encerrado.',
+        );
         throw new Error('Nenhum arquivo encontrado.');
       }
-
+      context.incrementFiles(fileList.length);
+      context.endStep(currentStep, `${fileList} Arquivos Processados`);
+      currentStep = 'TRANSFORM';
+      context.startStep(currentStep);
       const vendas: Prisma.CartaoVendasCreateInput[] =
         await this.cieloTransformSalesService.parseSalesData(fileList);
-
-      await this.create(vendas);
-
+      context.incrementExtracted(vendas.length);
+      context.endStep(currentStep, `${vendas.length} Registros transformados`);
+      currentStep = 'LOAD';
+      context.startStep(currentStep);
+      const inserteds = await this.create(vendas);
+      context.incrementInserted(inserteds.count);
+      context.endStep(currentStep, `${inserteds.count} Linhas inseridas`);
       this.logger.log('✅ Vendas processadas e salvas com sucesso.');
 
       await this.deleteRemoteFiles(process.env.PATH_VM_CIELO_UPLOADS);
     } catch (error) {
       this.logger.error('❌ Erro durante o pipeline ETL:', error);
+      context.error('PIPELINE', error);
       throw error;
+    } finally {
+      context.info('PIPELINE', 'Pipeline encerrada');
     }
   }
 

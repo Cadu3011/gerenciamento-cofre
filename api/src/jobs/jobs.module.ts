@@ -7,10 +7,13 @@ import { MovementModule } from 'src/movement/movement.module';
 import { CieloModule } from 'src/cielo/cielo.module';
 import { TrierModule } from 'src/trier/trier.module';
 import { ConciliacaoModule } from 'src/conciliacao/conciliacao.module';
+import { ParcEtlModule } from 'src/parcETL/card-etl.module';
+import { JobExecutionContext } from './jobs.execContext.service';
+import { JobsGateway } from './jobs.gateway';
 
 @Module({
   controllers: [JobsController],
-  providers: [JobsService],
+  providers: [JobsService, JobExecutionContext, JobsGateway],
   imports: [
     DatabaseModule,
     CartEtlModule,
@@ -18,7 +21,8 @@ import { ConciliacaoModule } from 'src/conciliacao/conciliacao.module';
     CieloModule,
     TrierModule,
     ConciliacaoModule,
+    ParcEtlModule,
   ],
-  exports: [JobsService],
+  exports: [JobsService, JobExecutionContext],
 })
 export class JobsModule {}
