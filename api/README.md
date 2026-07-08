@@ -97,3 +97,73 @@ Nest is an MIT-licensed open source project. It can grow thanks to the sponsors 
 ## License
 
 Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+
+# NGINX
+
+events {}
+
+http {
+
+    upstream nextjs {
+        server localhost:5000;
+    }
+
+    upstream nestjs {
+        server localhost:4000;
+    }
+
+    server {
+
+        listen 3000;
+
+        server_name _;
+
+        #
+        # Front
+        #
+         location / {
+
+            proxy_pass http://nextjs;
+
+            proxy_http_version 1.1;
+
+            proxy_set_header Host $host;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+        }
+
+
+        #
+        # API
+        #
+        location /api {
+
+            proxy_pass http://nestjs;
+
+            proxy_http_version 1.1;
+
+            proxy_set_header Host $host;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+        }
+
+        #
+        # Socket.IO
+        #
+        location /socket.io/ {
+
+            proxy_pass http://nestjs/socket.io/;
+
+            proxy_http_version 1.1;
+
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection "Upgrade";
+
+            proxy_set_header Host $host;
+
+            proxy_cache_bypass $http_upgrade;
+        }
+
+    }
+
+}
