@@ -66,7 +66,9 @@ export class Pipeline {
         );
 
         context.endStep(currentStep, 'Conciliação não encontrada');
-        return;
+        throw new Error(
+          `Filial ${filialId} Data ${date} - Conciliação não encontrada`,
+        );
       }
 
       const [total, conciliados] = await Promise.all([
@@ -92,7 +94,9 @@ export class Pipeline {
           `Filial ${filialId} Data ${date} - Nenhum grupo encontrado`,
         );
         context.endStep(currentStep, 'Nenhum grupo encontrado');
-        return;
+        throw new Error(
+          `Filial ${filialId} Data ${date} - Nenhum grupo encontrado`,
+        );
       }
 
       const naoConciliados = total - conciliados;

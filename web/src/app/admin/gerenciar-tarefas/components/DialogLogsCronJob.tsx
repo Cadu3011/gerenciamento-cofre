@@ -97,7 +97,9 @@ export default function DialogLogsCronJobs({
             <div className="flex flex-col">
               <span className="text-xs text-muted-foreground">Fim</span>
               <span className="rounded-md bg-white px-3 py-2 shadow-sm border">
-                {formatDateTime(logs.finishedAt)}
+                {logs.finishedAt === undefined
+                  ? ""
+                  : formatDateTime(logs.finishedAt)}
               </span>
             </div>
             <div className="flex flex-col">

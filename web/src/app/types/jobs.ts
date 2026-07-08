@@ -27,8 +27,9 @@ export interface CronJob {
       level: string;
       message: string;
       timestamp: string;
+      durationMs: number;
     }[];
-
+    durationMs: number;
     startedAt: string;
     finishedAt: string;
   };

@@ -23,7 +23,7 @@ export default function ListCronJobs({ cronJobs }: { cronJobs: CronJob[] }) {
       {cronJobs.map((cj) => (
         <TableRow key={cj.id} className="bg-white hover:bg-zinc-400">
           <TableCell>{formatDateTime(cj.createdAt)}</TableCell>
-          <TableCell>{formatDateTime(cj.finishedAt)}</TableCell>
+          <TableCell>{formatDateTime(cj.finishedAt ?? "")}</TableCell>
 
           <TableCell>{cj.jobName}</TableCell>
           <TableCell>{cj.status}</TableCell>

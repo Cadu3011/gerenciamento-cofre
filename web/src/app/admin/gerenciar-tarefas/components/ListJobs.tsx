@@ -70,7 +70,11 @@ export default function ListJobs({ jobs }: { jobs: Job[] }) {
           }
         >
           <TableCell>
-            {formatDate(String(j.cronJobs[0].finishedAt).split("T")[0])}
+            {formatDate(
+              j.cronJobs[0]
+                ? String(j.cronJobs[0].finishedAt).split("T")[0]
+                : String(j.createdAt).split("T")[0],
+            )}
           </TableCell>
           <TableCell>{j.jobName}</TableCell>
           <TableCell>

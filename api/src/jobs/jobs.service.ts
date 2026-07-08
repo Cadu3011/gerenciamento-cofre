@@ -153,20 +153,25 @@ export class JobsService {
     execute: (context: JobExecutionContext) => Promise<void>,
   ) {
     const today = new Date().toISOString().split('T')[0];
-
+    const jobActive = await this.prisma.jobs.findUnique({
+      where: {
+        jobName,
+        status: true,
+      },
+    });
     const jobAnt = await this.prisma.cronJobs.findFirst({
       where: {
         jobName,
         runDate: new Date(today),
-        OR: [
-          { status: 'RUNNING' },
-          { status: 'SUCCESS' },
-          { jobs: { status: false } },
-        ],
+        OR: [{ status: 'RUNNING' }, { status: 'SUCCESS' }],
       },
       orderBy: { id: 'desc' },
     });
-
+    if (!jobActive) {
+      return {
+        error: `Tarefa ${jobName} inativa.`,
+      };
+    }
     if (jobAnt)
       return {
         error: `Tarefa ${jobName} ja finalizada ou executando.`,
