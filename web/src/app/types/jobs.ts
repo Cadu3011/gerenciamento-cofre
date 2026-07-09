@@ -21,6 +21,9 @@ export interface CronJob {
       files: number;
       inserted: number;
       extracted: number;
+      warnings: number;
+      errors: number;
+      retries: number;
     };
     logs: {
       step: string;

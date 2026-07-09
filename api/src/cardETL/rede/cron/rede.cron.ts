@@ -31,10 +31,18 @@ export class RedeCardCron {
     return Math.floor((b - a) / (1000 * 60 * 60 * 24));
   }
 
-  async execute(context: JobExecutionContext) {
-    const filiais = await this.prisma.filial.findMany({
-      where: { NOT: { id: 1 } },
-    });
+  async execute(
+    context: JobExecutionContext,
+    date?: string,
+    filialId?: number,
+  ) {
+    const filiais = filialId
+      ? await this.prisma.filial.findMany({
+          where: { id: filialId },
+        })
+      : await this.prisma.filial.findMany({
+          where: { NOT: { id: 1 } },
+        });
     const today = this.toISODate(new Date());
     const dMinus1 = this.addDays(today, -1);
     const resultsLastDates: Array<{
@@ -52,16 +60,32 @@ export class RedeCardCron {
         : '2026-01-01'; // seu initDate (primeira carga)
 
       // datas faltantes = (startBase + 1) ... D-1
-      const start = this.addDays(startBase, 1);
+      const start = date ? date : this.addDays(startBase, 1);
 
       // se start > D-1, não tem nada a fazer
       if (this.diffDays(start, dMinus1) < 0) {
         resultsLastDates.push({ filial: f.id, lastUpdatedDate: startBase });
         continue;
       }
-
-      // roda dia a dia
       let current = start;
+      if (date) {
+        this.logger.log(`ETL Rede filial ${f.name} - dia ${current}`);
+        context.info(
+          'PIPELINE',
+          `Pipeline Iniciada filial ${f.name} - dia ${current}`,
+        );
+        await this.pipeline.execute(
+          {
+            date,
+            idRede: f.id,
+          },
+          context,
+        );
+
+        continue;
+      }
+      // roda dia a dia
+
       while (this.diffDays(current, dMinus1) >= 0) {
         this.logger.log(`ETL Rede filial ${f.name} - dia ${current}`);
         context.info(
