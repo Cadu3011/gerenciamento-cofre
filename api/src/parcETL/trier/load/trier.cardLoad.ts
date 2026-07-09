@@ -15,7 +15,7 @@ export class TrierParcLoad implements TrierLoadStrategy {
     let duplicates = 0;
     const sampleKeys: string[] = [];
     const SAMPLE_LIMIT = 5;
-
+    if (!ctx.length) return inserted;
     for (const item of ctx) {
       try {
         await this.prisma.trierParcela.create({
