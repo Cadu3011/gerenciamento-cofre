@@ -16,6 +16,8 @@ export class TrierParcTransform implements TrierTransformStrategy {
   async execute(
     ctx: MoveParcExtracted[],
   ): Promise<TrierParcTransformedMovement[]> {
+    if (!ctx.length) return [];
+
     const docs = [
       ...new Set(
         ctx.map((x) =>
