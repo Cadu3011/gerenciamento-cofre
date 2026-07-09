@@ -25,11 +25,14 @@ export class TrierParcETLPipeline implements TrierPipelineStrategy {
       context.startStep(currentStep);
       const rawData = await this.extractor.execute(ctx);
       context.incrementExtracted(rawData.length);
-      context.endStep(currentStep, `${rawData.length} Registros extraidos`);
+      await context.endStep(
+        currentStep,
+        `${rawData.length} Registros extraidos`,
+      );
       currentStep = 'TRANSFORM';
       context.startStep(currentStep);
       const trasformed = await this.transform.execute(rawData);
-      context.endStep(
+      await context.endStep(
         currentStep,
         `${trasformed.length} Registros transformados`,
       );
@@ -37,7 +40,7 @@ export class TrierParcETLPipeline implements TrierPipelineStrategy {
       context.startStep(currentStep);
       const inserteds = await this.loader.execute(trasformed);
       context.incrementInserted(inserteds);
-      context.endStep(currentStep, `${inserteds} Linhas Inseridas`);
+      await context.endStep(currentStep, `${inserteds} Linhas Inseridas`);
     } catch (error) {
       context.error(currentStep, error.message);
 

@@ -29,11 +29,14 @@ export class TrierCardETLPipeline implements TrierPipelineStrategy {
         rawData.vendas.length +
         rawData.vendasParcela.transacoes.length;
       context.incrementExtracted(totalExtractCount);
-      context.endStep(currentStep, `${totalExtractCount} Registros extraidos`);
+      await context.endStep(
+        currentStep,
+        `${totalExtractCount} Registros extraidos`,
+      );
       currentStep = 'TRANSFORM';
       context.startStep(currentStep);
       const trasformed = await this.transform.execute(rawData);
-      context.endStep(
+      await context.endStep(
         currentStep,
         `${trasformed.length} Registros transformados`,
       );
@@ -41,7 +44,7 @@ export class TrierCardETLPipeline implements TrierPipelineStrategy {
       context.startStep(currentStep);
       const inserteds = await this.loader.execute(trasformed);
       context.incrementInserted(inserteds);
-      context.endStep(currentStep, `${inserteds} Linhas registradas`);
+      await context.endStep(currentStep, `${inserteds} Linhas registradas`);
     } catch (error) {
       context.error(
         currentStep,

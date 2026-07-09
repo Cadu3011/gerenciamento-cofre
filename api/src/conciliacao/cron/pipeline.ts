@@ -41,14 +41,14 @@ export class Pipeline {
         `Filial ${filialId} Data ${date} - Groups: ${groups.length}`,
       );
       context.incrementExtracted(groups.length);
-      context.endStep(
+      await context.endStep(
         currentStep,
         `Filial ${filialId} Data ${date} - Groups: ${groups.length}`,
       );
       currentStep = 'LOAD';
       context.startStep(currentStep);
       await this.criarGruposEItens(filialId, date, groups);
-      context.endStep(currentStep, 'Inserção de linhas encerrada');
+      await context.endStep(currentStep, 'Inserção de linhas encerrada');
       currentStep = 'VALIDATE';
       context.startStep(currentStep);
       const conciliacao = await this.prisma.conciliacao.findUnique({
@@ -65,7 +65,7 @@ export class Pipeline {
           `Filial ${filialId} Data ${date} - Conciliação não encontrada`,
         );
 
-        context.endStep(currentStep, 'Conciliação não encontrada');
+        await context.endStep(currentStep, 'Conciliação não encontrada');
         throw new Error(
           `Filial ${filialId} Data ${date} - Conciliação não encontrada`,
         );
@@ -93,7 +93,7 @@ export class Pipeline {
         this.logger.warn(
           `Filial ${filialId} Data ${date} - Nenhum grupo encontrado`,
         );
-        context.endStep(currentStep, 'Nenhum grupo encontrado');
+        await context.endStep(currentStep, 'Nenhum grupo encontrado');
         throw new Error(
           `Filial ${filialId} Data ${date} - Nenhum grupo encontrado`,
         );
@@ -131,7 +131,7 @@ export class Pipeline {
           motivo: `${percentual}% concluido`,
         },
       });
-      context.endStep(
+      await context.endStep(
         currentStep,
         `Conciliação validada (${percentual.toFixed(2)}%)`,
       );

@@ -18,12 +18,12 @@ export class CieloParcETLPipeline {
       const data = await this.transform.execute(fileNames);
       context.incrementExtracted(data.length);
       context.incrementFiles(fileNames.length);
-      context.endStep(currentStep, `Registros extraidos`);
+      await context.endStep(currentStep, `Registros extraidos`);
       currentStep = 'LOAD';
       context.startStep(currentStep);
       const inserteds = await this.load.execute(data);
       context.incrementInserted(inserteds);
-      context.endStep(currentStep, `${inserteds} Linhas registradas`);
+      await context.endStep(currentStep, `${inserteds} Linhas registradas`);
     } catch (error) {
       context.error(currentStep, error.message);
 

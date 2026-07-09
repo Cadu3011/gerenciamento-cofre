@@ -50,18 +50,21 @@ export class CieloService {
         throw new Error('Nenhum arquivo encontrado.');
       }
       context.incrementFiles(fileList.length);
-      context.endStep(currentStep, `${fileList} Arquivos Processados`);
+      await context.endStep(currentStep, `${fileList} Arquivos Processados`);
       currentStep = 'TRANSFORM';
       context.startStep(currentStep);
       const vendas: Prisma.CartaoVendasCreateInput[] =
         await this.cieloTransformSalesService.parseSalesData(fileList);
       context.incrementExtracted(vendas.length);
-      context.endStep(currentStep, `${vendas.length} Registros transformados`);
+      await context.endStep(
+        currentStep,
+        `${vendas.length} Registros transformados`,
+      );
       currentStep = 'LOAD';
       context.startStep(currentStep);
       const inserteds = await this.create(vendas);
       context.incrementInserted(inserteds.count);
-      context.endStep(currentStep, `${inserteds.count} Linhas inseridas`);
+      await context.endStep(currentStep, `${inserteds.count} Linhas inseridas`);
       this.logger.log('✅ Vendas processadas e salvas com sucesso.');
 
       await this.deleteRemoteFiles(process.env.PATH_VM_CIELO_UPLOADS);
