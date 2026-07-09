@@ -29,6 +29,9 @@ export default function DialogLogsCronJobs({
       files: number;
       inserted: number;
       extracted: number;
+      warnings: number;
+      errors: number;
+      retries: number;
     };
     logs: {
       step: string;
@@ -80,7 +83,7 @@ export default function DialogLogsCronJobs({
           ...
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-5xl bg-white">
+      <DialogContent className="max-w-5xl max-h-[90vh] bg-white">
         <DialogHeader className="space-y-5 rounded-lg border bg-zinc-50 p-5">
           <DialogTitle className="text-2xl font-bold">
             Logs - {jobName}
@@ -106,6 +109,26 @@ export default function DialogLogsCronJobs({
               <span className="text-xs text-muted-foreground">Tempo</span>
               <span className="rounded-md bg-white px-3 py-2 shadow-sm border">
                 {formatDuration(logs.durationMs)}
+              </span>
+            </div>
+            <div className="flex flex-col w-16 text-center">
+              <span className="text-xs text-muted-foreground">Alertas</span>
+              <span className="rounded-md bg-yellow-300 px-3 py-2 shadow-sm border">
+                {logs.metrics.warnings ?? 0}
+              </span>
+            </div>
+            <div className="flex flex-col  w-16 text-center">
+              <span className="text-xs text-muted-foreground">Erros</span>
+              <span className="rounded-md bg-red-300 px-3 py-2 shadow-sm border">
+                {logs.metrics.errors ?? 0}
+              </span>
+            </div>
+            <div className="flex flex-col  w-16 text-center">
+              <span className="text-xs text-muted-foreground">
+                Retentativas
+              </span>
+              <span className="rounded-md bg-blue-300 px-3 py-2 shadow-sm border">
+                {logs.metrics.retries ?? 0}
               </span>
             </div>
           </div>
@@ -134,7 +157,7 @@ export default function DialogLogsCronJobs({
           </div>
         </DialogHeader>
 
-        <div className="mt-4 max-h-[500px] overflow-y-auto rounded-lg border">
+        <div className="mt-4 max-h-[50vh] overflow-y-auto rounded-lg border">
           <Table>
             <TableHeader className="sticky top-0 bg-zinc-100">
               <TableRow>

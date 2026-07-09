@@ -20,6 +20,9 @@ export class JobExecutionContext {
     files: 0,
     extracted: 0,
     inserted: 0,
+    warnings: 0,
+    errors: 0,
+    retries: 0,
   };
 
   private readonly stepStartTimes = new Map<string, number>();
@@ -64,6 +67,13 @@ export class JobExecutionContext {
       message,
       durationMs,
     });
+    if (level === 'WARN') {
+      this.metrics.warnings++;
+    }
+
+    if (level === 'ERROR') {
+      this.metrics.errors++;
+    }
 
     await this.onUpdate?.(this);
   }
@@ -71,7 +81,10 @@ export class JobExecutionContext {
   async info(step: string, message: string) {
     await this.addLog('INFO', step, message);
   }
-
+  async incrementRetries() {
+    this.metrics.retries++;
+    await this.onUpdate?.(this);
+  }
   async warn(step: string, message: string) {
     await this.addLog('WARN', step, message);
   }

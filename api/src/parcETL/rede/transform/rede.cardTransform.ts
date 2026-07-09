@@ -42,22 +42,25 @@ export class RedeParcTransform implements RedeTransformStrategy<
 
     const vendasMap = new Map(vendas.map((v) => [v.nsu, v]));
     for (const item of ctx) {
-      // const filial = await this.prisma.filial.findFirst({
-      //   where: { idRede: String(item.companyNumber) },
-      // });
-      // const venda = await this.prisma.redeVenda.findFirst({
-      //   where: {
-      //     nsu: String(item.nsu),
-      //     filialId: filial.id,
-      //   },
-      //   select: { id: true },
-      // });
-
       const venda = vendasMap.get(String(item.nsu));
       if (!venda) {
-        throw new Error(
+        const error = new Error(
           `Venda não encontrada. NSU=${item.nsu} Filial=${filial.id}`,
-        );
+        ) as Error & {
+          obj?: {
+            code: string;
+            date: string;
+            filialId: number;
+          };
+        };
+
+        error.obj = {
+          code: '01',
+          date: item.saleDate,
+          filialId: filial.id,
+        };
+
+        throw error;
       }
       movements.push({
         idempotencyKey: `|${item.nsu}|${item.saleDate}|${filial.id}|${item.installmentNumber}`,

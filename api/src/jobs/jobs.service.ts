@@ -2,7 +2,7 @@ import { Inject, Injectable, Logger } from '@nestjs/common';
 import { CreateJobDto } from './dto/create-job.dto';
 import { UpdateJobDto } from './dto/update-job.dto';
 import { PrismaService } from 'src/database/prisma.service';
-import { Prisma } from '@prisma/client';
+import { Prisma, StatusCronJobs } from '@prisma/client';
 import { Cron } from '@nestjs/schedule';
 import { TrierCardCron } from 'src/cardETL/trier/cron/trier.cron';
 import { MovementService } from 'src/movement/movement.service';
@@ -121,6 +121,7 @@ export class JobsService {
     jobName: string,
     context: JobExecutionContext,
     execute: (context: JobExecutionContext) => Promise<void>,
+    wait = false,
   ) {
     try {
       await execute(context);
@@ -143,6 +144,9 @@ export class JobsService {
           logs: JSON.parse(JSON.stringify(context.finish())),
         },
       });
+      if (wait) {
+        throw error;
+      }
     } finally {
       await this.emitJob(jobName);
     }
@@ -151,6 +155,8 @@ export class JobsService {
   async runCronJob(
     jobName: string,
     execute: (context: JobExecutionContext) => Promise<void>,
+    wait = false,
+    force = false,
   ) {
     const today = new Date().toISOString().split('T')[0];
     const jobActive = await this.prisma.jobs.findUnique({
@@ -159,11 +165,17 @@ export class JobsService {
         status: true,
       },
     });
+    const whereStatus: Prisma.CronJobsWhereInput[] = force
+      ? [{ status: StatusCronJobs.RUNNING }]
+      : [
+          { status: StatusCronJobs.RUNNING },
+          { status: StatusCronJobs.SUCCESS },
+        ];
     const jobAnt = await this.prisma.cronJobs.findFirst({
       where: {
         jobName,
         runDate: new Date(today),
-        OR: [{ status: 'RUNNING' }, { status: 'SUCCESS' }],
+        OR: whereStatus,
       },
       orderBy: { id: 'desc' },
     });
@@ -185,7 +197,7 @@ export class JobsService {
           jobs: { connect: { jobName } },
           runDate: new Date(today),
           status: 'RUNNING',
-          message: 'Retentativa',
+          message: force ? 'Retentativa' : 'Agendado',
         },
       });
       const context = new JobExecutionContext(async (ctx) => {
@@ -200,8 +212,11 @@ export class JobsService {
 
       await this.emitJob(jobName);
 
-      // Executa em background
-      void this.executeJob(job.id, jobName, context, execute);
+      if (wait) {
+        await this.executeJob(job.id, jobName, context, execute, true);
+      } else {
+        void this.executeJob(job.id, jobName, context, execute);
+      }
 
       return {
         ok: `Tarefa ${jobName} iniciada.`,
@@ -243,7 +258,42 @@ export class JobsService {
   @Cron('20,50 6,8,9,13 * * 1-7')
   runRedeParc() {
     return this.runCronJob('RedeParc', async (context) => {
-      await this.redePipelineParc.execute(context);
+      try {
+        await this.redePipelineParc.execute(context);
+      } catch (e) {
+        const error = e as Error & {
+          obj?: { code: string; date: string; filialId: number };
+        };
+        if (error.obj?.code === '01') {
+          await context.warn(
+            'RETRY',
+            `Venda não encontrada. Sincronizando vendas da filial ${error.obj.filialId} para a data ${error.obj.date}.`,
+          );
+          const result = await this.runCronJob(
+            'RedeCards',
+            async (ctx) => {
+              await this.redePipelineCard.execute(
+                ctx,
+                error.obj!.date,
+                error.obj!.filialId,
+              );
+            },
+            true, // aguarda terminar
+            true,
+          );
+          if ('error' in result) {
+            throw new Error(result.error);
+          }
+          await context.incrementRetries();
+          await context.info(
+            'RETRY',
+            'Sincronização concluída. Reexecutando ETL de parcelas.',
+          );
+          await this.redePipelineParc.execute(context);
+          return;
+        }
+        throw error;
+      }
     });
   }
 
