@@ -10,6 +10,9 @@ export class TrierApiClient {
       `http://${urlLocalTrier}:4647/sgfpod1/rest/integracao/parcelas-cartao/obter-todos-v1?primeiroRegistro=0&dataEmissaoInicial=${date}&dataEmissaoFinal=${date}`,
       { headers: { Authorization: `Bearer ${tokenLocalTrier}` } },
     );
+    if (!res.ok) {
+      throw new Error(`HTTP ${res.status}`);
+    }
     const pc = await res.json();
     const transacoes: MoveParcExtracted[] = pc.transacoes.map((t) => {
       const newT: MoveParcExtracted = {

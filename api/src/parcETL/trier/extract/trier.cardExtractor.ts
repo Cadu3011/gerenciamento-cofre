@@ -23,7 +23,7 @@ export class TrierParcExtractor implements TrierExtractStrategy<MoveParcExtracte
 
     if (isApiError(vendasParcela)) {
       console.error(vendasParcela.message);
-      throw vendasParcela.message;
+      throw new Error(vendasParcela.message);
     }
 
     return vendasParcela;

@@ -154,7 +154,7 @@ export class MovementService {
         );
 
         if (!totais?.length) {
-          context.endStep(
+          await context.endStep(
             currentStep,
             `Nenhuma venda encontrada (${dataProcessamento})`,
           );
@@ -208,7 +208,7 @@ export class MovementService {
         const movimentosFlat = moveDetalhes.flat();
 
         context.incrementExtracted(movimentosFlat.length);
-        context.endStep(
+        await context.endStep(
           currentStep,
           `${movimentosFlat.length} registros extraídos`,
         );
@@ -255,7 +255,7 @@ export class MovementService {
         totalInserted += inserted;
 
         context.incrementInserted(inserted);
-        context.endStep(
+        await context.endStep(
           currentStep,
           `${inserted} linhas inseridas (${dataProcessamento})`,
         );
