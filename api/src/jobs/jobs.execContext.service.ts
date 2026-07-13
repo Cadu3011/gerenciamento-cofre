@@ -13,6 +13,11 @@ export interface ProgressInfo {
   totalDays: number;
   completedDays: number;
   percentage: number;
+  hasRetry?: boolean;
+  retries?: number;
+
+  hasError?: boolean;
+  errorMessage?: string;
 }
 
 export interface JobExecutionContextOptions {
@@ -175,6 +180,27 @@ export class JobExecutionContext {
 
   async finishProgress(key: string) {
     delete this.progress[key];
+    await this.notify();
+  }
+
+  async markProgressError(key: string, message?: string) {
+    const progress = this.progress[key];
+
+    if (!progress) return;
+
+    progress.hasError = true;
+    progress.errorMessage = message;
+
+    await this.notify();
+  }
+  async incrementProgressRetry(key: string) {
+    const progress = this.progress[key];
+
+    if (!progress) return;
+
+    progress.hasRetry = true;
+    progress.retries = (progress.retries ?? 0) + 1;
+
     await this.notify();
   }
 

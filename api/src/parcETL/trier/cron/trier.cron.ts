@@ -206,7 +206,6 @@ export class TrierParcCron {
           lastUpdatedDate: dMinus1,
         };
       } finally {
-        await executionContext.finishProgress(progressKey);
         if (bigCharge) {
           await context.merge(executionContext);
           executionContext.logs.length = 0;

@@ -49,7 +49,7 @@ export class JobsController {
       ConciCards: () => this.jobsService.runConciCards(force),
       RedeParc: () => this.jobsService.runRedeParc(bigCharge, force),
       TrierParc: () => this.jobsService.runTrierParc(bigCharge, force),
-      CieloParc: () => this.jobsService.runCieloParc(force),
+      CieloParc: () => this.jobsService.runCieloParc(bigCharge, force),
     };
 
     const job = jobs[jobName];

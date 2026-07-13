@@ -116,7 +116,6 @@ export class RedeParcCron {
 
         throw error;
       } finally {
-        await executionContext.finishProgress(progressKey);
         if (bigCharge) {
           await context.merge(executionContext);
           executionContext.logs.length = 0;
