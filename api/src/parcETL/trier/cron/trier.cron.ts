@@ -40,55 +40,28 @@ export class TrierParcCron {
     return { filial: filial.id, url: filial.urlLocalTrier, token };
   }
 
-  private async authWithRetriesAfter(
-    toRetry: { id: number; urlLocalTrier: string }[],
-    opts?: { maxAttempts?: number; baseDelayMs?: number },
-  ): Promise<{ ok: AuthOk[]; fail: AuthFail[] }> {
-    const maxAttempts = opts?.maxAttempts ?? 3; // total de tentativas (ex: 3 = 1ª retentativa + 2ª + 3ª)
-    const baseDelayMs = opts?.baseDelayMs ?? 800;
+  private async authWithRetry(
+    filial: { id: number; urlLocalTrier: string },
+    opts?: { maxAttempts?: number; delayMs?: number },
+  ): Promise<AuthOk> {
+    const maxAttempts = opts?.maxAttempts ?? 4;
+    const delayMs = opts?.delayMs ?? 800;
 
-    let pending = [...toRetry];
-    const ok: AuthOk[] = [];
-    const failFinal: AuthFail[] = [];
+    let lastError: unknown;
 
-    for (let attempt = 1; attempt <= maxAttempts && pending.length; attempt++) {
-      const delay = baseDelayMs * attempt; // backoff simples: 800, 1600, 2400...
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        return await this.authOnce(filial);
+      } catch (error) {
+        lastError = error;
 
-      // (opcional) espera antes da rodada de retentativa
-      await sleep(delay);
-
-      const round = await Promise.allSettled(
-        pending.map(async (filial) => this.authOnce(filial)),
-      );
-
-      const nextPending: typeof pending = [];
-
-      round.forEach((r, idx) => {
-        const filial = pending[idx];
-        if (r.status === 'fulfilled') {
-          ok.push(r.value);
-        } else {
-          nextPending.push(filial);
+        if (attempt < maxAttempts) {
+          await sleep(delayMs);
         }
-      });
-
-      pending = nextPending;
+      }
     }
 
-    // O que sobrou em pending falhou em todas as tentativas
-    if (pending.length) {
-      // aqui, se você quiser guardar o erro real de cada uma,
-      // dá pra re-executar capturando erro, mas normalmente basta logar.
-      failFinal.push(
-        ...pending.map((f) => ({
-          filial: f.id,
-          url: f.urlLocalTrier,
-          error: 'Auth falhou após retentativas',
-        })),
-      );
-    }
-
-    return { ok, fail: failFinal };
+    throw lastError;
   }
 
   private toISODate(d: Date) {
@@ -107,133 +80,162 @@ export class TrierParcCron {
     return Math.floor((b - a) / (1000 * 60 * 60 * 24));
   }
 
-  async execute(context) {
+  async execute(context, bigCharge?: boolean) {
     const filiais = await this.filialService.findAll();
 
-    // 1) Primeira rodada (todas em paralelo)
-    const firstRound = await Promise.allSettled(
-      filiais.map(async (filial) => this.authOnce(filial)),
+    const authResults = await Promise.allSettled(
+      filiais.map((filial) =>
+        this.authWithRetry(filial, {
+          maxAttempts: 4,
+          delayMs: 800,
+        }),
+      ),
     );
 
-    const authOk: AuthOk[] = [];
-    const authFailed: { id: number; urlLocalTrier: string }[] = [];
+    const tokensFinal: AuthOk[] = [];
 
-    firstRound.forEach((r, idx) => {
-      const filial = filiais[idx];
-      if (r.status === 'fulfilled') {
-        authOk.push(r.value);
-      } else {
-        authFailed.push(filial);
-        if (r.reason.code === 'ETIMEDOUT') {
-          console.error(`[IP NÃO ACESSÍVEL] ${filial.urlLocalTrier}`);
-          context.warn('CRON', `[IP NÃO ACESSÍVEL] ${filial.urlLocalTrier}`);
-          return { success: false, message: 'IP não acessível' };
-        }
-        this.logger.warn(
-          `[AUTH FAIL 1ª] filial=${filial.id} url=${filial.urlLocalTrier}`,
-          r.reason,
-        );
-        context.warn(
-          'CRON',
-          `[AUTH FAIL 1ª] filial=${filial.id} url=${filial.urlLocalTrier} ${r.reason}`,
-        );
+    authResults.forEach((result, index) => {
+      const filial = filiais[index];
+
+      if (result.status === 'fulfilled') {
+        tokensFinal.push(result.value);
+        return;
       }
-    });
 
-    // 2) Só depois que terminou TODO MUNDO da 1ª rodada, retenta as falhas
-    let retriedOk: AuthOk[] = [];
-    if (authFailed.length) {
-      this.logger.warn(
-        `Iniciando retentativas de auth para ${authFailed.length} filiais...`,
-      );
-      context.warn(
-        'CRON',
-        `Iniciando retentativas de auth para ${authFailed.length} filiais...`,
-      );
+      const reason = result.reason;
 
-      const retried = await this.authWithRetriesAfter(authFailed, {
-        maxAttempts: 3,
-        baseDelayMs: 800,
-      });
-
-      retriedOk = retried.ok;
-
-      if (retried.fail.length) {
-        this.logger.error(
-          `Auth falhou definitivamente em ${retried.fail.length} filiais:`,
-        );
+      if (reason?.code === 'ETIMEDOUT') {
+        this.logger.error(`[IP NÃO ACESSÍVEL] ${filial.urlLocalTrier}`);
         context.error(
           'CRON',
-          `Auth falhou definitivamente em ${retried.fail.length} filiais:`,
+          `[IP NÃO ACESSÍVEL] ${filial.urlLocalTrier} Filial: ${filial.name}`,
         );
-        retried.fail.forEach((f) => {
-          this.logger.error(
-            `[AUTH FAIL FINAL] filial=${f.filial} url=${f.url}`,
-            f.error,
-          );
-          context.error(
-            'CRON',
-            `[AUTH FAIL FINAL] filial=${f.filial} url=${f.url}`,
-          );
-        });
+        return;
       }
-    }
 
-    const tokensFinal = [...authOk, ...retriedOk];
+      this.logger.error(
+        `[AUTH FAIL] filial=${filial.id} url=${filial.urlLocalTrier}`,
+        reason,
+      );
+
+      context.error(
+        'CRON',
+        `[AUTH FAIL] filial=${filial.id} url=${filial.urlLocalTrier}`,
+      );
+    });
 
     const today = this.toISODate(new Date());
     const dMinus1 = this.addDays(today, -1);
 
-    const resultsLastDates: Array<{
+    const processFilial = async ({
+      token,
+      url,
+      filial,
+    }: AuthOk): Promise<{
       filial: number;
       lastUpdatedDate: string | null;
-    }> = [];
+    }> => {
+      // Contexto exclusivo desta filial
+      const executionContext = bigCharge
+        ? context.createChild({
+            logLevel: 'WARN_ERROR',
+            maxLogs: 1000,
+          })
+        : context;
 
-    for (const { token, url, filial } of tokensFinal) {
-      // pega a última data processada PRA ESSA FILIAL
       const last = await this.prisma.trierParcela.aggregate({
         where: { filialId: filial },
         _max: { dataEmissao: true },
       });
 
-      // se não tem nada ainda, você decide um "start" inicial
       const startBase = last._max.dataEmissao
         ? this.toISODate(new Date(last._max.dataEmissao))
-        : '2026-06-15'; // seu initDate (primeira carga)
+        : '2026-01-01';
 
-      // datas faltantes = (startBase + 1) ... D-1
       const start = this.addDays(startBase, 1);
 
-      // se start > D-1, não tem nada a fazer
+      if (this.diffDays(start, dMinus1) > 10 && !bigCharge) {
+        const error = new Error(
+          `Periodo muito grande. Reinicie o CronJob no modo BigCharge`,
+        ) as Error & {
+          obj?: {
+            code: string;
+          };
+        };
+
+        error.obj = {
+          code: '02',
+        };
+
+        throw error;
+      }
+
       if (this.diffDays(start, dMinus1) < 0) {
-        resultsLastDates.push({ filial, lastUpdatedDate: startBase });
-        continue;
+        return {
+          filial,
+          lastUpdatedDate: startBase,
+        };
       }
 
-      // roda dia a dia
       let current = start;
-      while (this.diffDays(current, dMinus1) >= 0) {
-        this.logger.log(`ETL Trier Parc filial ${filial} - dia ${current}`);
-        context.info(
-          'PIPELINE',
-          `Pipeline iniciada filial ${filial} - dia ${current}`,
-        );
-        await this.pipeline.execute(
-          {
-            date: current,
-            tokenLocalTrier: token,
-            urlLocalTrier: url,
-          },
-          context,
-        );
+      const progressKey = `TrierParc-${filial}`;
+      try {
+        await executionContext.startDateProgress(progressKey, start, dMinus1);
+        while (this.diffDays(current, dMinus1) >= 0) {
+          this.logger.log(`ETL Trier Parc filial ${filial} - dia ${current}`);
 
-        current = this.addDays(current, 1);
+          await executionContext.info(
+            'PIPELINE',
+            `Pipeline iniciada filial ${filial} - dia ${current}`,
+          );
+
+          await this.pipeline.execute(
+            {
+              date: current,
+              tokenLocalTrier: token,
+              urlLocalTrier: url,
+            },
+            executionContext,
+          );
+          await executionContext.updateDateProgress(progressKey, current);
+          current = this.addDays(current, 1);
+        }
+
+        return {
+          filial,
+          lastUpdatedDate: dMinus1,
+        };
+      } finally {
+        await executionContext.finishProgress(progressKey);
+        if (bigCharge) {
+          await context.merge(executionContext);
+          executionContext.logs.length = 0;
+        }
       }
+    };
 
-      resultsLastDates.push({ filial, lastUpdatedDate: dMinus1 });
+    let resultsLastDates: Array<{
+      filial: number;
+      lastUpdatedDate: string | null;
+    }>;
+
+    if (bigCharge) {
+      // Processa todas as filiais simultaneamente
+      resultsLastDates = await Promise.all(
+        tokensFinal.map((token) => processFilial(token)),
+      );
+    } else {
+      // Mantém o comportamento atual (sequencial)
+      resultsLastDates = [];
+
+      for (const token of tokensFinal) {
+        resultsLastDates.push(await processFilial(token));
+      }
     }
 
-    return { lastUpdatedByFilial: resultsLastDates };
+    return {
+      lastUpdatedByFilial: resultsLastDates,
+    };
   }
 
   async executeByFilialAndDate(
@@ -253,24 +255,11 @@ export class TrierParcCron {
     }
 
     // 2) Autenticar (com retry opcional)
-    let tokenData: AuthOk | null = null;
 
-    try {
-      tokenData = await this.authOnce(filial);
-    } catch (err) {
-      this.logger.warn(`[AUTH FAIL] Tentando retry...`);
-      context.warn('CRON', `[AUTH FAIL] Tentando retry...`);
-      const retry = await this.authWithRetriesAfter([filial], {
-        maxAttempts: 3,
-        baseDelayMs: 800,
-      });
-
-      if (!retry.ok.length) {
-        throw new Error(`Falha na autenticação da filial ${filialId}`);
-      }
-
-      tokenData = retry.ok[0];
-    }
+    const tokenData = await this.authWithRetry(filial, {
+      maxAttempts: 4,
+      delayMs: 800,
+    });
 
     // 3) Executar ETL
     this.logger.log(`ETL Parc manual filial ${filialId} - dia ${date}`);

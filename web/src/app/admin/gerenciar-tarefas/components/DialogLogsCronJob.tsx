@@ -33,6 +33,17 @@ export default function DialogLogsCronJobs({
       errors: number;
       retries: number;
     };
+    progress?: Record<
+      string,
+      {
+        startDate: string;
+        endDate: string;
+        currentDate: string;
+        totalDays: number;
+        completedDays: number;
+        percentage: number;
+      }
+    >;
     logs: {
       step: string;
       level: string;
@@ -56,6 +67,9 @@ export default function DialogLogsCronJobs({
 
     return `${formattedDate} ${formattedTime}`;
   };
+  function formatDate(date: string) {
+    return new Date(date).toLocaleDateString("pt-BR");
+  }
   if (!logs) return;
   function formatDuration(ms: number) {
     const totalSeconds = Math.floor(ms / 1000);
@@ -83,8 +97,8 @@ export default function DialogLogsCronJobs({
           ...
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-5xl max-h-[90vh] bg-white">
-        <DialogHeader className="space-y-5 rounded-lg border bg-zinc-50 p-5">
+      <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto bg-white">
+        <DialogHeader className="space-y-5 rounded-lg border bg-zinc-50 p-5 y-">
           <DialogTitle className="text-2xl font-bold">
             Logs - {jobName}
           </DialogTitle>
@@ -155,6 +169,51 @@ export default function DialogLogsCronJobs({
               </p>
             </div>
           </div>
+          {logs.progress && Object.keys(logs.progress).length > 0 && (
+            <div className="mt-6 space-y-4">
+              <h3 className="text-lg font-semibold">Progresso</h3>
+
+              {Object.entries(logs.progress).map(([key, progress]) => (
+                <div
+                  key={key}
+                  className="rounded-lg border bg-zinc-50 p-4 shadow-sm"
+                >
+                  <div className="mb-2 flex items-center justify-between">
+                    <span className="font-medium">{key}</span>
+
+                    <span className="text-sm font-semibold">
+                      {progress.percentage}%
+                    </span>
+                  </div>
+
+                  <div className="h-3 overflow-hidden rounded-full bg-zinc-200">
+                    <div
+                      className="h-full rounded-full bg-blue-600 transition-all duration-300"
+                      style={{
+                        width: `${progress.percentage}%`,
+                      }}
+                    />
+                  </div>
+
+                  <div className="mt-2 flex flex-wrap gap-6 text-sm text-zinc-600">
+                    <span>
+                      <strong>Período:</strong> {formatDate(progress.startDate)}{" "}
+                      → {formatDate(progress.endDate)}
+                    </span>
+
+                    <span>
+                      <strong>Atual:</strong> {formatDate(progress.currentDate)}
+                    </span>
+
+                    <span>
+                      <strong>Dias:</strong> {progress.completedDays}/
+                      {progress.totalDays}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </DialogHeader>
 
         <div className="mt-4 max-h-[50vh] overflow-y-auto rounded-lg border">
