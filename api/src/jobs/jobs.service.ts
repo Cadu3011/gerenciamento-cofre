@@ -301,6 +301,9 @@ export class JobsService {
 
             // Venda não encontrada: sincroniza e tenta novamente
             if (error.obj?.code === '01') {
+              const progressKey = `RedeParc-${error.obj.filialId}`;
+
+              await context.incrementProgressRetry(progressKey);
               await context.warn(
                 'RETRY',
                 `Venda não encontrada. Sincronizando vendas da filial ${error.obj.filialId} para a data ${error.obj.date}.`,
@@ -319,6 +322,7 @@ export class JobsService {
               );
 
               if ('error' in result) {
+                await context.markProgressError(progressKey, result.error);
                 throw new Error(result.error);
               }
 
@@ -331,7 +335,13 @@ export class JobsService {
               // Continua o for e tenta novamente o RedeParc
               continue;
             }
+            const progressKey = error.obj?.filialId
+              ? `RedeParc-${error.obj.filialId}`
+              : undefined;
 
+            if (progressKey) {
+              await context.markProgressError(progressKey, error.message);
+            }
             // Qualquer outro erro
             throw error;
           }
@@ -401,13 +411,13 @@ export class JobsService {
   }
 
   @Cron('25,58 8,9,10,12,13 * * 1-7')
-  runCieloParc(force?: boolean) {
+  runCieloParc(bigCharge?: boolean, force?: boolean) {
     return this.runCronJob(
       'CieloParc',
       async (context) => {
-        await this.cieloPipelineParc.execute(context);
+        await this.cieloPipelineParc.execute(context, bigCharge);
       },
-      { force },
+      { force, logLevel: bigCharge ? 'WARN_ERROR' : 'ALL' },
     );
   }
 }

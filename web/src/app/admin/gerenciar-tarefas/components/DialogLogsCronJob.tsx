@@ -42,6 +42,12 @@ export default function DialogLogsCronJobs({
         totalDays: number;
         completedDays: number;
         percentage: number;
+
+        hasRetry?: boolean;
+        retries?: number;
+
+        hasError?: boolean;
+        errorMessage?: string;
       }
     >;
     logs: {
@@ -179,7 +185,23 @@ export default function DialogLogsCronJobs({
                   className="rounded-lg border bg-zinc-50 p-4 shadow-sm"
                 >
                   <div className="mb-2 flex items-center justify-between">
-                    <span className="font-medium">{key}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium">{key}</span>
+
+                      {progress.hasRetry && (
+                        <span
+                          className="flex h-3 w-3 rounded-full bg-yellow-500"
+                          title={`${progress.retries ?? 1} retentativa(s)`}
+                        />
+                      )}
+
+                      {progress.hasError && (
+                        <span
+                          className="flex h-3 w-3 rounded-full bg-red-600"
+                          title={progress.errorMessage}
+                        />
+                      )}
+                    </div>
 
                     <span className="text-sm font-semibold">
                       {progress.percentage}%
@@ -188,7 +210,13 @@ export default function DialogLogsCronJobs({
 
                   <div className="h-3 overflow-hidden rounded-full bg-zinc-200">
                     <div
-                      className="h-full rounded-full bg-blue-600 transition-all duration-300"
+                      className={`h-full rounded-full transition-all duration-300 ${
+                        progress.hasError
+                          ? "bg-red-600"
+                          : progress.hasRetry
+                            ? "bg-yellow-500"
+                            : "bg-blue-600"
+                      }`}
                       style={{
                         width: `${progress.percentage}%`,
                       }}
@@ -196,6 +224,17 @@ export default function DialogLogsCronJobs({
                   </div>
 
                   <div className="mt-2 flex flex-wrap gap-6 text-sm text-zinc-600">
+                    {progress.hasRetry && (
+                      <span className="text-yellow-700 font-medium">
+                        🔄 Retentativas: {progress.retries}
+                      </span>
+                    )}
+
+                    {progress.hasError && (
+                      <span className="text-red-700 font-medium">
+                        ❌ {progress.errorMessage}
+                      </span>
+                    )}
                     <span>
                       <strong>Período:</strong> {formatDate(progress.startDate)}{" "}
                       → {formatDate(progress.endDate)}

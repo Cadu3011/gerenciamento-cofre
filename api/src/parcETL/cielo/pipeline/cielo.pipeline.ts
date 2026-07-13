@@ -15,7 +15,7 @@ export class CieloParcETLPipeline {
     try {
       currentStep = 'TRANSFORM';
       context.startStep(currentStep);
-      const data = await this.transform.execute(fileNames);
+      const data = await this.transform.execute(fileNames, context);
       context.incrementExtracted(data.length);
       context.incrementFiles(fileNames.length);
       await context.endStep(currentStep, `Registros extraidos`);

@@ -51,65 +51,61 @@ export class RedeCardCron {
     }> = [];
     for (const f of filiais) {
       const progressKey = `RedeCard-${f.id}`;
-      try {
-        const last = await this.prisma.redeVenda.aggregate({
-          where: { filialId: f.id },
-          _max: { dataVenda: true },
-        });
-        // se não tem nada ainda, você decide um "start" inicial
-        const startBase = last._max.dataVenda
-          ? this.toISODate(new Date(last._max.dataVenda))
-          : '2026-01-01'; // seu initDate (primeira carga)
+      const last = await this.prisma.redeVenda.aggregate({
+        where: { filialId: f.id },
+        _max: { dataVenda: true },
+      });
+      // se não tem nada ainda, você decide um "start" inicial
+      const startBase = last._max.dataVenda
+        ? this.toISODate(new Date(last._max.dataVenda))
+        : '2026-01-01'; // seu initDate (primeira carga)
 
-        // datas faltantes = (startBase + 1) ... D-1
-        const start = date ? date : this.addDays(startBase, 1);
+      // datas faltantes = (startBase + 1) ... D-1
+      const start = date ? date : this.addDays(startBase, 1);
 
-        // se start > D-1, não tem nada a fazer
-        if (this.diffDays(start, dMinus1) < 0) {
-          resultsLastDates.push({ filial: f.id, lastUpdatedDate: startBase });
-          continue;
-        }
-        let current = start;
-        if (date) {
-          this.logger.log(`ETL Rede filial ${f.name} - dia ${current}`);
-          context.info(
-            'PIPELINE',
-            `Pipeline Iniciada filial ${f.name} - dia ${current}`,
-          );
-          await this.pipeline.execute(
-            {
-              date,
-              idRede: f.id,
-            },
-            context,
-          );
-          await context.updateDateProgress(progressKey, current);
-          continue;
-        }
-        // roda dia a dia
-
-        while (this.diffDays(current, dMinus1) >= 0) {
-          this.logger.log(`ETL Rede filial ${f.name} - dia ${current}`);
-          context.info(
-            'PIPELINE',
-            `Pipeline Iniciada filial ${f.name} - dia ${current}`,
-          );
-          await this.pipeline.execute(
-            {
-              date: current,
-              idRede: f.id,
-            },
-            context,
-          );
-          await context.startDateProgress(progressKey, start, dMinus1);
-
-          current = this.addDays(current, 1);
-        }
-
-        resultsLastDates.push({ filial: f.id, lastUpdatedDate: dMinus1 });
-      } finally {
-        await context.finishProgress(progressKey);
+      // se start > D-1, não tem nada a fazer
+      if (this.diffDays(start, dMinus1) < 0) {
+        resultsLastDates.push({ filial: f.id, lastUpdatedDate: startBase });
+        continue;
       }
+      let current = start;
+      if (date) {
+        this.logger.log(`ETL Rede filial ${f.name} - dia ${current}`);
+        context.info(
+          'PIPELINE',
+          `Pipeline Iniciada filial ${f.name} - dia ${current}`,
+        );
+        await this.pipeline.execute(
+          {
+            date,
+            idRede: f.id,
+          },
+          context,
+        );
+        await context.updateDateProgress(progressKey, current);
+        continue;
+      }
+      // roda dia a dia
+
+      while (this.diffDays(current, dMinus1) >= 0) {
+        this.logger.log(`ETL Rede filial ${f.name} - dia ${current}`);
+        context.info(
+          'PIPELINE',
+          `Pipeline Iniciada filial ${f.name} - dia ${current}`,
+        );
+        await this.pipeline.execute(
+          {
+            date: current,
+            idRede: f.id,
+          },
+          context,
+        );
+        await context.startDateProgress(progressKey, start, dMinus1);
+
+        current = this.addDays(current, 1);
+      }
+
+      resultsLastDates.push({ filial: f.id, lastUpdatedDate: dMinus1 });
 
       return { lastUpdatedByFilial: resultsLastDates };
     }

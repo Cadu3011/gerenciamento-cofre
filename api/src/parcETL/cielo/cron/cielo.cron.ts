@@ -11,7 +11,15 @@ export class CieloParcETLCron {
 
   private readonly logger = new Logger(CieloParcETLCron.name);
 
-  async execute(context: JobExecutionContext) {
+  private extractDate(fileName: string) {
+    const parts = fileName.replace('.TXT', '').split('_');
+
+    const date = parts[2];
+
+    return `${date.substring(0, 4)}-${date.substring(4, 6)}-${date.substring(6, 8)}`;
+  }
+
+  async execute(context: JobExecutionContext, bigCharge?: boolean) {
     try {
       const uploadsPath = process.env.PATH_LOCAL_UPLOADS;
 
@@ -28,18 +36,27 @@ export class CieloParcETLCron {
 
       const files = await readdir(uploadsPath);
 
-      const fileList = files.filter(
-        (file) =>
-          file.toUpperCase().endsWith('.TXT') &&
-          file.includes(`_${todayString}_`),
-      );
+      const fileList = !bigCharge
+        ? files.filter(
+            (file) =>
+              file.toUpperCase().endsWith('.TXT') &&
+              file.includes(`_${todayString}_`),
+          )
+        : files.filter((file) => file.toUpperCase().endsWith('.TXT'));
 
       if (fileList.length === 0) {
         this.logger.error(`Nenhum arquivo da data ${todayString} encontrado.`);
         throw new Error(`Nenhum arquivo da data ${todayString} encontrado.`);
       }
+      fileList.sort((a, b) =>
+        this.extractDate(a).localeCompare(this.extractDate(b)),
+      );
+      const startDate = this.extractDate(fileList[0]);
+      const endDate = this.extractDate(fileList[fileList.length - 1]);
+      await context.startDateProgress('CieloParc', startDate, endDate);
       context.info('PIPELINE', 'Pipeline iniciada');
       await this.pipeline.execute(fileList, context);
+
       this.logger.log(
         `✅ ${fileList.length} arquivo(s) processado(s) com sucesso.`,
       );

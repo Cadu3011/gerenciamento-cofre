@@ -28,8 +28,14 @@ export class CieloParcTransform {
   private readonly Prisma: PrismaService;
 
   private readonly logger = new Logger(CieloParcTransform.name);
+  private extractDate(fileName: string) {
+    const parts = fileName.replace('.TXT', '').split('_');
 
-  async execute(fileNames: string[]) {
+    const date = parts[2];
+
+    return `${date.substring(0, 4)}-${date.substring(4, 6)}-${date.substring(6, 8)}`;
+  }
+  async execute(fileNames: string[], context?: JobExecutionContext) {
     const parcelas: SimplifiedParc[] = [];
     const filiais = await this.Prisma.filial.findMany({
       select: {
@@ -66,6 +72,10 @@ export class CieloParcTransform {
               parcelas.push(venda);
             }
           }
+        }
+        if (context) {
+          const date = this.extractDate(fileName);
+          await context.updateDateProgress('CieloParc', date);
         }
       } catch (err) {
         this.logger.error(`Erro ao ler/parsing do arquivo ${fileName}:`, err);
