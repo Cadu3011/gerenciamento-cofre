@@ -28,56 +28,130 @@ export class RedeParcCron {
     return Math.floor((b - a) / (1000 * 60 * 60 * 24));
   }
 
-  async execute(context: JobExecutionContext) {
+  async execute(context: JobExecutionContext, bigCharge?: boolean) {
     const filiais = await this.prisma.filial.findMany({
       where: { NOT: { id: 1 } },
     });
+
     const today = this.toISODate(new Date());
     const dMinus1 = this.addDays(today, -1);
-    const resultsLastDates: Array<{
-      filial: number;
-      lastUpdatedDate: string | null;
-    }> = [];
-    for (const f of filiais) {
-      const last = await this.prisma.redeParcela.aggregate({
-        where: { filialId: f.id },
-        _max: { dataVenda: true },
-      });
-      // se não tem nada ainda, você decide um "start" inicial
-      const startBase = last._max.dataVenda
-        ? this.toISODate(new Date(last._max.dataVenda))
-        : '2026-06-15'; // seu initDate (primeira carga)
 
-      // datas faltantes = (startBase + 1) ... D-1
-      const start = this.addDays(startBase, 1);
+    let abort = false;
+    let abortReason: any = null;
 
-      // se start > D-1, não tem nada a fazer
-      if (this.diffDays(start, dMinus1) < 0) {
-        resultsLastDates.push({ filial: f.id, lastUpdatedDate: startBase });
-        continue;
+    const processFilial = async (f) => {
+      if (abort) {
+        throw abortReason;
+      }
+      const progressKey = `RedeParc-${f.id}`;
+      const executionContext = bigCharge
+        ? context.createChild({
+            logLevel: 'WARN_ERROR',
+            maxLogs: 1000,
+          })
+        : context;
+
+      try {
+        const last = await this.prisma.redeParcela.aggregate({
+          where: { filialId: f.id },
+          _max: { dataVenda: true },
+        });
+
+        const startBase = last._max.dataVenda
+          ? this.toISODate(new Date(last._max.dataVenda))
+          : '2026-01-01';
+
+        const start = this.addDays(startBase, 1);
+
+        if (this.diffDays(start, dMinus1) > 10 && !bigCharge) {
+          const error = new Error(
+            'Periodo muito grande. Reinicie o CronJob no modo BigCharge',
+          ) as Error & {
+            obj?: { code: string };
+          };
+
+          error.obj = {
+            code: '02',
+          };
+
+          throw error;
+        }
+
+        await executionContext.startDateProgress(progressKey, start, dMinus1);
+        let current = start;
+
+        while (this.diffDays(current, dMinus1) >= 0) {
+          if (abort) {
+            throw abortReason;
+          }
+
+          await executionContext.info(
+            'PIPELINE',
+            `Pipeline iniciada filial ${f.name} - dia ${current}`,
+          );
+
+          await this.pipeline.execute(
+            {
+              date: current,
+              idRede: f.id,
+            },
+            executionContext,
+          );
+          await executionContext.updateDateProgress(progressKey, current);
+          current = this.addDays(current, 1);
+        }
+
+        return {
+          filial: f.id,
+          lastUpdatedDate: dMinus1,
+        };
+      } catch (error) {
+        /**
+         * Apenas BigCharge cancela tudo
+         */
+        if (bigCharge) {
+          abort = true;
+          abortReason = error;
+        }
+
+        throw error;
+      } finally {
+        await executionContext.finishProgress(progressKey);
+        if (bigCharge) {
+          await context.merge(executionContext);
+          executionContext.logs.length = 0;
+        }
+      }
+    };
+
+    let resultsLastDates;
+
+    if (bigCharge) {
+      const results = await Promise.allSettled(
+        filiais.map((f) => processFilial(f)),
+      );
+
+      const failed = results.find((r) => r.status === 'rejected');
+
+      if (failed?.status === 'rejected') {
+        throw failed.reason;
       }
 
-      // roda dia a dia
-      let current = start;
-      while (this.diffDays(current, dMinus1) >= 0) {
-        this.logger.log(`ETL Rede Parc filial ${f.name} - dia ${current}`);
-        context.info(
-          'PIPELINE',
-          `Pipeline Iniciada filial ${f.name} - dia ${current}`,
-        );
-        await this.pipeline.execute(
-          {
-            date: current,
-            idRede: f.id,
-          },
-          context,
-        );
+      resultsLastDates = results
+        .filter(
+          (r): r is PromiseFulfilledResult<any> => r.status === 'fulfilled',
+        )
+        .map((r) => r.value);
+    } else {
+      resultsLastDates = [];
 
-        current = this.addDays(current, 1);
+      for (const f of filiais) {
+        resultsLastDates.push(await processFilial(f));
       }
-
-      resultsLastDates.push({ filial: f.id, lastUpdatedDate: dMinus1 });
     }
-    return { lastUpdatedByFilial: resultsLastDates };
+
+    return {
+      lastUpdatedByFilial: resultsLastDates,
+    };
   }
 }

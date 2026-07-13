@@ -190,47 +190,53 @@ export class TrierCardCron {
     }> = [];
 
     for (const { token, url, filial } of tokensFinal) {
-      // pega a última data processada PRA ESSA FILIAL
-      const last = await this.prisma.trierCartaoVendas.aggregate({
-        where: { filialId: filial },
-        _max: { dataEmissao: true },
-      });
+      const progressKey = `TrierParc-${filial}`;
+      try {
+        // pega a última data processada PRA ESSA FILIAL
+        const last = await this.prisma.trierCartaoVendas.aggregate({
+          where: { filialId: filial },
+          _max: { dataEmissao: true },
+        });
 
-      // se não tem nada ainda, você decide um "start" inicial
-      const startBase = last._max.dataEmissao
-        ? this.toISODate(new Date(last._max.dataEmissao))
-        : '2026-01-01'; // seu initDate (primeira carga)
+        // se não tem nada ainda, você decide um "start" inicial
+        const startBase = last._max.dataEmissao
+          ? this.toISODate(new Date(last._max.dataEmissao))
+          : '2026-01-01'; // seu initDate (primeira carga)
 
-      // datas faltantes = (startBase + 1) ... D-1
-      const start = this.addDays(startBase, 1);
+        // datas faltantes = (startBase + 1) ... D-1
+        const start = this.addDays(startBase, 1);
 
-      // se start > D-1, não tem nada a fazer
-      if (this.diffDays(start, dMinus1) < 0) {
-        resultsLastDates.push({ filial, lastUpdatedDate: startBase });
-        continue;
+        // se start > D-1, não tem nada a fazer
+        if (this.diffDays(start, dMinus1) < 0) {
+          resultsLastDates.push({ filial, lastUpdatedDate: startBase });
+          continue;
+        }
+
+        // roda dia a dia
+        let current = start;
+        await context.startDateProgress(progressKey, start, dMinus1);
+        while (this.diffDays(current, dMinus1) >= 0) {
+          this.logger.log(`ETL Trier filial ${filial} - dia ${current}`);
+          context.info(
+            'PIPELINE',
+            `Pipeline Iniciada filial ${filial} - dia ${current}`,
+          );
+          await this.pipeline.execute(
+            {
+              date: current,
+              tokenLocalTrier: token,
+              urlLocalTrier: url,
+            },
+            context,
+          );
+          await context.updateDateProgress(progressKey, current);
+          current = this.addDays(current, 1);
+        }
+
+        resultsLastDates.push({ filial, lastUpdatedDate: dMinus1 });
+      } finally {
+        await context.finishProgress(progressKey);
       }
-
-      // roda dia a dia
-      let current = start;
-      while (this.diffDays(current, dMinus1) >= 0) {
-        this.logger.log(`ETL Trier filial ${filial} - dia ${current}`);
-        context.info(
-          'PIPELINE',
-          `Pipeline Iniciada filial ${filial} - dia ${current}`,
-        );
-        await this.pipeline.execute(
-          {
-            date: current,
-            tokenLocalTrier: token,
-            urlLocalTrier: url,
-          },
-          context,
-        );
-
-        current = this.addDays(current, 1);
-      }
-
-      resultsLastDates.push({ filial, lastUpdatedDate: dMinus1 });
     }
 
     return { lastUpdatedByFilial: resultsLastDates };

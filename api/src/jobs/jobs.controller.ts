@@ -8,6 +8,8 @@ import {
   Inject,
   UseGuards,
   NotFoundException,
+  Query,
+  ParseBoolPipe,
 } from '@nestjs/common';
 import { JobsService } from './jobs.service';
 import { CreateJobDto } from './dto/create-job.dto';
@@ -31,17 +33,23 @@ export class JobsController {
   @UseGuards(AuthGuard)
   @Roles(Role.GESTOR)
   @Post('cron/:jobName')
-  createCronJob(@Param('jobName') jobName: string) {
+  createCronJob(
+    @Param('jobName') jobName: string,
+    @Query('bigCharge', new ParseBoolPipe({ optional: true }))
+    bigCharge: boolean,
+    @Query('force', new ParseBoolPipe({ optional: true }))
+    force: boolean,
+  ) {
     const jobs = {
-      TrierCards: () => this.jobsService.runTrierCards(),
-      TrierMovements: () => this.jobsService.runTrierMovements(),
-      CieloETL: () => this.jobsService.runCieloETL(),
+      TrierCards: () => this.jobsService.runTrierCards(force),
+      TrierMovements: () => this.jobsService.runTrierMovements(force),
+      CieloETL: () => this.jobsService.runCieloETL(force),
 
-      RedeCards: () => this.jobsService.runRedeCards(),
-      ConciCards: () => this.jobsService.runConciCards(),
-      RedeParc: () => this.jobsService.runRedeParc(),
-      TrierParc: () => this.jobsService.runTrierParc(),
-      CieloParc: () => this.jobsService.runCieloParc(),
+      RedeCards: () => this.jobsService.runRedeCards(force),
+      ConciCards: () => this.jobsService.runConciCards(force),
+      RedeParc: () => this.jobsService.runRedeParc(bigCharge, force),
+      TrierParc: () => this.jobsService.runTrierParc(bigCharge, force),
+      CieloParc: () => this.jobsService.runCieloParc(force),
     };
 
     const job = jobs[jobName];
