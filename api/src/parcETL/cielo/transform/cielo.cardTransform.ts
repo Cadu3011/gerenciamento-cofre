@@ -1,5 +1,6 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { readFileSync } from 'fs';
+import { join } from 'path';
 import { PrismaService } from 'src/database/prisma.service';
 import { JobExecutionContext } from 'src/jobs/jobs.execContext.service';
 
@@ -51,7 +52,7 @@ export class CieloParcTransform {
       // const isFileSale = fileName.substring(0, 8);
 
       const filePath = readFileSync(
-        `${process.env.PATH_LOCAL_UPLOADS}\\${fileName}`,
+        join(process.env.PATH_LOCAL_UPLOADS!, fileName),
         'utf8',
       );
 

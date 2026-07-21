@@ -28,6 +28,7 @@ export async function authTrier(
     axios.create({
       jar,
       withCredentials: true,
+      timeout: 5000,
     }),
   );
 

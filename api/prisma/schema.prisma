@@ -499,11 +499,31 @@ model ConciliacaoParcela {
 
   divergenciaVencimento Boolean @default(false)
 
-  observacao String?
+
+
+  divergenciaValorLiquido Boolean @default(false)
+
+
+
+  divergenciaParcelas Boolean @default(false)
+
+  divergenciaModalidade Boolean @default(false)
+
+  divergenciaBandeira Boolean @default(false)
+
+  tipoMatch MatchType?
+    observacao String?
 
   createdAt DateTime @default(now())
 
   @@index([status])
+}
+enum MatchType {
+  NSU
+  VALOR
+  VALOR_DATA
+  MANUAL
+  VENDA_CONCILIADA
 }
 
 model Receivable {

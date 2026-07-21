@@ -39,9 +39,8 @@ export class TrierParcTransform implements TrierTransformStrategy {
       },
     });
     const vendasMap = new Map(vendas.map((v) => [v.documentoFiscal, v]));
-    const parcTrasform: TrierParcTransformedMovement[] = ctx
-      .filter((vendaParc) => vendaParc.codigoCartao !== 34)
-      .map((vendaParc) => {
+    const parcTrasform: TrierParcTransformedMovement[] = ctx.map(
+      (vendaParc) => {
         const documento = Number(
           vendaParc.documentoFiscal
             ? vendaParc.documentoFiscal
@@ -84,7 +83,8 @@ export class TrierParcTransform implements TrierTransformStrategy {
           valorTaxas: new Decimal(vendaParc.valorTaxas),
           prazoVenda: vendaParc.prazoVenda,
         };
-      });
+      },
+    );
     return parcTrasform;
   }
 }

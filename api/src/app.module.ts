@@ -16,6 +16,7 @@ import { CartEtlModule } from './cardETL/card-etl.module';
 import { JobsModule } from './jobs/jobs.module';
 import { ConciliacaoModule } from './conciliacao/conciliacao.module';
 import { ParcEtlModule } from './parcETL/card-etl.module';
+import { ConciliacaoParcModule } from './conciliacao-parc/conciliacao-parc.module';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { ParcEtlModule } from './parcETL/card-etl.module';
     ParcEtlModule,
     JobsModule,
     ConciliacaoModule,
+    ConciliacaoParcModule,
   ],
   controllers: [AppController],
   providers: [AppService],
