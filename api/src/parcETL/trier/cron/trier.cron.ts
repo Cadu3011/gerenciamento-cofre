@@ -103,13 +103,22 @@ export class TrierParcCron {
       }
 
       const reason = result.reason;
+      const networkErrors = [
+        'ETIMEDOUT',
+        'ECONNABORTED',
+        'ECONNREFUSED',
+        'EHOSTUNREACH',
+        'ENETUNREACH',
+      ];
 
-      if (reason?.code === 'ETIMEDOUT') {
+      if (networkErrors.includes(reason?.code)) {
         this.logger.error(`[IP NÃO ACESSÍVEL] ${filial.urlLocalTrier}`);
+
         context.error(
           'CRON',
           `[IP NÃO ACESSÍVEL] ${filial.urlLocalTrier} Filial: ${filial.name}`,
         );
+
         return;
       }
 
@@ -150,7 +159,7 @@ export class TrierParcCron {
 
       const startBase = last._max.dataEmissao
         ? this.toISODate(new Date(last._max.dataEmissao))
-        : '2026-01-01';
+        : '2026-07-10';
 
       const start = this.addDays(startBase, 1);
 

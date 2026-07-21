@@ -16,3 +16,17 @@ export interface MoveParcExtracted {
   numeroParcela: number;
   valorTaxas: number;
 }
+
+export interface EstornoItem {
+  numeroNotaDevolucao: number | string;
+  dataEmissaoDevolucao: string;
+  totalNotaDevolucao: number | string;
+  numeroNotaOrigem: number | string;
+  dataEmissaoOrigem: string;
+  totalNotaOrigem: number | string;
+}
+
+export interface EstornoResponse {
+  codigoLoja: number;
+  estornos: EstornoItem[];
+}
