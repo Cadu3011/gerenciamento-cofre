@@ -240,6 +240,8 @@ model ConciliacaoGrupo {
   motivo         String?
 
   itens ConciliacaoItem[]
+
+  @@index([conciliacaoId, status])
 }
 
 model ConciliacaoItem {
@@ -396,7 +398,7 @@ model TrierParcela {
   receivableItems   ReceivableItem[]
   statusConciliacao ParcelStatus       @default(PENDENTE)
 
-  conciliacoes ConciliacaoParcela[]
+  conciliacoesItem ConciliacaoParcelaTrier[]
 
   createdAt DateTime @default(now())
 
@@ -430,7 +432,7 @@ model RedeParcela {
 
   statusConciliacao ParcelStatus         @default(PENDENTE)
   receivableItems   ReceivableItem[]
-  conciliacoes      ConciliacaoParcela[]
+  conciliacoesItem  ConciliacaoParcelaItem[]
 
   createdAt DateTime @default(now())
 
@@ -470,8 +472,8 @@ model CieloParcela {
 
   statusConciliacao ParcelStatus @default(PENDENTE)
 
-  receivableItems ReceivableItem[]
-  conciliacoes    ConciliacaoParcela[]
+  receivableItems   ReceivableItem[]
+  conciliacoesItem  ConciliacaoParcelaItem[]
 
   createdAt DateTime @default(now())
 
@@ -482,41 +484,53 @@ model CieloParcela {
 }
 
 model ConciliacaoParcela {
-  id Int @id @default(autoincrement())
-
-  trierParcelaId Int?
-  redeParcelaId  Int?
-
-  trierParcela TrierParcela? @relation(fields: [trierParcelaId], references: [id])
-
-  redeParcela RedeParcela? @relation(fields: [redeParcelaId], references: [id])
-  cieloParcelaId Int?
-
-  cieloParcela CieloParcela? @relation(fields:[cieloParcelaId], references:[id])
-  status ParcelStatus
-
-  divergenciaValor Boolean @default(false)
-
-  divergenciaVencimento Boolean @default(false)
-
-
-
-  divergenciaValorLiquido Boolean @default(false)
-
-
-
-  divergenciaParcelas Boolean @default(false)
-
-  divergenciaModalidade Boolean @default(false)
-
-  divergenciaBandeira Boolean @default(false)
-
-  tipoMatch MatchType?
-    observacao String?
-
-  createdAt DateTime @default(now())
+  id             Int           @id @default(autoincrement())
+  status         ParcelStatus
+  tipoMatch      MatchType?
+  observacao     String?
+  createdAt      DateTime      @default(now())
+  trierItens     ConciliacaoParcelaTrier[]
+  itens          ConciliacaoParcelaItem[]
+  idempotencyKey String        @unique
 
   @@index([status])
+}
+
+model ConciliacaoParcelaTrier {
+  id                    Int                @id @default(autoincrement())
+  conciliacaoParcelaId  Int
+  conciliacaoParcela    ConciliacaoParcela  @relation(fields: [conciliacaoParcelaId], references: [id], onDelete: Cascade)
+  trierParcelaId        Int
+  trierParcela          TrierParcela       @relation(fields: [trierParcelaId], references: [id])
+  idempotencyKey String @unique
+  createdAt             DateTime           @default(now())
+
+  
+  @@index([trierParcelaId])
+}
+
+model ConciliacaoParcelaItem {
+  id                    Int                @id @default(autoincrement())
+  conciliacaoParcelaId  Int
+  conciliacaoParcela    ConciliacaoParcela  @relation(fields: [conciliacaoParcelaId], references: [id], onDelete: Cascade)
+  redeParcelaId         Int?
+  redeParcela           RedeParcela?        @relation(fields: [redeParcelaId], references: [id])
+  cieloParcelaId        Int?
+  cieloParcela          CieloParcela?       @relation(fields: [cieloParcelaId], references: [id])
+  tipoMatch             MatchType
+  idempotencyKey String @unique
+  divergenciaValor      Boolean             @default(false)
+  divergenciaVencimento Boolean             @default(false)
+  divergenciaValorLiquido Boolean          @default(false)
+  divergenciaParcelas   Boolean             @default(false)
+  divergenciaModalidade Boolean             @default(false)
+  divergenciaBandeira   Boolean             @default(false)
+  createdAt             DateTime            @default(now())
+
+  
+  @@index([conciliacaoParcelaId])
+  @@index([redeParcelaId])
+  @@index([cieloParcelaId])
 }
 enum MatchType {
   NSU

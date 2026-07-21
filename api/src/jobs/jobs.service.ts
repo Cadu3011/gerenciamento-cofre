@@ -13,6 +13,7 @@ import { ConciCardsCron } from 'src/conciliacao/cron/execute.cron';
 import { RedeParcCron } from 'src/parcETL/rede/cron/rede.cron';
 import { TrierParcCron } from 'src/parcETL/trier/cron/trier.cron';
 import { CieloParcETLCron } from 'src/parcETL/cielo/cron/cielo.cron';
+import { ConciParcCron } from 'src/conciliacao-parc/cron/conciliacao-parc.cron';
 import { JobExecutionContext } from './jobs.execContext.service';
 import { JobsGateway } from './jobs.gateway';
 
@@ -46,6 +47,9 @@ export class JobsService {
 
   @Inject()
   private readonly cieloPipelineParc: CieloParcETLCron;
+
+  @Inject()
+  private readonly conciParcPipeline: ConciParcCron;
 
   @Inject()
   private readonly jobsGateway: JobsGateway;
@@ -374,6 +378,17 @@ export class JobsService {
         await this.conciCardsPipeline.execute(context);
       },
       { force },
+    );
+  }
+
+  @Cron('25,50 8,10,13 * * 1-7')
+  runConciParc(force?: boolean) {
+    return this.runCronJob(
+      'ConciParc',
+      async (context) => {
+        await this.conciParcPipeline.execute(context);
+      },
+      { force: true },
     );
   }
 
