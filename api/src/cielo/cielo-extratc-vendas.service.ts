@@ -35,12 +35,9 @@ export class CieloTransformSalesService {
       const isFileSale = fileName.name.substring(0, 8);
       // const isFileSale = fileName.substring(0, 8);
 
-      const filePath = readFileSync(
-        `${process.env.PATH_LOCAL_UPLOADS}\\${fileName.name}`,
-        'utf8',
-      );
       try {
-        const lines = filePath.trim().split('\n');
+        const content = await fileName.text();
+        const lines = content.trim().split('\n');
 
         for (const line of lines) {
           const recordType = line.charAt(0);
