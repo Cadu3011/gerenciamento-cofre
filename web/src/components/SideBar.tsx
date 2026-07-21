@@ -117,6 +117,12 @@ export default function Sidebar({ role }: { role: string }) {
                       >
                         Conciliação de Cartões
                       </Link>
+                      <Link
+                        href="/admin/concilia-parc"
+                        className="hover:text-green-400"
+                      >
+                        Conciliação de Parcelas
+                      </Link>
                     </div>
                   )}
                   {role === "OPERADOR" && (
