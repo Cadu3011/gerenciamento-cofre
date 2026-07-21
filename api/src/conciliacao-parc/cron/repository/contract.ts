@@ -61,14 +61,41 @@ export interface Cielo {
   totalParcelas: number;
   vendaId: number | null;
 }
+
 export interface VendaIndex {
   trier: Map<number, number>;
   rede: Map<number, number>;
   cielo: Map<number, number>;
 }
+
 export interface Data {
   trier: Trier[];
   rede: Rede[];
   cielo: Cielo[];
   conciliacoesVenda?: any[];
+}
+
+export type ParcelaFonte =
+  | { origem: 'TRIER'; parcela: Trier }
+  | { origem: 'REDE'; parcela: Rede }
+  | { origem: 'CIELO'; parcela: Cielo };
+
+export interface ConciliacaoGrupoItem {
+  redeParcelaId?: number;
+  cieloParcelaId?: number;
+  tipoMatch: $Enums.MatchType;
+  divergenciaValor: boolean;
+  divergenciaVencimento: boolean;
+  divergenciaValorLiquido: boolean;
+  divergenciaParcelas: boolean;
+  divergenciaModalidade: boolean;
+  divergenciaBandeira: boolean;
+}
+
+export interface ConciliacaoGrupo {
+  trierIds: number[];
+  status: $Enums.ParcelStatus;
+  tipoMatch: $Enums.MatchType;
+  observacao?: string;
+  itens: ConciliacaoGrupoItem[];
 }
