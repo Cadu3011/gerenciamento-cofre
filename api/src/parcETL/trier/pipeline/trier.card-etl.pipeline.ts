@@ -43,8 +43,12 @@ export class TrierParcETLPipeline implements TrierPipelineStrategy {
         .map((est) => ({
           filialId: estornos.codigoLoja,
           codigoCartao: 0,
+          // nota da venda
+          documentoFiscalEstorno: Number(est.numeroNotaOrigem),
+
+          // nota do estorno
           documentoFiscal: Number(est.numeroNotaDevolucao),
-          idTransacao: `VE:${est.numeroNotaDevolucao}`,
+          idTransacao: `VE:${est.numeroNotaOrigem}`,
           prazoVenda: '',
           valorParcela: -Number(est.totalNotaDevolucao),
           modalidadeVenda: null as string | null,
@@ -59,7 +63,7 @@ export class TrierParcETLPipeline implements TrierPipelineStrategy {
           valorTaxas: 0,
         }));
       const estornoParcels = estornoParcelsBruto.filter((x) =>
-        rawData.some((y) => y.documentoFiscal === x.documentoFiscal),
+        rawData.some((y) => y.documentoFiscal === x.documentoFiscalEstorno),
       );
       const rawDataComEstorno = [...rawData, ...estornoParcels];
 
