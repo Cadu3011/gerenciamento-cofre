@@ -124,19 +124,25 @@ export class TrierCardCron {
         authOk.push(r.value);
       } else {
         authFailed.push(filial);
-        if (r.reason.code === 'ETIMEDOUT') {
-          console.error(`[IP NÃO ACESSÍVEL] ${filial.urlLocalTrier}`);
-          context.warn('CRON', `[IP NÃO ACESSÍVEL] ${filial.urlLocalTrier}`);
-          return { success: false, message: 'IP não acessível' };
+        const reason = r.reason;
+        const networkErrors = [
+          'ETIMEDOUT',
+          'ECONNABORTED',
+          'ECONNREFUSED',
+          'EHOSTUNREACH',
+          'ENETUNREACH',
+        ];
+
+        if (networkErrors.includes(reason?.code)) {
+          this.logger.error(`[IP NÃO ACESSÍVEL] ${filial.urlLocalTrier}`);
+
+          context.error(
+            'CRON',
+            `[IP NÃO ACESSÍVEL] ${filial.urlLocalTrier} Filial: ${filial.name}`,
+          );
+
+          return;
         }
-        this.logger.warn(
-          `[AUTH FAIL 1ª] filial=${filial.id} url=${filial.urlLocalTrier}`,
-          r.reason,
-        );
-        context.error(
-          'CRON',
-          `[AUTH FAIL 1ª] filial=${filial.id} url=${filial.urlLocalTrier}`,
-        );
       }
     });
 
