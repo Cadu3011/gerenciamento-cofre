@@ -44,7 +44,7 @@ export class JobsController {
       TrierCards: () => this.jobsService.runTrierCards(force),
       TrierMovements: () => this.jobsService.runTrierMovements(force),
       CieloETL: () => this.jobsService.runCieloETL(force),
-
+      ConciParc: () => this.jobsService.runConciParc(force),
       RedeCards: () => this.jobsService.runRedeCards(force),
       ConciCards: () => this.jobsService.runConciCards(force),
       RedeParc: () => this.jobsService.runRedeParc(bigCharge, force),
