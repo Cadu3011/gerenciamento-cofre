@@ -8,6 +8,7 @@ export const categoriasDespesaTrier = [
       "Consumo interno - material de escritório, uniformes, embalagens e impressos",
   },
   { id: 27, descricao: "Prestador serviço (Terceirizado)" },
+  { id: 20, descricao: "Cursos, treinamentos e despesas de viagem" },
   { id: 10, descricao: "Benefícios" },
   { id: 35, descricao: "Manutenção de instalações" },
   { id: 37, descricao: "Despesas com marketing" },
