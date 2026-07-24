@@ -57,12 +57,14 @@ export class CieloService {
       currentStep = 'TRANSFORM';
       context.startStep(currentStep);
       const files: File[] = [];
-
+      const uploadDir = process.env.PATH_LOCAL_UPLOADS!;
       for (const file of fileList) {
-        const buffer = await fs.promises.readFile(file.path);
+        const filePath = path.join(uploadDir, file.name);
+
+        const buffer = await fs.promises.readFile(filePath);
 
         files.push(
-          new File([buffer], path.basename(file.path), {
+          new File([buffer], file.name, {
             type: 'text/plain',
           }),
         );
