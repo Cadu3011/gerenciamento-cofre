@@ -58,14 +58,14 @@ export class CieloService {
       context.startStep(currentStep);
       const files: File[] = [];
 
-      for (const filePath of fileList) {
-        const buffer = await fs.promises.readFile(filePath);
+      for (const file of fileList) {
+        const buffer = await fs.promises.readFile(file.path);
 
-        const file = new File([buffer], path.basename(filePath), {
-          type: 'text/plain',
-        });
-
-        files.push(file);
+        files.push(
+          new File([buffer], path.basename(file.path), {
+            type: 'text/plain',
+          }),
+        );
       }
 
       const vendas =
