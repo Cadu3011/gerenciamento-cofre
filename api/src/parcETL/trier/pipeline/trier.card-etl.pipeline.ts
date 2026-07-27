@@ -38,7 +38,7 @@ export class TrierParcETLPipeline implements TrierPipelineStrategy {
 
       const filialId = rawData.length > 0 ? rawData[0].filialId : null;
 
-      const estornoParcelsBruto = estornos.estornos
+      const estornoParcels = estornos.estornos
         .filter((est) => filialId === null || estornos.codigoLoja === filialId)
         .map((est) => ({
           filialId: estornos.codigoLoja,
@@ -62,9 +62,7 @@ export class TrierParcETLPipeline implements TrierPipelineStrategy {
           numeroParcela: 1,
           valorTaxas: 0,
         }));
-      const estornoParcels = estornoParcelsBruto.filter((x) =>
-        rawData.some((y) => y.documentoFiscal === x.documentoFiscalEstorno),
-      );
+
       const rawDataComEstorno = [...rawData, ...estornoParcels];
 
       context.incrementExtracted(rawDataComEstorno.length);
