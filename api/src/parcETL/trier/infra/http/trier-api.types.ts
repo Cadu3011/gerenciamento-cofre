@@ -1,7 +1,9 @@
 export interface MoveParcExtracted {
   filialId: number;
   codigoCartao: number;
+
   documentoFiscal: number;
+  documentoFiscalEstorno: number | null | undefined;
   idTransacao: string;
   prazoVenda: string;
   valorParcela: number | string;

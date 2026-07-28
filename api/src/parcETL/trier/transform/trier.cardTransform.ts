@@ -46,8 +46,15 @@ export class TrierParcTransform implements TrierTransformStrategy {
             ? vendaParc.documentoFiscal
             : String(vendaParc.idTransacao.replace('RC:', '9000')),
         );
+
         const venda = vendasMap.get(documento);
-        if (!venda) {
+
+        if (
+          !venda &&
+          !vendaParc.documentoFiscalEstorno &&
+          vendaParc.codigoCartao !== 34 &&
+          vendaParc.codigoCartao !== 23
+        ) {
           throw new Error(
             `Venda não encontrada. Documento=${documento} Filial=${vendaParc.filialId}`,
           );
@@ -67,7 +74,7 @@ export class TrierParcTransform implements TrierTransformStrategy {
           modalidadeVenda: vendaParc.modalidadeVenda,
           bandeira: vendaParc.nomeCartao ?? '',
           tipo,
-          vendaId: venda.id,
+          vendaId: venda ? venda.id : null,
           filialId: vendaParc.filialId,
           dataEmissao: new Date(`${vendaParc.dataEmissao}T00:00:00`),
           dataPagamento: vendaParc.dataPagamento
