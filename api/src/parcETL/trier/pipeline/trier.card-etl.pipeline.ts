@@ -27,8 +27,7 @@ export class TrierParcETLPipeline implements TrierPipelineStrategy {
     try {
       currentStep = 'EXTRACT';
       context.startStep(currentStep);
-      const rawDataBruto = await this.extractor.execute(ctx);
-      const rawData = rawDataBruto.filter((x) => x.codigoCartao !== 34);
+      const rawData = await this.extractor.execute(ctx);
 
       const estornos = await this.trierApiClient.getEstornos(
         ctx.date,

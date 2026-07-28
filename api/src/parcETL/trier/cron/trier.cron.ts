@@ -159,7 +159,7 @@ export class TrierParcCron {
 
       const startBase = last._max.dataEmissao
         ? this.toISODate(new Date(last._max.dataEmissao))
-        : '2026-07-10';
+        : '2026-01-01';
 
       const start = this.addDays(startBase, 1);
 
