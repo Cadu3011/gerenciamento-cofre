@@ -398,7 +398,7 @@ model TrierParcela {
   receivableItems   ReceivableItem[]
   statusConciliacao ParcelStatus       @default(PENDENTE)
 
-  conciliacoesItem ConciliacaoParcelaTrier[]
+  conciliacoesItem ConciliacaoParcelaItem[]
 
   createdAt DateTime @default(now())
 
@@ -483,62 +483,99 @@ model CieloParcela {
   @@index([dataVencimento])
 }
 
-model ConciliacaoParcela {
-  id             Int           @id @default(autoincrement())
-  status         ParcelStatus
-  tipoMatch      MatchType?
-  observacao     String?
-  createdAt      DateTime      @default(now())
-  trierItens     ConciliacaoParcelaTrier[]
-  itens          ConciliacaoParcelaItem[]
-  idempotencyKey String        @unique
+model ConciliacaoLote {
+  id              Int      @id @default(autoincrement())
 
-  @@index([status])
+  periodoInicial  DateTime @db.Date
+  periodoFinal    DateTime @db.Date
+
+  algoritmoVersao String
+
+
+
+  totalGrupos     Int      @default(0)
+  conciliados     Int      @default(0)
+  divergentes     Int      @default(0)
+  pendentes       Int      @default(0)
+
+  conciliacoes    ConciliacaoParcela[]
+
+  @@index([periodoInicial, periodoFinal])
 }
 
-model ConciliacaoParcelaTrier {
-  id                    Int                @id @default(autoincrement())
-  conciliacaoParcelaId  Int
-  conciliacaoParcela    ConciliacaoParcela  @relation(fields: [conciliacaoParcelaId], references: [id], onDelete: Cascade)
-  trierParcelaId        Int
-  trierParcela          TrierParcela       @relation(fields: [trierParcelaId], references: [id])
-  idempotencyKey String @unique
-  createdAt             DateTime           @default(now())
+model ConciliacaoParcela {
+  id Int @id @default(autoincrement())
+  observacoes ConciliacaoParcelaObservacao[]
+  conciliacaoLoteId Int
+  conciliacaoLote ConciliacaoLote @relation(fields: [conciliacaoLoteId], references: [id], onDelete: Cascade)
 
-  
-  @@index([trierParcelaId])
+  idempotencyKey String @unique
+
+  status    ParcelStatus
+  tipoMatch MatchType?
+
+  score Int?
+
+  observacao String?
+
+  createdAt DateTime @default(now())
+
+  itens ConciliacaoParcelaItem[]
+
+  @@index([status])
+  @@index([tipoMatch])
 }
 
 model ConciliacaoParcelaItem {
-  id                    Int                @id @default(autoincrement())
-  conciliacaoParcelaId  Int
-  conciliacaoParcela    ConciliacaoParcela  @relation(fields: [conciliacaoParcelaId], references: [id], onDelete: Cascade)
-  redeParcelaId         Int?
-  redeParcela           RedeParcela?        @relation(fields: [redeParcelaId], references: [id])
-  cieloParcelaId        Int?
-  cieloParcela          CieloParcela?       @relation(fields: [cieloParcelaId], references: [id])
-  tipoMatch             MatchType
-  idempotencyKey String @unique
-  divergenciaValor      Boolean             @default(false)
-  divergenciaVencimento Boolean             @default(false)
-  divergenciaValorLiquido Boolean          @default(false)
-  divergenciaParcelas   Boolean             @default(false)
-  divergenciaModalidade Boolean             @default(false)
-  divergenciaBandeira   Boolean             @default(false)
-  createdAt             DateTime            @default(now())
+  id Int @id @default(autoincrement())
 
-  
+  conciliacaoParcelaId Int
+  conciliacaoParcela ConciliacaoParcela @relation(fields: [conciliacaoParcelaId], references: [id], onDelete: Cascade)
+
+  trierParcelaId Int?
+  trierParcela TrierParcela? @relation(fields: [trierParcelaId], references: [id])
+
+  redeParcelaId Int?
+  redeParcela RedeParcela? @relation(fields: [redeParcelaId], references: [id])
+
+  cieloParcelaId Int?
+  cieloParcela CieloParcela? @relation(fields: [cieloParcelaId], references: [id])
+
+  origem OrigemConciliacao
+
+  createdAt DateTime @default(now())
+
   @@index([conciliacaoParcelaId])
+
+  @@index([trierParcelaId])
   @@index([redeParcelaId])
   @@index([cieloParcelaId])
 }
-enum MatchType {
-  NSU
-  VALOR
-  VALOR_DATA
-  MANUAL
-  VENDA_CONCILIADA
+model ConciliacaoParcelaObservacao {
+  id Int @id @default(autoincrement())
+
+  conciliacaoParcelaId Int
+  conciliacaoParcela ConciliacaoParcela @relation(fields: [conciliacaoParcelaId], references: [id], onDelete: Cascade)
+
+  tipo ObservacaoConciliacao
 }
+
+enum ObservacaoConciliacao {
+  PARCELAS_NAO_ENCONTRADAS
+  DIVERGENCIA_VALOR
+  DIVERGENCIA_VENCIMENTO
+  DIVERGENCIA_VALOR_LIQUIDO
+  DIVERGENCIA_QUANTIDADE_PARCELAS
+}
+
+enum MatchType {
+   NSU 
+   VALOR 
+   VALOR_DATA 
+   MANUAL 
+   VENDA_CONCILIADA 
+   }
+
 
 model Receivable {
   id Int @id @default(autoincrement())

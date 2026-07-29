@@ -1,9 +1,10 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { ExtractParc } from './repository/extract-parc';
 import { ConciliacaoParcMatch } from './conciliacao-parc.match';
-import { Prisma } from '@prisma/client';
+import { ObservacaoConciliacao, Prisma } from '@prisma/client';
 import { PrismaService } from 'src/database/prisma.service';
 import { ConciliacaoGrupo } from './repository/contract';
+import { JobExecutionContext } from 'src/jobs/jobs.execContext.service';
 
 @Injectable()
 export class ConciliacaoParcPipeline {
@@ -18,26 +19,55 @@ export class ConciliacaoParcPipeline {
   @Inject()
   private readonly prisma: PrismaService;
 
-  async execute(date: string, filialId: number) {
-    const { data } = await this.extract.execute(date, filialId);
-    const grupos = this.matchService.match(data);
+  async execute(date: string, filialId: number, context: JobExecutionContext, loteId: number) {
+    let currentStep = '';
+    try {
+      currentStep = 'EXTRACT';
+      context.startStep(currentStep);
+      const { data } = await this.extract.execute(date, filialId);
+      await context.endStep(
+        currentStep,
+        `Filial ${filialId} Data ${date} - Trier: ${data.trier.length}, Rede: ${data.rede.length}, Cielo: ${data.cielo.length}`,
+      );
 
-    this.logger.log(
-      `Filial ${filialId} Data ${date} - ${grupos.length} grupos processados`,
-    );
+      currentStep = 'MATCH';
+      context.startStep(currentStep);
+      const grupos = this.matchService.match(data);
+      const conciliados = grupos.filter((g) => g.status === 'CONCILIADO').length;
+      const divergentes = grupos.filter((g) => g.status === 'DIVERGENTE').length;
+      const naoEncontrados = grupos.filter((g) => g.status === 'NAO_ENCONTRADO').length;
+      context.incrementExtracted(grupos.length);
+      await context.endStep(
+        currentStep,
+        `Filial ${filialId} Data ${date} - ${grupos.length} grupos (${conciliados} C, ${divergentes} D, ${naoEncontrados} N)`,
+      );
 
-    await this.persistir(filialId, grupos);
+      currentStep = 'PERSIST';
+      context.startStep(currentStep);
+      await this.persistir(filialId, grupos, loteId, context);
+      context.incrementInserted(conciliados + divergentes);
+      await context.endStep(currentStep, `Filial ${filialId} Data ${date} - Persistência concluída`);
 
-    return {
-      total: grupos.length,
-      conciliados: grupos.filter((g) => g.status === 'CONCILIADO').length,
-      divergentes: grupos.filter((g) => g.status === 'DIVERGENTE').length,
-      naoEncontrados: grupos.filter((g) => g.status === 'NAO_ENCONTRADO')
-        .length,
-    };
+      return {
+        total: grupos.length,
+        conciliados,
+        divergentes,
+        naoEncontrados,
+      };
+    } catch (error: any) {
+      context.error(currentStep, error?.message ?? 'Erro desconhecido');
+      throw error;
+    } finally {
+      context.info('PIPELINE', `Pipeline encerrada`);
+    }
   }
 
-  private async persistir(filialId: number, grupos: ConciliacaoGrupo[]) {
+  private async persistir(
+    filialId: number,
+    grupos: ConciliacaoGrupo[],
+    loteId: number,
+    context: JobExecutionContext,
+  ) {
     await this.prisma.$transaction(async (tx) => {
       const conciliados = grupos.filter((g) => g.status === 'CONCILIADO');
       const divergentes = grupos.filter((g) => g.status === 'DIVERGENTE');
@@ -63,9 +93,27 @@ export class ConciliacaoParcPipeline {
         ),
       ];
 
+      // 0. Coleta groupIds afetados ANTES de deletar as junctions
+      const whereJunction = [
+        ...(allTrierIds.length ? [{ trierParcelaId: { in: allTrierIds } }] : []),
+        ...(allRedeIds.length ? [{ redeParcelaId: { in: allRedeIds } }] : []),
+        ...(allCieloIds.length ? [{ cieloParcelaId: { in: allCieloIds } }] : []),
+      ];
+
+      const affectedGrupoIds = whereJunction.length
+        ? [
+            ...new Set(
+              (await tx.conciliacaoParcelaItem.findMany({
+                where: { OR: whereJunction },
+                select: { conciliacaoParcelaId: true },
+              })).map((j) => j.conciliacaoParcelaId),
+            ),
+          ]
+        : [];
+
       // 1. Deleta junctions antigas para IDs sendo processados
       if (allTrierIds.length) {
-        await tx.conciliacaoParcelaTrier.deleteMany({
+        await tx.conciliacaoParcelaItem.deleteMany({
           where: { trierParcelaId: { in: allTrierIds } },
         });
       }
@@ -79,30 +127,24 @@ export class ConciliacaoParcPipeline {
           where: { cieloParcelaId: { in: allCieloIds } },
         });
       }
+      await context.info(
+        'PERSIST',
+        `Junctions deletadas: ${allTrierIds.length} trier, ${allRedeIds.length} rede, ${allCieloIds.length} cielo`,
+      );
 
-      // 2. Limpa grupos órfãos (sem nenhuma junction restante)
-      await tx.conciliacaoParcela.deleteMany({
-        where: {
-          AND: [{ trierItens: { none: {} } }, { itens: { none: {} } }],
-        },
-      });
-
-      // 3. Upsert grupos — key sem status para evitar órfãos
+      // 2. Upsert grupos — key unificada com todos os items
       const gruposCriados = await Promise.all(
         allGroups.map((grupo) => {
-          const trierKey = grupo.trierIds.sort().join(',');
-          const redeKey = grupo.itens
-            .map((i) => i.redeParcelaId)
-            .filter((id): id is number => id != null)
-            .sort()
-            .join(',');
-          const cieloKey = grupo.itens
-            .map((i) => i.cieloParcelaId)
-            .filter((id): id is number => id != null)
+          const allItemKeys = [
+            ...grupo.trierIds.map((id) => `T${id}`),
+            ...grupo.itens.map((i) =>
+              i.redeParcelaId ? `R${i.redeParcelaId}` : `C${i.cieloParcelaId}`,
+            ),
+          ]
             .sort()
             .join(',');
 
-          const key = `PARC|${filialId}|${trierKey}|${redeKey}|${cieloKey}`;
+          const key = `PARC|${filialId}|${allItemKeys}`;
 
           return tx.conciliacaoParcela.upsert({
             where: { idempotencyKey: key },
@@ -116,49 +158,79 @@ export class ConciliacaoParcPipeline {
               tipoMatch: grupo.tipoMatch,
               observacao: grupo.observacao,
               idempotencyKey: key,
+              conciliacaoLoteId: loteId,
             },
           });
         }),
       );
+      await context.info(
+        'PERSIST',
+        `Grupos upserted: ${gruposCriados.length} total`,
+      );
 
-      // 4. Cria junctions novas
-      const trierJunctions = allGroups.flatMap((grupo, idx) =>
-        grupo.trierIds.map((trierId) => ({
+      // 3. Cria junctions novas — Trier, Rede e Cielo todos via ConciliacaoParcelaItem
+      const allItemJunctions = allGroups.flatMap((grupo, idx) => {
+        const trierItems = grupo.trierIds.map((trierId) => ({
           conciliacaoParcelaId: gruposCriados[idx].id,
           trierParcelaId: trierId,
-          idempotencyKey: `PARC_T|${filialId}|${trierId}`,
-        })),
-      );
-      if (trierJunctions.length) {
-        await tx.conciliacaoParcelaTrier.createMany({
-          data: trierJunctions,
-          skipDuplicates: true,
-        });
-      }
+          redeParcelaId: null as number | null,
+          cieloParcelaId: null as number | null,
+          origem: 'TRIER' as const,
+        }));
 
-      const itemJunctions = allGroups.flatMap((grupo, idx) =>
-        grupo.itens.map((item) => ({
+        const rcItems = grupo.itens.map((item) => ({
           conciliacaoParcelaId: gruposCriados[idx].id,
+          trierParcelaId: null as number | null,
           redeParcelaId: item.redeParcelaId ?? null,
           cieloParcelaId: item.cieloParcelaId ?? null,
-          tipoMatch: item.tipoMatch,
-          idempotencyKey: item.redeParcelaId
-            ? `PARC_R|${filialId}|${item.redeParcelaId}`
-            : `PARC_C|${filialId}|${item.cieloParcelaId}`,
-          divergenciaValor: item.divergenciaValor,
-          divergenciaVencimento: item.divergenciaVencimento,
-          divergenciaValorLiquido: item.divergenciaValorLiquido,
-          divergenciaParcelas: item.divergenciaParcelas,
-          divergenciaModalidade: item.divergenciaModalidade,
-          divergenciaBandeira: item.divergenciaBandeira,
-        })),
-      );
-      if (itemJunctions.length) {
+          origem: (item.redeParcelaId ? 'REDE' : 'CIELO') as 'REDE' | 'CIELO',
+        }));
+
+        return [...trierItems, ...rcItems];
+      });
+
+      if (allItemJunctions.length) {
         await tx.conciliacaoParcelaItem.createMany({
-          data: itemJunctions,
-          skipDuplicates: true,
+          data: allItemJunctions,
         });
       }
+      await context.info(
+        'PERSIST',
+        `Junctions criadas: ${allItemJunctions.length} items`,
+      );
+
+      // 4. Cria observações de divergência para cada grupo
+      const observacoes: { conciliacaoParcelaId: number; tipo: ObservacaoConciliacao }[] = [];
+
+      for (const [idx, grupo] of allGroups.entries()) {
+        const parcelaId = gruposCriados[idx].id;
+        const divergencias = new Set<ObservacaoConciliacao>();
+
+        if (grupo.status === 'NAO_ENCONTRADO') {
+          divergencias.add('PARCELAS_NAO_ENCONTRADAS');
+        }
+
+        for (const item of grupo.itens) {
+          if (item.divergenciaValor) divergencias.add('DIVERGENCIA_VALOR' as ObservacaoConciliacao);
+          if (item.divergenciaVencimento) divergencias.add('DIVERGENCIA_VENCIMENTO' as ObservacaoConciliacao);
+          if (item.divergenciaValorLiquido) divergencias.add('DIVERGENCIA_VALOR_LIQUIDO' as ObservacaoConciliacao);
+          if (item.divergenciaParcelas) divergencias.add('DIVERGENCIA_QUANTIDADE_PARCELAS' as ObservacaoConciliacao);
+        }
+
+        for (const tipo of divergencias) {
+          observacoes.push({ conciliacaoParcelaId: parcelaId, tipo });
+        }
+      }
+
+      if (observacoes.length) {
+        await tx.conciliacaoParcelaObservacao.createMany({
+          data: observacoes,
+        });
+      }
+      await context.info(
+        'PERSIST',
+        `Observações criadas: ${observacoes.length} registros`,
+      );
 
       // 5. Atualiza status nas fontes
       const trierConciliados = conciliados.flatMap((g) => g.trierIds);
@@ -190,9 +262,22 @@ export class ConciliacaoParcPipeline {
       if (allCieloIds.length) {
         await this.atualizarStatusAdquirente(tx, 'cielo', allCieloIds);
       }
-    });
+      await context.info(
+        'PERSIST',
+        `Status atualizados: ${trierConciliados.length + trierDivergentes.length + trierNaoEncontrados.length} trier, ${allRedeIds.length} rede, ${allCieloIds.length} cielo`,
+      );
 
-    this.logger.log(`Filial ${filialId} - Persistência concluída`);
+      // 6. Limpa grupos órfãos (apenas os afetados por esta execução)
+      if (affectedGrupoIds.length) {
+        const orfosDeletados = await tx.conciliacaoParcela.deleteMany({
+          where: {
+            id: { in: affectedGrupoIds },
+            itens: { none: {} },
+          },
+        });
+        await context.info('PERSIST', `Órfãos limpos: ${orfosDeletados.count} registros`);
+      }
+    }, { timeout: 60000 });
   }
 
   private async atualizarStatusAdquirente(

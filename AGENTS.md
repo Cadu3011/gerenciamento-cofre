@@ -4,7 +4,7 @@
 
 Two independent packages (no monorepo tooling, no root `package.json`):
 
-- **`api/`** — NestJS backend (TypeScript, Prisma ORM, MySQL)
+- **`api/`** — NestJS 10 backend (TypeScript, Prisma ORM, MySQL)
 - **`web/`** — Next.js 16 frontend (App Router, Tailwind CSS, React 19, shadcn/ui)
 
 Each has its own `package.json` and `package-lock.json`. Install dependencies separately in each directory.
@@ -36,11 +36,11 @@ npm run lint                    # next lint
 
 ## Ports & Reverse Proxy
 
-| Service | Dev Port | Production Proxy (Nginx) |
-|---------|----------|--------------------------|
-| Web     | 5000     | localhost:3000 → `/`      |
-| API     | 4000     | localhost:3000 → `/api`   |
-| Socket.IO | 4000   | localhost:3000 → `/socket.io/` |
+| Service   | Dev Port | Production Proxy (Nginx) |
+|-----------|----------|--------------------------|
+| Web       | 5000     | localhost:3000 → `/`      |
+| API       | 4000     | localhost:3000 → `/api`   |
+| Socket.IO | 4000     | localhost:3000 → `/socket.io/` |
 
 Nginx config is documented in `api/README.md`. The web frontend calls the API through Nginx in production.
 
@@ -74,6 +74,18 @@ Nginx config is documented in `api/README.md`. The web frontend calls the API th
 - Token expiry: 3600s (set in `api/src/auth/auth.module.ts`)
 - JWT payload: `{ sub, roles, filialId }` — OPERADOR tokens also include `cofreIdTrier` and `tokenTrier`
 
+### API Auth Guard (critical detail)
+
+The guard (`api/src/auth/auth.guard.ts`) is **not global** — it's applied per-route via `@UseGuards(AuthGuard)`. Behavior depends on what decorators are present:
+
+| Decorators | Behavior |
+|---|---|
+| No `@UseGuards()` | Completely unprotected — no auth at all |
+| `@UseGuards(AuthGuard)` only | Requires `Authorization: Bearer` header but does NOT verify the JWT signature |
+| `@UseGuards(AuthGuard)` + `@Roles()` | Full JWT verification + role check |
+
+When adding new endpoints, always apply `@UseGuards(AuthGuard)` and `@Roles()` explicitly — don't assume any auth is in place.
+
 ## Testing
 
 - Unit tests: `*.spec.ts` files co-located with source in `api/src/`
@@ -101,4 +113,3 @@ Nginx config is documented in `api/README.md`. The web frontend calls the API th
 - `conciliacao.service copy.ts` exists (backup/leftover file) — ignore it
 - No CI/CD config found in repo — deployment process is manual (PM2 + Nginx)
 - The `web/next.config.ts` allows CORS origins `localhost:3000` and `177.200.115.10:3000` for server actions
-- The API guard (`api/src/auth/auth.guard.ts`) skips **all** auth (JWT verification + role check) on routes without `@Roles()` — only decorated routes are protected

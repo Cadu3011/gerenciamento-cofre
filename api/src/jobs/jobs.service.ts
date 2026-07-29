@@ -382,13 +382,13 @@ export class JobsService {
   }
 
   @Cron('25,50 8,10,13 * * 1-7')
-  runConciParc(force?: boolean) {
+  runConciParc(bigCharge?: boolean, force?: boolean) {
     return this.runCronJob(
       'ConciParc',
       async (context) => {
-        await this.conciParcPipeline.execute(context);
+        await this.conciParcPipeline.execute(context, bigCharge);
       },
-      { force: true },
+      { force: true, logLevel: bigCharge ? 'WARN_ERROR' : 'ALL' },
     );
   }
 
