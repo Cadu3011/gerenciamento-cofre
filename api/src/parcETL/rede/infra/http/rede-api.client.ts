@@ -8,6 +8,9 @@ export class RedeApiClient {
   private readonly redeService: RedeService;
 
   async getParcelasCartao(authData: RedeAuth): Promise<RedeParcExtracted[]> {
-    return this.redeService.findParcDetails(authData.idRede, authData.date);
+    return await this.redeService.findParcDetails(
+      authData.idRede,
+      authData.date,
+    );
   }
 }
