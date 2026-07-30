@@ -31,13 +31,14 @@ export class RedeParcTransform implements RedeTransformStrategy<
     if (!filial) {
       throw new Error('Filial não encontrada');
     }
+
     const vendas = await this.prisma.redeVenda.findMany({
       where: {
         nsu: {
-          in: [...nsus],
+          in: Array.from(nsus),
         },
         filialId: filial.id,
-        dataVenda: new Date(`${ctx[0].saleDate}T00:00:00`),
+        dataVenda: new Date(`${ctx[0].saleDate}T00:00:00.000Z`),
       },
     });
 
@@ -46,7 +47,7 @@ export class RedeParcTransform implements RedeTransformStrategy<
       const venda = vendasMap.get(String(item.nsu));
       if (!venda) {
         const error = new Error(
-          `Venda não encontrada. NSU=${item.nsu} Filial=${filial.id}`,
+          `Venda não encontrada. NSU=${item.nsu}, Data=${item.saleDate}, Filial=${filial.id}`,
         ) as Error & {
           obj?: {
             code: string;
