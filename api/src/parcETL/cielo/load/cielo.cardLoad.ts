@@ -23,6 +23,7 @@ export class CieloParcLoad {
             in: [...codTrans],
           },
           estabelecimento: { in: [...estabelecimentos] },
+          dataVenda: String(data[0].dataVenda),
         },
       });
 

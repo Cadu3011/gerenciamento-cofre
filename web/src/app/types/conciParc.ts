@@ -14,7 +14,7 @@ export interface ParcTrier {
   statusConciliacao: string;
 }
 
-export interface ParcOutra {
+export interface ConciliacaoParcItemItem {
   origem: "REDE" | "CIELO";
   id: number;
   nsu: string | null;
@@ -32,21 +32,13 @@ export interface ParcOutra {
   bandeira?: string;
 }
 
-export interface ConciliacaoParcItemItem {
-  id: number;
-  tipoMatch: string | null;
-  divergenciaValor: boolean;
-  divergenciaVencimento: boolean;
-  divergenciaValorLiquido: boolean;
-  divergenciaParcelas: boolean;
-  outra: ParcOutra | null;
-}
-
 export interface ConciliacaoParcItem {
   id: number;
   status: string;
   tipoMatch: string | null;
   observacao: string | null;
+  score: number | null;
+  observacoes: string[];
   createdAt: string;
   triers: ParcTrier[];
   itens: ConciliacaoParcItemItem[];

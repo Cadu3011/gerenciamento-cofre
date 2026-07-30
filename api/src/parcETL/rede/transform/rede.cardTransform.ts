@@ -37,6 +37,7 @@ export class RedeParcTransform implements RedeTransformStrategy<
           in: [...nsus],
         },
         filialId: filial.id,
+        dataVenda: new Date(`${ctx[0].saleDate}T00:00:00`),
       },
     });
 

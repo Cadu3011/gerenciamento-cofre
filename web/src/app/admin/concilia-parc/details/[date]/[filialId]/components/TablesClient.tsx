@@ -31,19 +31,13 @@ function flattenData(data: ConciliacaoParcItem[]): FlatRow[] {
   const rows: FlatRow[] = [];
 
   for (const grupo of data) {
+    const obs = new Set(grupo.observacoes ?? []);
+    const divValor = obs.has("DIVERGENCIA_VALOR");
+    const divVencimento = obs.has("DIVERGENCIA_VENCIMENTO");
+    const divValorLiquido = obs.has("DIVERGENCIA_VALOR_LIQUIDO");
+    const divParcelas = obs.has("DIVERGENCIA_QUANTIDADE_PARCELAS");
+
     for (const t of grupo.triers) {
-      let divValor = false;
-      let divVencimento = false;
-      let divValorLiquido = false;
-      let divParcelas = false;
-
-      for (const item of grupo.itens) {
-        if (item.divergenciaValor) divValor = true;
-        if (item.divergenciaVencimento) divVencimento = true;
-        if (item.divergenciaValorLiquido) divValorLiquido = true;
-        if (item.divergenciaParcelas) divParcelas = true;
-      }
-
       rows.push({
         groupId: grupo.id,
         groupStatus: grupo.status,
@@ -67,30 +61,27 @@ function flattenData(data: ConciliacaoParcItem[]): FlatRow[] {
     }
 
     for (const item of grupo.itens) {
-      const outra = item.outra;
-      if (!outra) continue;
-
       rows.push({
         groupId: grupo.id,
         groupStatus: grupo.status,
         tipoMatch: grupo.tipoMatch,
-        origem: outra.origem,
-        nsu: outra.nsu,
-        parcela: outra.parcela,
-        totalParcelas: outra.totalParcelas,
-        modalidade: outra.modalidade ?? null,
-        bandeira: outra.bandeira ?? null,
-        valor: outra.valor,
-        valorLiquido: outra.valorLiquido,
-        taxa: outra.taxa,
+        origem: item.origem,
+        nsu: item.nsu,
+        parcela: item.parcela,
+        totalParcelas: item.totalParcelas,
+        modalidade: item.modalidade ?? null,
+        bandeira: item.bandeira ?? null,
+        valor: item.valor,
+        valorLiquido: item.valorLiquido,
+        taxa: item.taxa,
         vencimento:
-          outra.origem === "REDE"
-            ? (outra.vencimento ?? "")
-            : (outra.dataVencimento ?? ""),
-        divergenciaValor: item.divergenciaValor,
-        divergenciaVencimento: item.divergenciaVencimento,
-        divergenciaValorLiquido: item.divergenciaValorLiquido,
-        divergenciaParcelas: item.divergenciaParcelas,
+          item.origem === "REDE"
+            ? (item.vencimento ?? "")
+            : (item.dataVencimento ?? ""),
+        divergenciaValor: divValor,
+        divergenciaVencimento: divVencimento,
+        divergenciaValorLiquido: divValorLiquido,
+        divergenciaParcelas: divParcelas,
       });
     }
   }
@@ -186,7 +177,7 @@ export default function TablesClient({
   const totalOutraValor = data.reduce(
     (sum, g) =>
       sum +
-      g.itens.reduce((s, i) => s + (i.outra ? Number(i.outra.valor) : 0), 0),
+      g.itens.reduce((s, i) => s + Number(i.valor), 0),
     0,
   );
   const diferencaValor = totalTrierValor - totalOutraValor;
@@ -199,7 +190,7 @@ export default function TablesClient({
     (sum, g) =>
       sum +
       g.itens.reduce(
-        (s, i) => s + (i.outra ? Number(i.outra.valorLiquido) : 0),
+        (s, i) => s + Number(i.valorLiquido),
         0,
       ),
     0,

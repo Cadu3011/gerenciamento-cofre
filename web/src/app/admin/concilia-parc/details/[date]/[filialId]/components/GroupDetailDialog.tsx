@@ -61,14 +61,9 @@ export default function GroupDetailDialog({
 
   const triers = grupo.triers;
   const itens = grupo.itens;
+  const obs = new Set(grupo.observacoes ?? []);
 
-  const hasAnyDivergence = itens.some(
-    (i) =>
-      i.divergenciaValor ||
-      i.divergenciaVencimento ||
-      i.divergenciaValorLiquido ||
-      i.divergenciaParcelas,
-  );
+  const hasAnyDivergence = obs.size > 0;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -146,18 +141,15 @@ export default function GroupDetailDialog({
         {itens.length > 0 && (
           <div className="space-y-4">
             {itens.map((item) => {
-              const outra = item.outra;
-              if (!outra) return null;
-
               const vencimento =
-                outra.origem === "REDE"
-                  ? outra.vencimento
-                  : outra.dataVencimento;
+                item.origem === "REDE"
+                  ? item.vencimento
+                  : item.dataVencimento;
 
               return (
                 <div key={item.id} className="space-y-2">
                   <h3 className="text-sm font-bold uppercase text-orange-700">
-                    {outra.origem}
+                    {item.origem}
                   </h3>
                   <Table>
                     <TableHeader>
@@ -176,18 +168,18 @@ export default function GroupDetailDialog({
                     <TableBody>
                       <TableRow>
                         <TableCell className="font-mono text-xs">
-                          {outra.nsu ?? "-"}
+                          {item.nsu ?? "-"}
                         </TableCell>
                         <TableCell className="text-center">
-                          {outra.parcela}/{outra.totalParcelas}
+                          {item.parcela}/{item.totalParcelas}
                         </TableCell>
-                        <TableCell>{outra.modalidade ?? "-"}</TableCell>
-                        <TableCell>{outra.bandeira ?? "-"}</TableCell>
+                        <TableCell>{item.modalidade ?? "-"}</TableCell>
+                        <TableCell>{item.bandeira ?? "-"}</TableCell>
                         <TableCell className="text-right font-bold">
-                          {formatCurrency(outra.valor)}
+                          {formatCurrency(item.valor)}
                         </TableCell>
                         <TableCell className="text-right">
-                          {formatCurrency(outra.valorLiquido)}
+                          {formatCurrency(item.valorLiquido)}
                         </TableCell>
                         <TableCell className="text-right">
                           {vencimento ? formatDate(vencimento) : "-"}
@@ -204,40 +196,20 @@ export default function GroupDetailDialog({
         {hasAnyDivergence && (
           <div className="space-y-2 border-t pt-4">
             <h3 className="text-sm font-bold text-gray-700">Divergencias</h3>
-            {itens.map((item) => {
-              const outra = item.outra;
-              if (!outra) return null;
-
-              const divergences = [
-                { active: item.divergenciaValor, label: "Valor" },
-                { active: item.divergenciaVencimento, label: "Vencimento" },
-                {
-                  active: item.divergenciaValorLiquido,
-                  label: "Vl. Liquido",
-                },
-                { active: item.divergenciaParcelas, label: "Parcelas" },
-              ];
-
-              const hasDivergence = divergences.some((d) => d.active);
-              if (!hasDivergence) return null;
-
-              return (
-                <div key={item.id} className="text-sm">
-                  <span className="font-medium">
-                    {outra.origem} (parc {outra.parcela}/{outra.totalParcelas}):
-                  </span>{" "}
-                  <div className="flex flex-wrap gap-1 mt-1">
-                    {divergences.map((d) => (
-                      <DivergenceBadge
-                        key={d.label}
-                        active={d.active}
-                        label={d.label}
-                      />
-                    ))}
-                  </div>
-                </div>
-              );
-            })}
+            <div className="flex flex-wrap gap-1">
+              {obs.has("DIVERGENCIA_VALOR") && (
+                <DivergenceBadge active label="Valor" />
+              )}
+              {obs.has("DIVERGENCIA_VENCIMENTO") && (
+                <DivergenceBadge active label="Vencimento" />
+              )}
+              {obs.has("DIVERGENCIA_VALOR_LIQUIDO") && (
+                <DivergenceBadge active label="Vl. Liquido" />
+              )}
+              {obs.has("DIVERGENCIA_QUANTIDADE_PARCELAS") && (
+                <DivergenceBadge active label="Parcelas" />
+              )}
+            </div>
           </div>
         )}
 
