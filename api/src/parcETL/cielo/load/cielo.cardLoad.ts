@@ -17,13 +17,14 @@ export class CieloParcLoad {
       const estabelecimentos = [
         ...new Set(data.map((x) => String(x.estabelecimento))),
       ];
+      console.log(data[0].dataVenda.toISOString().split('T')[0]);
       const vendas = await this.Prisma.cartaoVendas.findMany({
         where: {
           codigoTransacao: {
             in: [...codTrans],
           },
           estabelecimento: { in: [...estabelecimentos] },
-          dataVenda: String(data[0].dataVenda),
+          dataVenda: data[0].dataVenda.toISOString().split('T')[0],
         },
       });
 
