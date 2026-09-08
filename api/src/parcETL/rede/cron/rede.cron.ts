@@ -61,7 +61,7 @@ export class RedeParcCron {
           ? this.toISODate(new Date(last._max.dataVenda))
           : '2026-01-01';
 
-        const start = this.addDays(startBase, 1);
+        const start = this.addDays(startBase, -2);
 
         if (this.diffDays(start, dMinus1) > 10 && !bigCharge) {
           const error = new Error(

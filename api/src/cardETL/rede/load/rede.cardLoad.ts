@@ -28,6 +28,8 @@ export class RedeCardLoad implements RedeLoadStrategy {
         );
 
         // 🔥 fallback item por item
+        let insertedIndividualError = 0;
+
         for (const item of chunk) {
           try {
             await this.prisma.redeVenda.create({
@@ -35,12 +37,16 @@ export class RedeCardLoad implements RedeLoadStrategy {
             });
             inserted++;
           } catch (itemError: any) {
-            console.error(`❌ Erro ao inserir item:`, {
-              idempotencyKey: item.idempotencyKey,
-              erro: itemError.message,
-            });
+            insertedIndividualError++;
           }
         }
+        console.error(`❌ Erro ao inserir itens:`, {
+          quantidade: insertedIndividualError,
+          amostra: chunk.slice(0, 5).map((item) => ({
+            idempotencyKey: item.idempotencyKey,
+            erro: 'Erro ao inserir item',
+          })),
+        });
       }
     }
     return inserted;

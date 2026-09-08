@@ -36,6 +36,8 @@ export class RedeParcLoad implements RedeLoadStrategy {
         );
 
         // 🔥 fallback item por item
+
+        let insertedIndividualError = 0;
         for (const item of chunk) {
           try {
             await this.prisma.redeParcela.create({
@@ -43,18 +45,25 @@ export class RedeParcLoad implements RedeLoadStrategy {
             });
             inserteds++;
           } catch (itemError: any) {
-            console.error(`❌ Erro ao inserir item:`, {
-              idempotencyKey: item.idempotencyKey,
-              erro: itemError.message,
-            });
-            context.error(
-              'LOAD',
-              `❌ Erro ao inserir item: ${{
-                idempotencyKey: item.idempotencyKey,
-                erro: itemError.message,
-              }}`,
-            );
+            insertedIndividualError++;
           }
+          console.error(`❌ Erro ao inserir itens:`, {
+            quantidade: insertedIndividualError,
+            amostra: chunk.slice(0, 5).map((item) => ({
+              idempotencyKey: item.idempotencyKey,
+              erro: 'Erro ao inserir item',
+            })),
+          });
+          context.warn(
+            'LOAD',
+            `❌ Erro ao inserir item: ${{
+              quantidade: insertedIndividualError,
+              amostra: chunk.slice(0, 5).map((item) => ({
+                idempotencyKey: item.idempotencyKey,
+                erro: 'Erro ao inserir item',
+              })),
+            }}`,
+          );
         }
       }
     }

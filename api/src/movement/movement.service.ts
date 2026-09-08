@@ -703,7 +703,7 @@ export class MovementService {
       _min: { sale_date: true },
     });
     const diferenca = vendaTotal[0]?._sum.valor.sub(moveCreate.value);
-    this.trierService.createDifCaixa({
+    await this.trierService.createDifCaixa({
       data: vendaTotal[0]?._min.sale_date,
       caixa: String(vendaTotal[0]?.numCaixa),
       operador: null,
