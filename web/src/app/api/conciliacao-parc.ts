@@ -56,6 +56,33 @@ export async function getParcelasDivergentes(
   return res.json();
 }
 
+export async function getParcDashboard(query: string) {
+  const token = await getToken();
+  const res = await fetch(`${API}/conciliacao-parc/dashboard/parcelas?${query}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) return null;
+  return res.json();
+}
+
+export async function getParcAReceber(query: string) {
+  const token = await getToken();
+  const res = await fetch(`${API}/conciliacao-parc/dashboard/a-receber?${query}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) return null;
+  return res.json();
+}
+
+export async function getParcBandeiras(): Promise<string[]> {
+  const token = await getToken();
+  const res = await fetch(`${API}/conciliacao-parc/dashboard/bandeiras`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) return [];
+  return res.json();
+}
+
 export async function executePipelineParc(
   filialId: number,
   date: string,

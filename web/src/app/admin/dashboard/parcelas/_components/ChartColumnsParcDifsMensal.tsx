@@ -1,0 +1,140 @@
+"use client";
+import {
+  ChartConfig,
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+} from "@/components/ui/chart";
+import {
+  CartesianGrid,
+  XAxis,
+  Bar,
+  BarChart,
+  LabelList,
+  YAxis,
+  ReferenceLine,
+  Cell,
+} from "recharts";
+
+const chartConfig = {
+  diferenca: { label: "Diferença", color: "#dc2626" },
+} satisfies ChartConfig;
+
+interface Props {
+  data: {
+    mes: string;
+    trier: number;
+    adquirentes: number;
+    diferenca: number;
+  }[];
+}
+
+function formatMes(mes: string) {
+  const [ano, m] = mes.split("-");
+  const meses = [
+    "Jan",
+    "Fev",
+    "Mar",
+    "Abr",
+    "Mai",
+    "Jun",
+    "Jul",
+    "Ago",
+    "Set",
+    "Out",
+    "Nov",
+    "Dez",
+  ];
+  return `${meses[parseInt(m, 10) - 1]}/${ano}`;
+}
+
+export default function ChartColumnsParcDifsMensal({ data }: Props) {
+  const values = data.flatMap((item) => [item.diferenca]);
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const yMin = min < 0 ? min * 1.1 : 0;
+  const yMax = max > 0 ? max * 1.1 : 0;
+
+  const maxAbs = Math.max(Math.abs(min), Math.abs(max), 1);
+  const threshold = maxAbs * 0.05;
+
+  const getBarColor = (diferenca: number) =>
+    diferenca >= -threshold && diferenca <= threshold
+      ? "#22c55e"
+      : diferenca > threshold
+        ? "#ca8a04"
+        : "#ef4444";
+
+  return (
+    <div className="h-full w-1/2 flex flex-col">
+      <div className="flex justify-between items-center">
+        <div className="flex items-center gap-6">
+          <p className="font-bold">Diferença Trier vs Adquirentes por Mês</p>
+          <div className="flex gap-4 text-sm">
+            <div className="flex items-center gap-2">
+              <div className="h-3 w-3 rounded-full bg-[#22c55e]" />
+              <span>Moderado</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="h-3 w-3 rounded-full bg-[#ef4444]" />
+              <span>Falta (Trier &lt; Adq)</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="h-3 w-3 rounded-full bg-[#ca8a04]" />
+              <span>Sobra (Trier &gt; Adq)</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <ChartContainer config={chartConfig} className="h-full w-full">
+        <BarChart accessibilityLayer data={data}>
+          <CartesianGrid vertical={false} />
+          <XAxis
+            dataKey="mes"
+            tickLine={false}
+            tickMargin={10}
+            axisLine={false}
+            tick={{ fill: "#000" }}
+            tickFormatter={formatMes}
+          />
+          <ReferenceLine y={0} />
+          <YAxis
+            domain={[yMin, yMax]}
+            tickFormatter={(value) =>
+              Intl.NumberFormat("pt-BR", {
+                notation: "compact",
+                maximumFractionDigits: 1,
+              }).format(value)
+            }
+          />
+          <ChartTooltip content={<ChartTooltipContent />} />
+          <Bar dataKey="diferenca" radius={4}>
+            {data.map((entry, index) => (
+              <Cell key={index} fill={getBarColor(entry.diferenca)} />
+            ))}
+            <LabelList
+              content={(props) => {
+                const { x, y, value } = props;
+                if (!value || Number(value) === 0) return null;
+                return (
+                  <text
+                    x={Number(x)}
+                    y={Number(y) - 8}
+                    textAnchor="middle"
+                    fontSize={11}
+                    fill="#000"
+                  >
+                    {Number(value).toLocaleString("pt-BR", {
+                      minimumFractionDigits: 0,
+                      maximumFractionDigits: 2,
+                    })}
+                  </text>
+                );
+              }}
+            />
+          </Bar>
+        </BarChart>
+      </ChartContainer>
+    </div>
+  );
+}

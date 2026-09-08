@@ -59,6 +59,12 @@ export default async function Admin() {
             Conciliação de Parcelas
           </Link>
           <Link
+            href="/admin/dashboard/parcelas"
+            className="hover:bg-green-400 bg-white py-5 px-5 rounded-md"
+          >
+            Dashboard Parcelas
+          </Link>
+          <Link
             href="/admin/conferir-caixas"
             className="hover:bg-green-400 bg-white py-5 px-5 rounded-md"
           >

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Banknote, CreditCard, Filter, X } from "lucide-react";
+import { Banknote, CreditCard, Filter, Percent, X } from "lucide-react";
 import { FilterDateRange } from "./FilterDateRange";
 import FilterFilial, { Filial } from "./FilterFilial";
 import { Button } from "@/components/ui/button";
@@ -76,6 +76,24 @@ export default function SidebarFilter({ filiais }: { filiais: Filial[] }) {
           </TooltipTrigger>
           <TooltipContent side="right" className="bg-white">
             <p>Diferença de Caixas</p>
+          </TooltipContent>
+        </Tooltip>
+
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Link href={"/admin/dashboard/parcelas"}>
+              <Button
+                variant={"ghost"}
+                size={"lg"}
+                aria-label="Abrir menu"
+                className="inline-flex text-white h-8 w-8 items-center justify-center overflow-hidden rounded-full sm:h-10 sm:w-10"
+              >
+                <Percent />
+              </Button>
+            </Link>
+          </TooltipTrigger>
+          <TooltipContent side="right" className="bg-white">
+            <p>Parcelas</p>
           </TooltipContent>
         </Tooltip>
       </TooltipProvider>

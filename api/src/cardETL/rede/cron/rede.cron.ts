@@ -61,7 +61,7 @@ export class RedeCardCron {
         : '2026-01-01'; // seu initDate (primeira carga)
 
       // datas faltantes = (startBase + 1) ... D-1
-      const start = date ? date : this.addDays(startBase, 1);
+      const start = date ? date : this.addDays(startBase, -2);
 
       // se start > D-1, não tem nada a fazer
       if (this.diffDays(start, dMinus1) < 0) {
@@ -86,7 +86,7 @@ export class RedeCardCron {
         continue;
       }
       // roda dia a dia
-
+      await context.startDateProgress(progressKey, start, dMinus1);
       while (this.diffDays(current, dMinus1) >= 0) {
         this.logger.log(`ETL Rede filial ${f.name} - dia ${current}`);
         context.info(
@@ -100,14 +100,12 @@ export class RedeCardCron {
           },
           context,
         );
-        await context.startDateProgress(progressKey, start, dMinus1);
 
         current = this.addDays(current, 1);
       }
 
       resultsLastDates.push({ filial: f.id, lastUpdatedDate: dMinus1 });
-
-      return { lastUpdatedByFilial: resultsLastDates };
     }
+    return { lastUpdatedByFilial: resultsLastDates };
   }
 }

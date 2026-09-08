@@ -143,7 +143,7 @@ export class ConciliacaoDashboardService {
             gte: new Date(start),
             lte: new Date(end),
           },
-          bandeira: { not: { contains: 'BRASILCARD' } },
+          bandeira: { notIn: ['BRASILCARD', 'PAGAMENTO ONLINE IFOOD'] },
         },
         _sum: { valor: true },
       });

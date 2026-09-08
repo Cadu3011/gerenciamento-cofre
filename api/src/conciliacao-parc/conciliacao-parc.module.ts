@@ -7,6 +7,7 @@ import { ExtractParc } from './cron/repository/extract-parc';
 import { ConciliacaoParcMatch } from './cron/conciliacao-parc.match';
 import { ConciliacaoParcPipeline } from './cron/conciliacao-parc.pipeline';
 import { ConciParcCron } from './cron/conciliacao-parc.cron';
+import { ConciliacaoParcDashboardService } from './dashboard/conciliacao-parc-dashboard.service';
 
 @Module({
   imports: [DatabaseModule, FilialModule],
@@ -17,6 +18,7 @@ import { ConciParcCron } from './cron/conciliacao-parc.cron';
     ConciliacaoParcMatch,
     ConciliacaoParcPipeline,
     ConciParcCron,
+    ConciliacaoParcDashboardService,
   ],
   exports: [ConciParcCron],
 })
