@@ -7,7 +7,6 @@ import {
 export type TrierAuth = {
   date: string;
   tokenLocalTrier: string;
-  urlLocalTrier: string;
 };
 
 export interface TrierExtractStrategy<TOut = unknown> {

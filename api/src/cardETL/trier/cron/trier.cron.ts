@@ -1,6 +1,5 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { TrierCardETLPipeline } from '../pipeline/trier.card-etl.pipeline.js';
-import { authTrier } from 'src/auth/authTrier/loginTrier';
 import { FilialService } from 'src/filial/filial.service';
 import { PrismaService } from 'src/database/prisma.service';
 import { JobExecutionContext } from 'src/jobs/jobs.execContext.service.js';
@@ -29,15 +28,12 @@ export class TrierCardCron {
     id: number;
     urlLocalTrier: string;
   }): Promise<AuthOk> {
-    const token = (
-      await authTrier(
-        { login: '95', password: 'cadu3011' },
-        filial.urlLocalTrier,
-        filial.id,
-      )
-    ).token;
+    const { tokenTrier } = await this.prisma.filial.findUnique({
+      where: { id: filial.id },
+      select: { tokenTrier: true },
+    });
 
-    return { filial: filial.id, url: filial.urlLocalTrier, token };
+    return { filial: filial.id, url: filial.urlLocalTrier, token: tokenTrier };
   }
 
   private async authWithRetriesAfter(
@@ -231,7 +227,6 @@ export class TrierCardCron {
           {
             date: current,
             tokenLocalTrier: token,
-            urlLocalTrier: url,
           },
           context,
         );
@@ -288,7 +283,6 @@ export class TrierCardCron {
       {
         date,
         tokenLocalTrier: tokenData.token,
-        urlLocalTrier: tokenData.url,
       },
       context,
     );

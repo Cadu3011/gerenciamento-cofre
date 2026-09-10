@@ -8,7 +8,6 @@ import { Prisma } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from 'src/database/prisma.service';
-import { authTrier } from './authTrier/loginTrier';
 
 @Injectable()
 export class AuthService {
@@ -39,15 +38,22 @@ export class AuthService {
         where: { id: user.filialId },
       });
 
+      // this.tokenTrier = (
+      //   await authTrier(
+      //     {
+      //       login: String(params.login),
+      //       password: params.password,
+      //     },
+      //     filial.urlLocalTrier,
+      //   )
+      // ).token;
       this.tokenTrier = (
-        await authTrier(
-          {
-            login: String(params.login),
-            password: params.password,
-          },
-          filial.urlLocalTrier,
-        )
-      ).token;
+        await this.prisma.filial.findUnique({
+          where: { id: filial.id },
+          select: { tokenTrier: true },
+        })
+      ).tokenTrier;
+
       const payload = {
         sub: user.id,
         roles: user.role,

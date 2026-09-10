@@ -4,10 +4,9 @@ export class TrierApiClient {
   async getParcelasCartao(
     date: string,
     tokenLocalTrier: string,
-    urlLocalTrier: string,
   ): Promise<MoveParcExtracted[]> {
     const res = await fetch(
-      `http://${urlLocalTrier}:4647/sgfpod1/rest/integracao/parcelas-cartao/obter-todos-v1?primeiroRegistro=0&dataEmissaoInicial=${date}&dataEmissaoFinal=${date}`,
+      `${process.env.API_TRIER_URL}/sgfpod1/rest/integracao/parcelas-cartao/obter-todos-v1?primeiroRegistro=0&dataEmissaoInicial=${date}&dataEmissaoFinal=${date}`,
       { headers: { Authorization: `Bearer ${tokenLocalTrier}` } },
     );
     if (!res.ok) {
@@ -28,10 +27,9 @@ export class TrierApiClient {
   async getEstornos(
     date: string,
     tokenLocalTrier: string,
-    urlLocalTrier: string,
   ): Promise<EstornoResponse> {
     const res = await fetch(
-      `http://${urlLocalTrier}:4647/sgfpod1/rest/integracao/parcelas-cartao/estorno-v1?primeiroRegistro=0&dataEmissaoInicial=${date}&dataEmissaoFinal=${date}`,
+      `${process.env.API_TRIER_URL}/sgfpod1/rest/integracao/parcelas-cartao/estorno-v1?primeiroRegistro=0&dataEmissaoInicial=${date}&dataEmissaoFinal=${date}`,
       { headers: { Authorization: `Bearer ${tokenLocalTrier}` } },
     );
     if (!res.ok) {

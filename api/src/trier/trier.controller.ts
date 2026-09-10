@@ -12,7 +12,6 @@ import {
   Patch,
 } from '@nestjs/common';
 import { TrierService } from './trier.service';
-import { authTrier } from 'src/auth/authTrier/loginTrier';
 import { PrismaService } from 'src/database/prisma.service';
 import { Roles } from 'src/auth/role.decorator';
 import { AuthGuard } from 'src/auth/auth.guard';
@@ -132,9 +131,10 @@ export class TrierController {
     });
 
     return {
-      tokenLocalTrier: (
-        await authTrier(credentials, filial.urlLocalTrier, filial.id)
-      ).token,
+      // tokenLocalTrier: (
+      //   await authTrier(credentials, filial.urlLocalTrier, filial.id)
+      // ).token,
+      tokenLocalTrier: filial.tokenTrier,
     };
   }
 

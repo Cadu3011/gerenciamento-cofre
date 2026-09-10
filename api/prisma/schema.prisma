@@ -130,6 +130,7 @@ model Filial {
   idCielo          String?
   idRede           String?
   urlLocalTrier    String?
+  tokenTrier       String? @db.VarChar(2048)
   cashRegister     SalesDin[]          @relation("FilialAndSalesDin")
   saldo            DailyBalance[]      @relation("FiliaAndDayBalancy")
   movements        Movimentations[]    @relation("FiliaAndMovimentations")
