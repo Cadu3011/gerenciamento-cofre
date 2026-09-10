@@ -238,13 +238,15 @@ export class TrierService {
     const filial = await this.prisma.filial.findUnique({
       where: { id: filialId },
     });
-    const token = (
-      await authTrier(
-        { login: '95', password: 'cadu3011' },
-        filial.urlLocalTrier,
-        filialId,
-      )
-    ).token;
+    // const token = (
+    //   await authTrier(
+    //     { login: '95', password: 'cadu3011' },
+    //     filial.urlLocalTrier,
+    //     filialId,
+    //   )
+    // ).token;
+
+    const token = filial.tokenTrier;
     const docSales = await this.prisma.salesDin.findMany({
       where: { numCaixa: caixa, filialId, tipo: 'REC_VENDA' },
     });
@@ -262,22 +264,26 @@ export class TrierService {
     }*/
 
     // 1. Buscar vendas na Trier em paralelo
-    const vendasTrier = await Promise.all(
-      docSales.map(async (sale) => {
-        const res = await fetch(
-          `http://${filial.urlLocalTrier}:4647/sgfpod1/rest/integracao/venda/obter-v1?primeiroRegistro=0&quantidadeRegistros=1&numeroNota=${sale.numNota}`,
-          {
-            method: 'GET',
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          },
-        );
+    const params = new URLSearchParams();
 
-        const data = await res.json();
-        return data[0]?.codigoVendedor;
-      }),
+    for (const sale of docSales) {
+      params.append('numeroNota', String(sale.numNota));
+    }
+
+    const queryDocSales = params.toString();
+
+    const res = await fetch(
+      `${process.env.API_TRIER_URL}/sgfpod1/rest/integracao/venda/obter-v1?primeiroRegistro=0&quantidadeRegistros=999&${queryDocSales}`,
+      {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      },
     );
+
+    const data = await res.json();
+    const vendasTrier = data.map((sale) => sale.codigoVendedor);
 
     // 2. Filtrar códigos válidos
     const sellers = vendasTrier.filter(Boolean);
@@ -300,7 +306,7 @@ export class TrierService {
     }
 
     const resSeller = await fetch(
-      `http://${filial.urlLocalTrier}:4647/sgfpod1/rest/integracao/vendedor/obter-v1?primeiroRegistro=0&quantidadeRegistros=1&codigo=${mostFrequentSellerId}`,
+      `${process.env.API_TRIER_URL}/sgfpod1/rest/integracao/vendedor/obter-v1?primeiroRegistro=0&quantidadeRegistros=1&codigo=${mostFrequentSellerId}`,
       {
         method: 'GET',
         headers: {

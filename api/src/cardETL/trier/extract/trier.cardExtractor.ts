@@ -14,23 +14,19 @@ export class TrierCardExtractor implements TrierExtractStrategy<MoveCardsExtract
   private trierApiClient: TrierApiClient;
 
   async execute(ctx: TrierAuth): Promise<MoveCardsExtracted> {
-    const [vendas, devolucoes, vendasParcela] = await Promise.all([
-      this.trierApiClient.getVendas(
-        ctx.date,
-        ctx.tokenLocalTrier,
-        ctx.urlLocalTrier,
-      ),
-      this.trierApiClient.getCancelamentos(
-        ctx.date,
-        ctx.tokenLocalTrier,
-        ctx.urlLocalTrier,
-      ),
-      this.trierApiClient.getParcelasCartao(
-        ctx.date,
-        ctx.tokenLocalTrier,
-        ctx.urlLocalTrier,
-      ),
-    ]);
+    const vendas = await this.trierApiClient.getVendas(
+      ctx.date,
+      ctx.tokenLocalTrier,
+    );
+    const devolucoes = await this.trierApiClient.getCancelamentos(
+      ctx.date,
+      ctx.tokenLocalTrier,
+    );
+    const vendasParcela = await this.trierApiClient.getParcelasCartao(
+      ctx.date,
+      ctx.tokenLocalTrier,
+    );
+
     if (isApiError(vendas)) {
       console.error(vendas.message);
       throw vendas.message;

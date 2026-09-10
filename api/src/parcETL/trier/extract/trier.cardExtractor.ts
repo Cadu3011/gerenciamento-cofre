@@ -18,7 +18,6 @@ export class TrierParcExtractor implements TrierExtractStrategy<MoveParcExtracte
     const vendasParcela = await this.trierApiClient.getParcelasCartao(
       ctx.date,
       ctx.tokenLocalTrier,
-      ctx.urlLocalTrier,
     );
 
     if (isApiError(vendasParcela)) {

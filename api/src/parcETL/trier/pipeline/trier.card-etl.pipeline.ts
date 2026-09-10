@@ -32,7 +32,6 @@ export class TrierParcETLPipeline implements TrierPipelineStrategy {
       const estornos = await this.trierApiClient.getEstornos(
         ctx.date,
         ctx.tokenLocalTrier,
-        ctx.urlLocalTrier,
       );
 
       const filialId = rawData.length > 0 ? rawData[0].filialId : null;
