@@ -44,4 +44,8 @@ export class RunJobQueryDto {
   @IsOptional()
   @IsEnum(LogLevel)
   logLevel?: LogLevel;
+
+  @IsOptional()
+  @IsDateString()
+  retryStartDate?: string;
 }
