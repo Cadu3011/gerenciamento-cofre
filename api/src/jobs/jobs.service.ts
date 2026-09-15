@@ -373,10 +373,11 @@ export class JobsService {
               await context.incrementRetries();
               await context.info(
                 'RETRY',
-                'Sincronização concluída. Reexecutando ETL de parcelas.',
+                `Sincronização concluída. Reiniciando ETL de parcelas a partir da data ${error.obj!.date}.`,
               );
 
               // Continua o for e tenta novamente o RedeParc
+              opts = { ...opts, retryStartDate: error.obj!.date };
               continue;
             }
             const progressKey = error.obj?.filialId

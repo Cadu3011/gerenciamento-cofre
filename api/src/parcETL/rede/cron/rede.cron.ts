@@ -39,7 +39,7 @@ export class RedeParcCron {
 
     if (options.period === 'DATE') {
       return {
-        start: options.date,
+        start: options.retryStartDate ?? options.date,
         end: options.date,
       };
     }
@@ -50,7 +50,7 @@ export class RedeParcCron {
 
     if (options.period === 'RANGE') {
       return {
-        start: options.startDate,
+        start: options.retryStartDate ?? options.startDate,
         end: options.endDate,
       };
     }
