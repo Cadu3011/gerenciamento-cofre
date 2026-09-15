@@ -3,6 +3,7 @@ import { PrismaService } from 'src/database/prisma.service';
 import { FilialService } from 'src/filial/filial.service';
 import { Pipeline } from './pipeline';
 import { JobExecutionContext } from 'src/jobs/jobs.execContext.service';
+import { RunJobQueryDto } from 'src/jobs/dto/runCronJob.dto';
 
 @Injectable()
 export class ConciCardsCron {
@@ -33,37 +34,82 @@ export class ConciCardsCron {
     return Math.floor((b - a) / (1000 * 60 * 60 * 24));
   }
 
-  async execute(context: JobExecutionContext) {
-    const filiais = await this.filialService.findAll();
+  private async resolvePeriod(
+    filialId: number,
+    options: RunJobQueryDto,
+  ): Promise<{ start: string; end: string } | null> {
+    // =========================================================
+    // DATE
+    // =========================================================
+
+    if (options.period === 'DATE') {
+      return {
+        start: options.date,
+        end: options.date,
+      };
+    }
+
+    // =========================================================
+    // RANGE
+    // =========================================================
+
+    if (options.period === 'RANGE') {
+      return {
+        start: options.startDate,
+        end: options.endDate,
+      };
+    }
+
+    // =========================================================
+    // AUTO
+    // =========================================================
+
     const today = this.toISODate(new Date());
     const dMinus1 = this.addDays(today, -1);
+
+    const last = await this.prisma.conciliacao.aggregate({
+      where: { filialId, status: 'CONCILIADO' },
+      _max: { startDate: true },
+    });
+    // se não tem nada ainda, você decide um "start" inicial
+    const startBase = last._max.startDate
+      ? this.toISODate(new Date(last._max.startDate))
+      : '2026-05-24'; // seu initDate (primeira carga)
+
+    // datas faltantes = (startBase + 1) ... D-1
+    const start = this.addDays(startBase, 1);
+
+    // se start > D-1, não tem nada a fazer
+    if (this.diffDays(start, dMinus1) < 0) {
+      return null;
+    }
+
+    return {
+      start,
+      end: dMinus1,
+    };
+  }
+
+  async execute(context: JobExecutionContext, options: RunJobQueryDto) {
+    const filiais = await this.filialService.findAll();
     const resultsLastDates: Array<{
       filial: number;
       lastUpdatedDate: string | null;
     }> = [];
     const errors: string[] = [];
     for (const f of filiais) {
-      const last = await this.prisma.conciliacao.aggregate({
-        where: { filialId: f.id, status: 'CONCILIADO' },
-        _max: { startDate: true },
-      });
-      // se não tem nada ainda, você decide um "start" inicial
-      const startBase = last._max.startDate
-        ? this.toISODate(new Date(last._max.startDate))
-        : '2026-05-24'; // seu initDate (primeira carga)
+      const period = await this.resolvePeriod(f.id, options);
 
-      // datas faltantes = (startBase + 1) ... D-1
-      const start = this.addDays(startBase, 1);
-
-      // se start > D-1, não tem nada a fazer
-      if (this.diffDays(start, dMinus1) < 0) {
-        resultsLastDates.push({ filial: f.id, lastUpdatedDate: startBase });
+      if (!period) {
+        resultsLastDates.push({ filial: f.id, lastUpdatedDate: null });
         continue;
       }
 
+      const { start, end } = period;
+
       // roda dia a dia
       let current = start;
-      while (this.diffDays(current, dMinus1) >= 0) {
+      while (this.diffDays(current, end) >= 0) {
         context.info(
           'PIPELINE',
           `Pipeline iniciada Filial ${f.id} Data ${current} `,
@@ -85,7 +131,7 @@ export class ConciCardsCron {
         current = this.addDays(current, 1);
       }
 
-      resultsLastDates.push({ filial: f.id, lastUpdatedDate: dMinus1 });
+      resultsLastDates.push({ filial: f.id, lastUpdatedDate: end });
     }
     this.logger.log(`Total de erros: ${errors.length}`);
 
