@@ -17,6 +17,7 @@ import { UpdateJobDto } from './dto/update-job.dto';
 import { Roles } from 'src/auth/role.decorator';
 import { AuthGuard } from 'src/auth/auth.guard';
 import { Role } from '@prisma/client';
+import { RunJobQueryDto } from './dto/runCronJob.dto';
 
 @Controller('jobs')
 export class JobsController {
@@ -35,21 +36,18 @@ export class JobsController {
   @Post('cron/:jobName')
   createCronJob(
     @Param('jobName') jobName: string,
-    @Query('bigCharge', new ParseBoolPipe({ optional: true }))
-    bigCharge: boolean,
-    @Query('force', new ParseBoolPipe({ optional: true }))
-    force: boolean,
+    @Query() options: RunJobQueryDto,
   ) {
     const jobs = {
-      TrierCards: () => this.jobsService.runTrierCards(force),
-      TrierMovements: () => this.jobsService.runTrierMovements(force),
-      CieloETL: () => this.jobsService.runCieloETL(force),
-      ConciParc: () => this.jobsService.runConciParc(bigCharge, force),
-      RedeCards: () => this.jobsService.runRedeCards(force),
-      ConciCards: () => this.jobsService.runConciCards(force),
-      RedeParc: () => this.jobsService.runRedeParc(bigCharge, force),
-      TrierParc: () => this.jobsService.runTrierParc(bigCharge, force),
-      CieloParc: () => this.jobsService.runCieloParc(bigCharge, force),
+      TrierCards: () => this.jobsService.runTrierCards(options),
+      TrierMovements: () => this.jobsService.runTrierMovements(options),
+      CieloETL: () => this.jobsService.runCieloETL(),
+      ConciParc: () => this.jobsService.runConciParc(options),
+      RedeCards: () => this.jobsService.runRedeCards(options),
+      ConciCards: () => this.jobsService.runConciCards(options),
+      RedeParc: () => this.jobsService.runRedeParc(options),
+      TrierParc: () => this.jobsService.runTrierParc(options),
+      CieloParc: () => this.jobsService.runCieloParc(options),
     };
 
     const job = jobs[jobName];

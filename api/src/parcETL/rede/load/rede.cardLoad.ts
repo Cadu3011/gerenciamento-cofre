@@ -47,13 +47,7 @@ export class RedeParcLoad implements RedeLoadStrategy {
           } catch (itemError: any) {
             insertedIndividualError++;
           }
-          console.error(`❌ Erro ao inserir itens:`, {
-            quantidade: insertedIndividualError,
-            amostra: chunk.slice(0, 5).map((item) => ({
-              idempotencyKey: item.idempotencyKey,
-              erro: 'Erro ao inserir item',
-            })),
-          });
+
           context.warn(
             'LOAD',
             `❌ Erro ao inserir item: ${{

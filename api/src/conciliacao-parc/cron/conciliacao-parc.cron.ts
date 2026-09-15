@@ -3,6 +3,7 @@ import { PrismaService } from 'src/database/prisma.service';
 import { FilialService } from 'src/filial/filial.service';
 import { ConciliacaoParcPipeline } from './conciliacao-parc.pipeline';
 import { JobExecutionContext } from 'src/jobs/jobs.execContext.service';
+import { RunJobQueryDto } from 'src/jobs/dto/runCronJob.dto';
 
 @Injectable()
 export class ConciParcCron {
@@ -33,21 +34,70 @@ export class ConciParcCron {
     return Math.floor((b - a) / (1000 * 60 * 60 * 24));
   }
 
-  async execute(context: JobExecutionContext, bigCharge?: boolean) {
-    const filiais = await this.filialService.findAll();
+  private async resolvePeriod(
+    options: RunJobQueryDto,
+  ): Promise<{ start: string; end: string }> {
+    // =========================================================
+    // DATE
+    // =========================================================
+
+    if (options.period === 'DATE') {
+      return {
+        start: options.date,
+        end: options.date,
+      };
+    }
+
+    // =========================================================
+    // RANGE
+    // =========================================================
+
+    if (options.period === 'RANGE') {
+      return {
+        start: options.startDate,
+        end: options.endDate,
+      };
+    }
+
+    // =========================================================
+    // AUTO
+    // =========================================================
+
     const today = this.toISODate(new Date());
     const dMinus1 = this.addDays(today, -1);
-    const start = bigCharge ? '2026-03-31' : this.addDays(today, -6);
-    const errors: string[] = [];
-    const totalDias = this.diffDays(start, dMinus1) + 1;
+    const start = options.bigCharge ? '2026-03-31' : this.addDays(today, -6);
 
-    await context.startDateProgress('ConciParc', start, dMinus1);
+    return {
+      start,
+      end: dMinus1,
+    };
+  }
+
+  async execute(context: JobExecutionContext, options: RunJobQueryDto) {
+    const filiais = await this.filialService.findAll();
+    const { start, end } = await this.resolvePeriod(options);
+    const errors: string[] = [];
+    const totalDias = this.diffDays(start, end) + 1;
+    if (this.diffDays(start, end) > 10 && !options.bigCharge) {
+      const error = new Error(
+        'Periodo muito grande. Reinicie o CronJob no modo BigCharge',
+      ) as Error & {
+        obj?: { code: string };
+      };
+
+      error.obj = {
+        code: '02',
+      };
+
+      throw error;
+    }
+    await context.startDateProgress('ConciParc', start, end);
     context.startStep('CONCI_PARC');
 
     const lote = await this.prisma.conciliacaoLote.create({
       data: {
         periodoInicial: new Date(start + 'T00:00:00.000Z'),
-        periodoFinal: new Date(dMinus1 + 'T00:00:00.000Z'),
+        periodoFinal: new Date(end + 'T00:00:00.000Z'),
         algoritmoVersao: '1.0',
       },
     });
@@ -58,12 +108,12 @@ export class ConciParcCron {
     let totalPendentes = 0;
 
     const processFilial = async (f: { id: number }) => {
-      const executionContext = bigCharge
-        ? context.createChild({ logLevel: 'WARN_ERROR', maxLogs: 1000 })
+      const executionContext = options.bigCharge
+        ? context.createChild({ logLevel: 'WARN_ERROR', maxLogs: 100 })
         : context;
 
       let current = start;
-      while (this.diffDays(current, dMinus1) >= 0) {
+      while (this.diffDays(current, end) >= 0) {
         try {
           await executionContext.info(
             'PIPELINE_PARC',
@@ -94,7 +144,7 @@ export class ConciParcCron {
         current = this.addDays(current, 1);
       }
 
-      if (bigCharge) {
+      if (options.bigCharge) {
         await context.merge(executionContext);
         executionContext.logs.length = 0;
       }
@@ -113,8 +163,6 @@ export class ConciParcCron {
         pendentes: totalPendentes,
       },
     });
-
-    await context.finishProgress('ConciParc');
 
     this.logger.log(
       `Conciliação parcelas finalizada. Total de erros: ${errors.length}`,

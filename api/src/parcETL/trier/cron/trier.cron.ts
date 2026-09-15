@@ -3,6 +3,7 @@ import { TrierParcETLPipeline } from '../pipeline/trier.card-etl.pipeline.js';
 import { FilialService } from 'src/filial/filial.service';
 import { PrismaService } from 'src/database/prisma.service';
 import { JobExecutionContext } from 'src/jobs/jobs.execContext.service.js';
+import { RunJobQueryDto } from 'src/jobs/dto/runCronJob.dto.js';
 
 type AuthOk = { filial: number; url: string; token: string };
 type AuthFail = { filial: number; url: string; error: unknown };
@@ -28,22 +29,40 @@ export class TrierParcCron {
     id: number;
     urlLocalTrier: string;
   }): Promise<AuthOk> {
-    // const token = (
-    //   await authTrier(
-    //     { login: '95', password: 'cadu3011' },
-    //     filial.urlLocalTrier,
-    //     filial.id,
-    //   )
-    // ).token;
+    const { tokenTrier } = await this.prisma.filial.findUnique({
+      where: { id: filial.id },
+      select: { tokenTrier: true },
+    });
 
-    const token = (
-      await this.prisma.filial.findUnique({
-        where: { id: filial.id },
-        select: { tokenTrier: true },
-      })
-    ).tokenTrier;
+    if (!tokenTrier) {
+      throw new Error(`Filial ${filial.id} não possui tokenTrier`);
+    }
 
-    return { filial: filial.id, url: filial.urlLocalTrier, token };
+    try {
+      const response = await fetch(process.env.API_TRIER_URL!, {
+        headers: {
+          Authorization: `Bearer ${tokenTrier}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(
+          `Falha na autenticação da filial ${filial.id}: HTTP ${response.status}`,
+        );
+      }
+
+      return {
+        filial: filial.id,
+        url: filial.urlLocalTrier,
+        token: tokenTrier,
+      };
+    } catch (error) {
+      throw new Error(
+        `Não foi possível conectar/autenticar na Trier da filial ${filial.id}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
   }
 
   private async authWithRetry(
@@ -86,7 +105,65 @@ export class TrierParcCron {
     return Math.floor((b - a) / (1000 * 60 * 60 * 24));
   }
 
-  async execute(context, bigCharge?: boolean) {
+  private async resolvePeriod(
+    filialId: number,
+    options: RunJobQueryDto,
+  ): Promise<{ start: string; end: string } | null> {
+    // =========================================================
+    // DATE
+    // =========================================================
+
+    if (options.period === 'DATE') {
+      return {
+        start: options.date,
+        end: options.date,
+      };
+    }
+
+    // =========================================================
+    // RANGE
+    // =========================================================
+
+    if (options.period === 'RANGE') {
+      return {
+        start: options.startDate,
+        end: options.endDate,
+      };
+    }
+
+    // =========================================================
+    // AUTO
+    // =========================================================
+
+    const today = this.toISODate(new Date());
+    const dMinus1 = this.addDays(today, -1);
+
+    const last = await this.prisma.trierParcela.aggregate({
+      where: {
+        filialId,
+      },
+      _max: {
+        dataEmissao: true,
+      },
+    });
+
+    const startBase = last._max.dataEmissao
+      ? this.toISODate(new Date(last._max.dataEmissao))
+      : '2026-01-01';
+
+    const start = this.addDays(startBase, 1);
+
+    if (this.diffDays(start, dMinus1) < 0) {
+      return null;
+    }
+
+    return {
+      start,
+      end: dMinus1,
+    };
+  }
+
+  async execute(context: JobExecutionContext, options: RunJobQueryDto) {
     const filiais = await this.filialService.findAll();
 
     const authResults = await Promise.allSettled(
@@ -139,9 +216,6 @@ export class TrierParcCron {
       );
     });
 
-    const today = this.toISODate(new Date());
-    const dMinus1 = this.addDays(today, -1);
-
     const processFilial = async ({
       token,
       url,
@@ -151,52 +225,54 @@ export class TrierParcCron {
       lastUpdatedDate: string | null;
     }> => {
       // Contexto exclusivo desta filial
-      const executionContext = bigCharge
+      const executionContext = options.bigCharge
         ? context.createChild({
             logLevel: 'WARN_ERROR',
             maxLogs: 1000,
           })
         : context;
 
-      const last = await this.prisma.trierParcela.aggregate({
-        where: { filialId: filial },
-        _max: { dataEmissao: true },
-      });
-
-      const startBase = last._max.dataEmissao
-        ? this.toISODate(new Date(last._max.dataEmissao))
-        : '2026-01-01';
-
-      const start = this.addDays(startBase, 1);
-
-      if (this.diffDays(start, dMinus1) > 10 && !bigCharge) {
-        const error = new Error(
-          `Periodo muito grande. Reinicie o CronJob no modo BigCharge`,
-        ) as Error & {
-          obj?: {
-            code: string;
-          };
-        };
-
-        error.obj = {
-          code: '02',
-        };
-
-        throw error;
-      }
-
-      if (this.diffDays(start, dMinus1) < 0) {
-        return {
-          filial,
-          lastUpdatedDate: startBase,
-        };
-      }
-
-      let current = start;
-      const progressKey = `TrierParc-${filial}`;
       try {
-        await executionContext.startDateProgress(progressKey, start, dMinus1);
-        while (this.diffDays(current, dMinus1) >= 0) {
+        const period = await this.resolvePeriod(filial, options);
+
+        if (!period) {
+          return {
+            filial,
+            lastUpdatedDate: null,
+          };
+        }
+
+        const { start, end } = period;
+
+        if (this.diffDays(start, end) > 10 && !options.bigCharge) {
+          const error = new Error(
+            `Periodo muito grande. Reinicie o CronJob no modo BigCharge`,
+          ) as Error & {
+            obj?: {
+              code: string;
+            };
+          };
+
+          error.obj = {
+            code: '02',
+          };
+
+          throw error;
+        }
+
+        if (this.diffDays(start, end) < 0) {
+          return {
+            filial,
+            lastUpdatedDate: end,
+          };
+        }
+
+        let current = start;
+        const progressKey = `TrierParc-${filial}`;
+
+        await executionContext.startDateProgress(progressKey, start, end);
+
+        while (this.diffDays(current, end) >= 0) {
           this.logger.log(`ETL Trier Parc filial ${filial} - dia ${current}`);
 
           await executionContext.info(
@@ -218,10 +294,10 @@ export class TrierParcCron {
 
         return {
           filial,
-          lastUpdatedDate: dMinus1,
+          lastUpdatedDate: end,
         };
       } finally {
-        if (bigCharge) {
+        if (options.bigCharge) {
           await context.merge(executionContext);
           executionContext.logs.length = 0;
         }
@@ -233,7 +309,7 @@ export class TrierParcCron {
       lastUpdatedDate: string | null;
     }>;
 
-    if (bigCharge) {
+    if (options.bigCharge) {
       // Processa todas as filiais simultaneamente
       resultsLastDates = await Promise.all(
         tokensFinal.map((token) => processFilial(token)),
@@ -289,5 +365,11 @@ export class TrierParcCron {
       },
       context,
     );
+
+    return {
+      success: true,
+      filial: filialId,
+      date,
+    };
   }
 }

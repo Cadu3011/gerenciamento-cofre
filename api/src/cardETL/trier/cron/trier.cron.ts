@@ -3,6 +3,7 @@ import { TrierCardETLPipeline } from '../pipeline/trier.card-etl.pipeline.js';
 import { FilialService } from 'src/filial/filial.service';
 import { PrismaService } from 'src/database/prisma.service';
 import { JobExecutionContext } from 'src/jobs/jobs.execContext.service.js';
+import { RunJobQueryDto } from 'src/jobs/dto/runCronJob.dto.js';
 
 type AuthOk = { filial: number; url: string; token: string };
 type AuthFail = { filial: number; url: string; error: unknown };
@@ -33,7 +34,35 @@ export class TrierCardCron {
       select: { tokenTrier: true },
     });
 
-    return { filial: filial.id, url: filial.urlLocalTrier, token: tokenTrier };
+    if (!tokenTrier) {
+      throw new Error(`Filial ${filial.id} não possui tokenTrier`);
+    }
+
+    try {
+      const response = await fetch(process.env.API_TRIER_URL!, {
+        headers: {
+          Authorization: `Bearer ${tokenTrier}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(
+          `Falha na autenticação da filial ${filial.id}: HTTP ${response.status}`,
+        );
+      }
+
+      return {
+        filial: filial.id,
+        url: filial.urlLocalTrier,
+        token: tokenTrier,
+      };
+    } catch (error) {
+      throw new Error(
+        `Não foi possível conectar/autenticar na Trier da filial ${filial.id}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
   }
 
   private async authWithRetriesAfter(
@@ -103,7 +132,65 @@ export class TrierCardCron {
     return Math.floor((b - a) / (1000 * 60 * 60 * 24));
   }
 
-  async execute(context: JobExecutionContext) {
+  private async resolvePeriod(
+    filialId: number,
+    options: RunJobQueryDto,
+  ): Promise<{ start: string; end: string } | null> {
+    // =========================================================
+    // DATE
+    // =========================================================
+
+    if (options.period === 'DATE') {
+      return {
+        start: options.date,
+        end: options.date,
+      };
+    }
+
+    // =========================================================
+    // RANGE
+    // =========================================================
+
+    if (options.period === 'RANGE') {
+      return {
+        start: options.startDate,
+        end: options.endDate,
+      };
+    }
+
+    // =========================================================
+    // AUTO
+    // =========================================================
+
+    const today = this.toISODate(new Date());
+    const dMinus1 = this.addDays(today, -1);
+
+    const last = await this.prisma.trierCartaoVendas.aggregate({
+      where: {
+        filialId,
+      },
+      _max: {
+        dataEmissao: true,
+      },
+    });
+
+    const startBase = last._max.dataEmissao
+      ? this.toISODate(new Date(last._max.dataEmissao))
+      : '2026-01-01';
+
+    const start = this.addDays(startBase, 1);
+
+    if (this.diffDays(start, dMinus1) < 0) {
+      return null;
+    }
+
+    return {
+      start,
+      end: dMinus1,
+    };
+  }
+
+  async execute(context: JobExecutionContext, options: RunJobQueryDto) {
     const filiais = await this.filialService.findAll();
 
     // 1) Primeira rodada (todas em paralelo)
@@ -183,58 +270,109 @@ export class TrierCardCron {
 
     const tokensFinal = [...authOk, ...retriedOk];
 
-    const today = this.toISODate(new Date());
-    const dMinus1 = this.addDays(today, -1);
-
-    const resultsLastDates: Array<{
+    const processFilial = async ({
+      token,
+      filial,
+    }: AuthOk): Promise<{
       filial: number;
       lastUpdatedDate: string | null;
-    }> = [];
+    }> => {
+      const executionContext = options.bigCharge
+        ? context.createChild({
+            logLevel: 'WARN_ERROR',
+            maxLogs: 1000,
+          })
+        : context;
 
-    for (const { token, url, filial } of tokensFinal) {
-      const progressKey = `TrierParc-${filial}`;
+      try {
+        const period = await this.resolvePeriod(filial, options);
 
-      // pega a última data processada PRA ESSA FILIAL
-      const last = await this.prisma.trierCartaoVendas.aggregate({
-        where: { filialId: filial },
-        _max: { dataEmissao: true },
-      });
+        if (!period) {
+          return {
+            filial,
+            lastUpdatedDate: null,
+          };
+        }
 
-      // se não tem nada ainda, você decide um "start" inicial
-      const startBase = last._max.dataEmissao
-        ? this.toISODate(new Date(last._max.dataEmissao))
-        : '2026-01-01'; // seu initDate (primeira carga)
+        const { start, end } = period;
 
-      // datas faltantes = (startBase + 1) ... D-1
-      const start = this.addDays(startBase, 1);
+        if (this.diffDays(start, end) > 10 && !options.bigCharge) {
+          const error = new Error(
+            'Periodo muito grande. Reinicie o CronJob no modo BigCharge',
+          ) as Error & {
+            obj?: { code: string };
+          };
 
-      // se start > D-1, não tem nada a fazer
-      if (this.diffDays(start, dMinus1) < 0) {
-        resultsLastDates.push({ filial, lastUpdatedDate: startBase });
-        continue;
+          error.obj = {
+            code: '02',
+          };
+
+          throw error;
+        }
+        if (this.diffDays(start, end) < 0) {
+          return {
+            filial,
+            lastUpdatedDate: end,
+          };
+        }
+
+        const progressKey = `TrierCard-${filial}`;
+
+        await executionContext.startDateProgress(progressKey, start, end);
+
+        let current = start;
+
+        while (this.diffDays(current, end) >= 0) {
+          this.logger.log(`ETL Trier Card filial ${filial} - dia ${current}`);
+
+          await executionContext.info(
+            'PIPELINE',
+            `Pipeline iniciada filial ${filial} - dia ${current}`,
+          );
+
+          await this.pipeline.execute(
+            {
+              date: current,
+              tokenLocalTrier: token,
+            },
+            executionContext,
+          );
+
+          await executionContext.updateDateProgress(progressKey, current);
+
+          current = this.addDays(current, 1);
+        }
+
+        return {
+          filial,
+          lastUpdatedDate: end,
+        };
+      } finally {
+        if (options.bigCharge) {
+          await context.merge(executionContext);
+          executionContext.logs.length = 0;
+        }
       }
+    };
+    let resultsLastDates: Array<{
+      filial: number;
+      lastUpdatedDate: string | null;
+    }>;
 
-      // roda dia a dia
-      let current = start;
-      await context.startDateProgress(progressKey, start, dMinus1);
-      while (this.diffDays(current, dMinus1) >= 0) {
-        this.logger.log(`ETL Trier filial ${filial} - dia ${current}`);
-        context.info(
-          'PIPELINE',
-          `Pipeline Iniciada filial ${filial} - dia ${current}`,
-        );
-        await this.pipeline.execute(
-          {
-            date: current,
-            tokenLocalTrier: token,
-          },
-          context,
-        );
-        await context.updateDateProgress(progressKey, current);
-        current = this.addDays(current, 1);
+    if (options.bigCharge) {
+      // BigCharge:
+      // todas as filiais simultaneamente
+      resultsLastDates = await Promise.all(
+        tokensFinal.map((token) => processFilial(token)),
+      );
+    } else {
+      // Normal:
+      // uma filial por vez
+      resultsLastDates = [];
+
+      for (const token of tokensFinal) {
+        resultsLastDates.push(await processFilial(token));
       }
-
-      resultsLastDates.push({ filial, lastUpdatedDate: dMinus1 });
     }
 
     return { lastUpdatedByFilial: resultsLastDates };

@@ -16,12 +16,9 @@ import { CieloParcETLCron } from 'src/parcETL/cielo/cron/cielo.cron';
 import { ConciParcCron } from 'src/conciliacao-parc/cron/conciliacao-parc.cron';
 import { JobExecutionContext } from './jobs.execContext.service';
 import { JobsGateway } from './jobs.gateway';
+import { InfoJob } from './dto/options-job';
+import { LogLevel, RunJobQueryDto, JobPeriodType } from './dto/runCronJob.dto';
 
-export interface RunCronJobOptions {
-  wait?: boolean;
-  force?: boolean;
-  logLevel?: 'ALL' | 'WARN_ERROR' | 'ERROR_ONLY' | 'NONE';
-}
 @Injectable()
 export class JobsService {
   @Inject()
@@ -55,6 +52,15 @@ export class JobsService {
   private readonly jobsGateway: JobsGateway;
 
   private readonly logger = new Logger(JobsService.name);
+
+  private normalizeOptions(options: RunJobQueryDto = {}): RunJobQueryDto {
+    return {
+      ...options,
+      logLevel:
+        options.logLevel ??
+        (options.bigCharge ? LogLevel.WARN_ERROR : LogLevel.ALL),
+    };
+  }
 
   async onModuleInit() {
     await this.markStuckJobs();
@@ -125,15 +131,10 @@ export class JobsService {
     }
   }
 
-  private async executeJob(
-    jobId: number,
-    jobName: string,
-    context: JobExecutionContext,
-    execute: (context: JobExecutionContext) => Promise<void>,
-    wait = false,
-  ) {
+  private async runJob(infoJob: InfoJob, wait?: boolean) {
+    const { jobId, jobName, context, options, execute } = infoJob;
     try {
-      await execute(context);
+      await execute(context, options);
 
       await this.prisma.cronJobs.update({
         where: { id: jobId },
@@ -162,11 +163,19 @@ export class JobsService {
   }
 
   async runCronJob(
-    jobName: string,
-    execute: (context: JobExecutionContext) => Promise<void>,
-    options: RunCronJobOptions = {},
+    config: {
+      jobName: string;
+      wait?: boolean;
+    },
+
+    execute: (
+      context: JobExecutionContext,
+      options: RunJobQueryDto,
+    ) => Promise<void>,
+    options: RunJobQueryDto = {},
   ) {
-    const { wait = false, force = false, logLevel = 'ALL' } = options;
+    const { force = false, logLevel = 'ALL' } = options;
+    const { jobName, wait = false } = config;
     const today = new Date().toISOString().split('T')[0];
     const jobActive = await this.prisma.jobs.findUnique({
       where: {
@@ -225,11 +234,17 @@ export class JobsService {
       );
 
       await this.emitJob(jobName);
-
+      const infoJob: InfoJob = {
+        jobId: job.id,
+        jobName,
+        context,
+        execute,
+        options,
+      };
       if (wait) {
-        await this.executeJob(job.id, jobName, context, execute, true);
+        await this.runJob(infoJob, true);
       } else {
-        void this.executeJob(job.id, jobName, context, execute);
+        void this.runJob(infoJob);
       }
 
       return {
@@ -255,38 +270,63 @@ export class JobsService {
       };
     }
   }
+
   @Cron('20,50 6,8,9,13 * * 1-7')
-  runTrierCards(force?: boolean) {
+  runTrierCards(options: RunJobQueryDto = {}) {
     return this.runCronJob(
-      'TrierCards',
-      async (context) => {
-        await this.trierPipelineCard.execute(context);
+      { jobName: 'TrierCards' },
+      async (context, opts) => {
+        try {
+          await this.trierPipelineCard.execute(context, opts);
+          return;
+        } catch (e) {
+          const error = e as Error & {
+            obj?: { code: string; date: string; filialId: number };
+          };
+          if (error.obj.code === '02') {
+            await context.warn('RETRY', error.message);
+            throw error;
+          }
+          throw error;
+        }
       },
-      { force },
+      this.normalizeOptions(options),
     );
   }
 
   @Cron('20,50 6,8,9,13 * * 1-7')
-  runRedeCards(force?: boolean) {
+  runRedeCards(options: RunJobQueryDto = {}) {
     return this.runCronJob(
-      'RedeCards',
-      async (context) => {
-        await this.redePipelineCard.execute(context);
+      { jobName: 'RedeCards' },
+      async (context, opts) => {
+        try {
+          await this.redePipelineCard.execute(context, opts);
+          return;
+        } catch (e) {
+          const error = e as Error & {
+            obj?: { code: string; date: string; filialId: number };
+          };
+          if (error.obj.code === '02') {
+            await context.warn('RETRY', error.message);
+            throw error;
+          }
+          throw error;
+        }
       },
-      { force },
+      this.normalizeOptions(options),
     );
   }
 
   @Cron('20,50 7,8,9,13 * * 1-7')
-  runRedeParc(bigCharge?: boolean, force?: boolean) {
+  runRedeParc(options: RunJobQueryDto = {}) {
     return this.runCronJob(
-      'RedeParc',
-      async (context) => {
+      { jobName: 'RedeParc' },
+      async (context, opts) => {
         const MAX_RETRIES = 100;
 
         for (let retry = 0; retry < MAX_RETRIES; retry++) {
           try {
-            await this.redePipelineParc.execute(context, bigCharge);
+            await this.redePipelineParc.execute(context, opts);
             return; // Sucesso, encerra o job
           } catch (e) {
             const error = e as Error & {
@@ -314,15 +354,15 @@ export class JobsService {
               );
 
               const result = await this.runCronJob(
-                'RedeCards',
+                { jobName: 'RedeCards', wait: true },
                 async (ctx) => {
                   await this.redePipelineCard.execute(
                     ctx,
-                    error.obj!.date,
+                    { period: JobPeriodType.DATE, date: error.obj!.date },
                     error.obj!.filialId,
                   );
                 },
-                { wait: true, force: true },
+                { force: true },
               );
 
               if ('error' in result) {
@@ -355,50 +395,40 @@ export class JobsService {
           `Quantidade máxima de tentativas (${MAX_RETRIES}) atingida durante a recuperação automática das vendas.`,
         );
       },
-      { force, logLevel: bigCharge ? 'WARN_ERROR' : 'ALL' },
+      this.normalizeOptions(options),
     );
   }
 
   @Cron('20,50 6,8,9,13 * * 1-7')
-  runTrierMovements(force?: boolean) {
+  runTrierMovements(options: RunJobQueryDto = {}) {
     return this.runCronJob(
-      'TrierMovements',
+      { jobName: 'TrierMovements' },
       async (context) => {
         await this.trierPipelineMovement.getVendasCaixasTrier(context);
       },
-      { force },
+      this.normalizeOptions(options),
     );
   }
 
   @Cron('10,38 7,9,10,12,13 * * 1-7')
-  runConciCards(force?: boolean) {
+  runConciCards(options: RunJobQueryDto = {}) {
     return this.runCronJob(
-      'ConciCards',
-      async (context) => {
-        await this.conciCardsPipeline.execute(context);
+      { jobName: 'ConciCards' },
+      async (context, opts) => {
+        await this.conciCardsPipeline.execute(context, opts);
       },
-      { force },
+      this.normalizeOptions(options),
     );
   }
 
   @Cron('25,50 8,10,13 * * 1-7')
-  runConciParc(bigCharge?: boolean, force?: boolean) {
+  runConciParc(options: RunJobQueryDto = {}) {
     return this.runCronJob(
-      'ConciParc',
-      async (context) => {
-        await this.conciParcPipeline.execute(context, bigCharge);
-      },
-      { force: true, logLevel: bigCharge ? 'WARN_ERROR' : 'ALL' },
-    );
-  }
-
-  @Cron('10,38 7,9,10,12,13 * * 1-7')
-  runTrierParc(bigCharge?: boolean, force?: boolean) {
-    return this.runCronJob(
-      'TrierParc',
-      async (context) => {
+      { jobName: 'ConciParc' },
+      async (context, opts) => {
         try {
-          await this.trierPipelineParc.execute(context, bigCharge);
+          await this.conciParcPipeline.execute(context, opts);
+          return;
         } catch (e) {
           const error = e as Error & {
             obj?: { code: string; date: string; filialId: number };
@@ -410,29 +440,47 @@ export class JobsService {
           throw error;
         }
       },
-      { force, logLevel: bigCharge ? 'WARN_ERROR' : 'ALL' },
+      this.normalizeOptions(options),
+    );
+  }
+
+  @Cron('10,38 7,9,10,12,13 * * 1-7')
+  runTrierParc(options: RunJobQueryDto = {}) {
+    return this.runCronJob(
+      { jobName: 'TrierParc' },
+      async (context, opts) => {
+        try {
+          await this.trierPipelineParc.execute(context, opts);
+        } catch (e) {
+          const error = e as Error & {
+            obj?: { code: string; date: string; filialId: number };
+          };
+          if (error.obj.code === '02') {
+            await context.warn('RETRY', error.message);
+            throw error;
+          }
+          throw error;
+        }
+      },
+      this.normalizeOptions(options),
     );
   }
 
   @Cron('18,53 7,8,9,10,14 * * 1-7')
-  runCieloETL(force?: boolean) {
-    return this.runCronJob(
-      'CieloETL',
-      async (context) => {
-        await this.cieloService.pipelineETL(context);
-      },
-      { force },
-    );
+  runCieloETL() {
+    return this.runCronJob({ jobName: 'CieloETL' }, async (context) => {
+      await this.cieloService.pipelineETL(context);
+    });
   }
 
   @Cron('25,58 8,9,10,12,13 * * 1-7')
-  runCieloParc(bigCharge?: boolean, force?: boolean) {
+  runCieloParc(options: RunJobQueryDto = {}) {
     return this.runCronJob(
-      'CieloParc',
-      async (context) => {
-        await this.cieloPipelineParc.execute(context, bigCharge);
+      { jobName: 'CieloParc' },
+      async (context, opts) => {
+        await this.cieloPipelineParc.execute(context, opts.bigCharge);
       },
-      { force, logLevel: bigCharge ? 'WARN_ERROR' : 'ALL' },
+      this.normalizeOptions(options),
     );
   }
 }
