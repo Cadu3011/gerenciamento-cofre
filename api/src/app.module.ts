@@ -17,6 +17,7 @@ import { JobsModule } from './jobs/jobs.module';
 import { ConciliacaoModule } from './conciliacao/conciliacao.module';
 import { ParcEtlModule } from './parcETL/card-etl.module';
 import { ConciliacaoParcModule } from './conciliacao-parc/conciliacao-parc.module';
+import { ReceivableModule } from './receivable/receivable.module';
 
 @Module({
   imports: [
@@ -36,6 +37,7 @@ import { ConciliacaoParcModule } from './conciliacao-parc/conciliacao-parc.modul
     JobsModule,
     ConciliacaoModule,
     ConciliacaoParcModule,
+    ReceivableModule,
   ],
   controllers: [AppController],
   providers: [AppService],

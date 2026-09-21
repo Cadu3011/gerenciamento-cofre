@@ -18,15 +18,9 @@ export default async function GerenciaFilial() {
   }
 
   const userData = jwtDecode<UserPayload>(token);
-  if (userData.roles !== "GESTOR") return;
+  if (userData.roles !== "GESTOR") {
+    redirect("/workspace");
+  }
 
-  return (
-    <div className=" w-full flex justify-center items-center bg-gray-200">
-      <div className="bg-slate-400 rounded">
-        <div className="">
-          <Filiais  />
-        </div>
-      </div>
-    </div>
-  );
+  return <Filiais />;
 }

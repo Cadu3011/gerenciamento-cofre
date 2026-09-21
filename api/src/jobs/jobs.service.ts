@@ -14,6 +14,7 @@ import { RedeParcCron } from 'src/parcETL/rede/cron/rede.cron';
 import { TrierParcCron } from 'src/parcETL/trier/cron/trier.cron';
 import { CieloParcETLCron } from 'src/parcETL/cielo/cron/cielo.cron';
 import { ConciParcCron } from 'src/conciliacao-parc/cron/conciliacao-parc.cron';
+import { ReceivableCron } from 'src/receivable/receivable.cron';
 import { JobExecutionContext } from './jobs.execContext.service';
 import { JobsGateway } from './jobs.gateway';
 import { InfoJob } from './dto/options-job';
@@ -47,6 +48,9 @@ export class JobsService {
 
   @Inject()
   private readonly conciParcPipeline: ConciParcCron;
+
+  @Inject()
+  private readonly receivableCron: ReceivableCron;
 
   @Inject()
   private readonly jobsGateway: JobsGateway;
@@ -480,6 +484,29 @@ export class JobsService {
       { jobName: 'CieloParc' },
       async (context, opts) => {
         await this.cieloPipelineParc.execute(context, opts.bigCharge);
+      },
+      this.normalizeOptions(options),
+    );
+  }
+
+  @Cron('0 1 * * 1-7')
+  runRecebimentos(options: RunJobQueryDto = {}) {
+    return this.runCronJob(
+      { jobName: 'Receivables' },
+      async (context, opts) => {
+        try {
+          await this.receivableCron.execute(context, opts);
+          return;
+        } catch (e) {
+          const error = e as Error & {
+            obj?: { code: string };
+          };
+          if (error.obj?.code === '02') {
+            await context.warn('RETRY', error.message);
+            throw error;
+          }
+          throw error;
+        }
       },
       this.normalizeOptions(options),
     );

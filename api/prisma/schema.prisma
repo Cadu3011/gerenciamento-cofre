@@ -127,6 +127,7 @@ model Filial {
   user             User[]              @relation("FiliaAndlUser")
   idCofreTrier     Int?
   idBancoDefault   Int?
+  idBancoRecebimentos Int?
   idCielo          String?
   idRede           String?
   urlLocalTrier    String?
@@ -142,6 +143,7 @@ model Filial {
   cieloCartaoParc CieloParcela[] @relation("FilialAndCieloCartaoParcelas")
   conciliacoes     Conciliacao[]
   diferencas       DiferencaCaixa[]    @relation("DiferencaCaixaAndFilial")
+  recebimentos     Receivable[]        @relation("FilialAndReceivable")
 }
 
 model CartaoVendas {
@@ -396,7 +398,8 @@ model TrierParcela {
 
   vendaId           Int?
   venda             TrierCartaoVendas? @relation(fields: [vendaId], references: [id])
-  receivableItems   ReceivableItem[]
+  receivableId      Int?
+  receivable        Receivable? @relation("ReceivableAndTrierParcelas", fields: [receivableId], references: [id])
   statusConciliacao ParcelStatus       @default(PENDENTE)
 
   conciliacoesItem ConciliacaoParcelaItem[]
@@ -431,14 +434,16 @@ model RedeParcela {
   vendaId Int?
   venda   RedeVenda? @relation(fields: [vendaId], references: [id])
 
+  receivableId      Int?
+  receivable        Receivable? @relation("ReceivableAndRedeParcelas", fields: [receivableId], references: [id])
   statusConciliacao ParcelStatus         @default(PENDENTE)
-  receivableItems   ReceivableItem[]
   conciliacoesItem  ConciliacaoParcelaItem[]
 
   createdAt DateTime @default(now())
 
   @@index([nsu])
   @@index([vencimento])
+  @@index([receivableId])
 }
 
 model CieloParcela {
@@ -471,9 +476,10 @@ model CieloParcela {
   vendaId Int?
   venda   CartaoVendas? @relation(fields: [vendaId], references: [id])
 
+  receivableId      Int?
+  receivable        Receivable? @relation("ReceivableAndCieloParcelas", fields: [receivableId], references: [id])
   statusConciliacao ParcelStatus @default(PENDENTE)
 
-  receivableItems   ReceivableItem[]
   conciliacoesItem  ConciliacaoParcelaItem[]
 
   createdAt DateTime @default(now())
@@ -482,6 +488,7 @@ model CieloParcela {
   @@index([codigoAutorizacao])
   @@index([nsu])
   @@index([dataVencimento])
+  @@index([receivableId])
 }
 
 model ConciliacaoLote {
@@ -581,6 +588,11 @@ enum MatchType {
 model Receivable {
   id Int @id @default(autoincrement())
 
+  idempotencyKey String @unique
+
+  filialId Int
+  filial   Filial @relation("FilialAndReceivable", fields: [filialId], references: [id])
+
   adquirente String
 
   dataRecebimento DateTime @db.Date
@@ -595,34 +607,11 @@ model Receivable {
 
   movimentoTrierId Int?
 
+  trierParcelas TrierParcela[] @relation("ReceivableAndTrierParcelas")
+  redeParcelas  RedeParcela[]  @relation("ReceivableAndRedeParcelas")
+  cieloParcelas CieloParcela[] @relation("ReceivableAndCieloParcelas")
+
   createdAt DateTime @default(now())
 
-  itens ReceivableItem[]
-
-  @@unique([adquirente, dataRecebimento])
-  @@index([dataRecebimento])
-}
-
-model ReceivableItem {
-  id Int @id @default(autoincrement())
-
-  receivableId Int
-  cieloParcelaId Int?
-
-  cieloParcela CieloParcela? @relation(fields:[cieloParcelaId], references:[id])
-  receivable Receivable @relation(fields: [receivableId], references: [id])
-
-  redeParcelaId Int?
-
-  redeParcela RedeParcela? @relation(fields: [redeParcelaId], references: [id])
-
-  trierParcelaId Int?
-
-  trierParcela TrierParcela? @relation(fields: [trierParcelaId], references: [id])
-
-  valor Decimal @db.Decimal(10, 2)
-  dataVencimento DateTime @db.Date
-  createdAt DateTime @default(now())
-
-  @@index([receivableId])
+  @@index([filialId, dataRecebimento])
 }
