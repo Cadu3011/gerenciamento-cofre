@@ -7,7 +7,11 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
-import { Role } from '@prisma/client';
+import {
+  ObservacaoConciliacao,
+  ParcelStatus,
+  Role,
+} from '@prisma/client';
 import { AuthGuard } from 'src/auth/auth.guard';
 import { Roles } from 'src/auth/role.decorator';
 import { ConciliacaoParcService } from './conciliacao-parc.service';
@@ -19,6 +23,30 @@ export class ConciliacaoParcController {
     private readonly service: ConciliacaoParcService,
     private readonly dashboardService: ConciliacaoParcDashboardService,
   ) {}
+
+  private parseList(value?: string): string[] | undefined {
+    if (!value) return undefined;
+    return value
+      .split(',')
+      .map((v) => v.trim())
+      .filter(Boolean);
+  }
+
+  private parseStatus(value?: string): ParcelStatus[] | undefined {
+    const list = this.parseList(value);
+    const valid = Object.values(ParcelStatus) as string[];
+    return list?.filter((v): v is ParcelStatus => valid.includes(v));
+  }
+
+  private parseDivergencias(
+    value?: string,
+  ): ObservacaoConciliacao[] | undefined {
+    const list = this.parseList(value);
+    const valid = Object.values(ObservacaoConciliacao) as string[];
+    return list?.filter(
+      (v): v is ObservacaoConciliacao => valid.includes(v),
+    );
+  }
 
   @UseGuards(AuthGuard)
   @Roles(Role.GESTOR)
@@ -34,12 +62,19 @@ export class ConciliacaoParcController {
     @Req() req: Request,
     @Query('date') date: string,
     @Query('filialId') filialId?: string,
+    @Query('status') status?: string,
+    @Query('bandeiras') bandeiras?: string,
+    @Query('divergencias') divergencias?: string,
   ) {
     const user = req['sub'] as any;
     if (user.roles === 'OPERADOR') {
       filialId = String(user.filialId);
     }
-    return this.service.findByDate(+filialId, date);
+    return this.service.findByDate(+filialId, date, {
+      status: this.parseStatus(status),
+      bandeiras: this.parseList(bandeiras),
+      divergencias: this.parseDivergencias(divergencias),
+    });
   }
 
   @UseGuards(AuthGuard)
@@ -66,6 +101,8 @@ export class ConciliacaoParcController {
     @Query('startDate') startDate: string,
     @Query('endDate') endDate: string,
     @Query('filialId') filialId?: string,
+    @Query('bandeiras') bandeiras?: string,
+    @Query('divergencias') divergencias?: string,
   ) {
     const user = req['sub'] as any;
     if (user.roles === 'OPERADOR') {
@@ -74,6 +111,9 @@ export class ConciliacaoParcController {
     return this.service.findByDateDivergentes(+filialId, {
       from: startDate,
       to: endDate,
+    }, {
+      bandeiras: this.parseList(bandeiras),
+      divergencias: this.parseDivergencias(divergencias),
     });
   }
 

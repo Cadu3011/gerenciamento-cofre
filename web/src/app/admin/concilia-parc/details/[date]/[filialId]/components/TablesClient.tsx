@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   Table,
   TableBody,
@@ -12,7 +13,7 @@ import {
 import { ConciliacaoParcItem, FlatRow } from "@/app/types/conciParc";
 import LegendaConci from "./LegendaConci";
 import GroupDetailDialog from "./GroupDetailDialog";
-import Filtros from "./Filtros";
+import Filtros, { DIVERGENCIAS, STATUSES } from "./Filtros";
 import { formatDate } from "@/app/admin/dashboard/utils";
 
 const STATUS_COLORS: Record<string, string> = {
@@ -115,19 +116,22 @@ export default function TablesClient({
   data,
   date,
   filialId,
+  statuses,
+  bandeiras,
+  divergencias,
 }: {
   data: ConciliacaoParcItem[];
   date: string;
   filialId: number;
+  statuses: string[];
+  bandeiras: string[];
+  divergencias: string[];
 }) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
   const [activeFontes, setActiveFontes] = useState<Set<string>>(
     () => new Set(["TRIER", "REDE", "CIELO"]),
-  );
-  const [activeStatuses, setActiveStatuses] = useState<Set<string>>(
-    () => new Set(["CONCILIADO", "DIVERGENTE", "NAO_ENCONTRADO"]),
-  );
-  const [activeDivergencias, setActiveDivergencias] = useState<Set<string>>(
-    () => new Set(["VALOR", "VL_LIQUIDO", "VENCIMENTO", "PARCELAS"]),
   );
   const [activeMatchTypes, setActiveMatchTypes] = useState<Set<string>>(
     () => new Set(["NSU", "VALOR", "VALOR_DATA", "MANUAL", "VENDA_CONCILIADA"]),
@@ -138,26 +142,38 @@ export default function TablesClient({
 
   const allRows = useMemo(() => flattenData(data), [data]);
 
+  const statusesAll = useMemo(() => [...STATUSES], []);
+  const divergenciasAll = useMemo(() => [...DIVERGENCIAS], []);
+
+  const activeStatuses = useMemo(
+    () => new Set(statuses.length ? statuses : statusesAll),
+    [statuses, statusesAll],
+  );
+  const activeDivergencias = useMemo(
+    () => new Set(divergencias.length ? divergencias : divergenciasAll),
+    [divergencias, divergenciasAll],
+  );
+  const activeBandeiras = useMemo(() => new Set(bandeiras), [bandeiras]);
+
+  const bandeirasOptions = useMemo(() => {
+    const set = new Set<string>();
+    for (const g of data) {
+      for (const t of g.triers) if (t.bandeira) set.add(t.bandeira);
+      for (const i of g.itens) if (i.bandeira) set.add(i.bandeira);
+    }
+    return [...set].sort();
+  }, [data]);
+
   const filteredRows = useMemo(() => {
-    const allDivergencias = activeDivergencias.size === 4;
     const allMatchTypes = activeMatchTypes.size === 5;
     return allRows.filter((r) => {
-      if (!activeFontes.has(r.origem) || !activeStatuses.has(r.groupStatus))
-        return false;
-      if (!allDivergencias) {
-        const hasDiv =
-          (activeDivergencias.has("VALOR") && r.divergenciaValor) ||
-          (activeDivergencias.has("VL_LIQUIDO") && r.divergenciaValorLiquido) ||
-          (activeDivergencias.has("VENCIMENTO") && r.divergenciaVencimento) ||
-          (activeDivergencias.has("PARCELAS") && r.divergenciaParcelas);
-        if (!hasDiv) return false;
-      }
+      if (!activeFontes.has(r.origem)) return false;
       if (!allMatchTypes) {
         if (!r.tipoMatch || !activeMatchTypes.has(r.tipoMatch)) return false;
       }
       return true;
     });
-  }, [allRows, activeFontes, activeStatuses, activeDivergencias, activeMatchTypes]);
+  }, [allRows, activeFontes, activeMatchTypes]);
 
   const grupoMap = useMemo(() => {
     const m = new Map<number, ConciliacaoParcItem>();
@@ -216,30 +232,6 @@ export default function TablesClient({
     });
   }
 
-  function toggleStatus(status: string) {
-    setActiveStatuses((prev) => {
-      const next = new Set(prev);
-      if (next.has(status)) {
-        if (next.size > 1) next.delete(status);
-      } else {
-        next.add(status);
-      }
-      return next;
-    });
-  }
-
-  function toggleDivergencia(divergencia: string) {
-    setActiveDivergencias((prev) => {
-      const next = new Set(prev);
-      if (next.has(divergencia)) {
-        if (next.size > 1) next.delete(divergencia);
-      } else {
-        next.add(divergencia);
-      }
-      return next;
-    });
-  }
-
   function toggleMatchType(matchType: string) {
     setActiveMatchTypes((prev) => {
       const next = new Set(prev);
@@ -250,6 +242,44 @@ export default function TablesClient({
       }
       return next;
     });
+  }
+
+  function navigateFilter(
+    key: "status" | "divergencias" | "bandeiras",
+    value: string,
+    current: string[],
+    totalOptions: number,
+  ) {
+    const next = new Set(current);
+    if (next.has(value)) {
+      if (next.size > 1) next.delete(value);
+    } else {
+      next.add(value);
+    }
+    const params = new URLSearchParams(searchParams.toString());
+    if (next.size === totalOptions) {
+      params.delete(key);
+    } else {
+      params.set(key, [...next].join(","));
+    }
+    router.replace(`?${params.toString()}`, { scroll: false });
+  }
+
+  function toggleStatus(status: string) {
+    navigateFilter("status", status, statuses, STATUSES.length);
+  }
+
+  function toggleDivergencia(divergencia: string) {
+    navigateFilter(
+      "divergencias",
+      divergencia,
+      divergencias,
+      DIVERGENCIAS.length,
+    );
+  }
+
+  function toggleBandeira(bandeira: string) {
+    navigateFilter("bandeiras", bandeira, bandeiras, bandeirasOptions.length);
   }
 
   return (
@@ -348,10 +378,13 @@ export default function TablesClient({
             activeFontes={activeFontes}
             activeStatuses={activeStatuses}
             activeDivergencias={activeDivergencias}
+            activeBandeiras={activeBandeiras}
             activeMatchTypes={activeMatchTypes}
+            bandeirasOptions={bandeirasOptions}
             onToggleFonte={toggleFonte}
             onToggleStatus={toggleStatus}
             onToggleDivergencia={toggleDivergencia}
+            onToggleBandeira={toggleBandeira}
             onToggleMatchType={toggleMatchType}
           />
 

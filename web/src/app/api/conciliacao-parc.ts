@@ -25,13 +25,32 @@ export async function getTotaisParcDia(
   return res.json();
 }
 
+export interface ParcListFilters {
+  status?: string[];
+  bandeiras?: string[];
+  divergencias?: string[];
+}
+
+function appendFilters(
+  params: URLSearchParams,
+  filters?: ParcListFilters,
+) {
+  if (filters?.status?.length) params.set("status", filters.status.join(","));
+  if (filters?.bandeiras?.length)
+    params.set("bandeiras", filters.bandeiras.join(","));
+  if (filters?.divergencias?.length)
+    params.set("divergencias", filters.divergencias.join(","));
+}
+
 export async function getParcelasByDate(
   date: string,
   filialId?: number,
+  filters?: ParcListFilters,
 ): Promise<ConciliacaoParcItem[]> {
   const token = await getToken();
   const params = new URLSearchParams({ date });
   if (filialId) params.set("filialId", String(filialId));
+  appendFilters(params, filters);
 
   const res = await fetch(`${API}/conciliacao-parc?${params}`, {
     headers: { Authorization: `Bearer ${token}` },
@@ -44,10 +63,12 @@ export async function getParcelasDivergentes(
   startDate: string,
   endDate: string,
   filialId?: number,
+  filters?: ParcListFilters,
 ): Promise<ConciliacaoParcItem[]> {
   const token = await getToken();
   const params = new URLSearchParams({ startDate, endDate });
   if (filialId) params.set("filialId", String(filialId));
+  appendFilters(params, filters);
 
   const res = await fetch(`${API}/conciliacao-parc/divergentes?${params}`, {
     headers: { Authorization: `Bearer ${token}` },
