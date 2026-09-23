@@ -5,8 +5,14 @@ import { getParcelasByDate } from "@/app/api/conciliacao-parc";
 
 export default async function DetailParc({
   params,
+  searchParams,
 }: {
   params: Promise<{ date: string; filialId: string }>;
+  searchParams: Promise<{
+    status?: string;
+    bandeiras?: string;
+    divergencias?: string;
+  }>;
 }) {
   const access_token = (await cookies()).get("access_token")?.value;
   if (!access_token) {
@@ -14,13 +20,25 @@ export default async function DetailParc({
   }
 
   const { date, filialId } = await params;
-  const data = await getParcelasByDate(date, Number(filialId));
+  const sp = await searchParams;
+  const statuses = sp.status?.split(",").filter(Boolean) ?? [];
+  const bandeiras = sp.bandeiras?.split(",").filter(Boolean) ?? [];
+  const divergencias = sp.divergencias?.split(",").filter(Boolean) ?? [];
+
+  const data = await getParcelasByDate(date, Number(filialId), {
+    status: statuses,
+    bandeiras,
+    divergencias,
+  });
 
   return (
     <TablesClient
       data={data}
       date={date}
       filialId={Number(filialId)}
+      statuses={statuses}
+      bandeiras={bandeiras}
+      divergencias={divergencias}
     />
   );
 }

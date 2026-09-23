@@ -392,7 +392,11 @@ export async function getCofresTrier() {
 
     const cofres = await data.json();
 
-    if (!cofres?.content || !Array.isArray(cofres.content)) {
+    if (
+      !cofres?.content ||
+      !Array.isArray(cofres.content) ||
+      cofres.content.length === 0
+    ) {
       throw new Error("Resposta inválida da API");
     }
   } catch (error) {

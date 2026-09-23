@@ -48,6 +48,7 @@ export class JobsController {
       RedeParc: () => this.jobsService.runRedeParc(options),
       TrierParc: () => this.jobsService.runTrierParc(options),
       CieloParc: () => this.jobsService.runCieloParc(options),
+      Receivables: () => this.jobsService.runRecebimentos(options),
     };
 
     const job = jobs[jobName];

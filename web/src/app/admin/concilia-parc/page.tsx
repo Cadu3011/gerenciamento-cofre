@@ -36,23 +36,20 @@ export default async function ConciliaParc({ searchParams }: Props) {
   const filiais = await getFiliais();
   const params = await searchParams;
 
-  function getCurrentMonthRange() {
+  function getLast10DaysRange() {
     const now = new Date();
-    const from = new Date(now.getFullYear(), now.getMonth(), 1)
-      .toISOString()
-      .split("T")[0];
-    const to = new Date(now.getFullYear(), now.getMonth() + 1, 0)
-      .toISOString()
-      .split("T")[0];
+
+    const fromDate = new Date(now);
+    fromDate.setDate(now.getDate() - 9);
+
+    const from = fromDate.toISOString().split("T")[0];
+    const to = now.toISOString().split("T")[0];
+
     return { from, to };
   }
 
-  const range = getCurrentMonthRange();
-  const {
-    from = range.from,
-    to = range.to,
-    filialId = "1",
-  } = params;
+  const range = getLast10DaysRange();
+  const { from = range.from, to = range.to, filialId = "1" } = params;
 
   const access_token = (await cookies()).get("access_token")?.value;
   if (!access_token) return;
@@ -85,12 +82,8 @@ export default async function ConciliaParc({ searchParams }: Props) {
           <TableHeader className="bg-blue-950 sticky top-0 z-20">
             <TableRow>
               <TableHead className="text-white text-2xl">Data</TableHead>
-              <TableHead className="text-white text-2xl">
-                Conciliados
-              </TableHead>
-              <TableHead className="text-white text-2xl">
-                Divergentes
-              </TableHead>
+              <TableHead className="text-white text-2xl">Conciliados</TableHead>
+              <TableHead className="text-white text-2xl">Divergentes</TableHead>
               <TableHead className="text-white text-2xl">
                 Não Encontrado
               </TableHead>

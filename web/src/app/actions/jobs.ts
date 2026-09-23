@@ -3,9 +3,33 @@
 import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 
-export async function runCronJob(jobName: string) {
+export async function runCronJob(
+  jobName: string,
+  options?: {
+    period?: string;
+    date?: string;
+    startDate?: string;
+    endDate?: string;
+    force?: boolean;
+    bigCharge?: boolean;
+  }
+) {
   const tokenCookie = (await cookies()).get("access_token")?.value;
-  const res = await fetch(`http://localhost:4000/jobs/cron/${jobName}`, {
+
+  const params = new URLSearchParams();
+  if (options?.period) params.set("period", options.period);
+  if (options?.date) params.set("date", options.date);
+  if (options?.startDate) params.set("startDate", options.startDate);
+  if (options?.endDate) params.set("endDate", options.endDate);
+  if (options?.force) params.set("force", "true");
+  if (options?.bigCharge) params.set("bigCharge", "true");
+
+  const query = params.toString();
+  const url = `http://localhost:4000/jobs/cron/${jobName}${
+    query ? `?${query}` : ""
+  }`;
+
+  const res = await fetch(url, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",

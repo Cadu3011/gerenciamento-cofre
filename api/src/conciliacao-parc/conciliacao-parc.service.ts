@@ -1,7 +1,14 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { ObservacaoConciliacao, ParcelStatus } from '@prisma/client';
 import { PrismaService } from 'src/database/prisma.service';
 import { ConciliacaoParcPipeline } from './cron/conciliacao-parc.pipeline';
 import { JobExecutionContext } from 'src/jobs/jobs.execContext.service';
+
+export interface ParcFilters {
+  status?: ParcelStatus[];
+  bandeiras?: string[];
+  divergencias?: ObservacaoConciliacao[];
+}
 
 @Injectable()
 export class ConciliacaoParcService {
@@ -87,7 +94,17 @@ export class ConciliacaoParcService {
     };
   }
 
-  private buildOrFilter(filialId: number, start: Date, end: Date) {
+  private buildOrFilter(
+    filialId: number,
+    start: Date,
+    end: Date,
+    bandeiras?: string[],
+  ) {
+    const trierBandeira =
+      bandeiras?.length ? { bandeira: { in: bandeiras } } : {};
+    const cieloBandeira =
+      bandeiras?.length ? { bandeira: { in: bandeiras } } : {};
+
     return {
       itens: {
         some: {
@@ -96,6 +113,7 @@ export class ConciliacaoParcService {
               trierParcela: {
                 filialId,
                 dataEmissao: { gte: start, lte: end },
+                ...trierBandeira,
               },
             },
             {
@@ -108,12 +126,23 @@ export class ConciliacaoParcService {
               cieloParcela: {
                 filialId,
                 dataVenda: { gte: start, lte: end },
+                ...cieloBandeira,
               },
             },
           ],
         },
       },
     };
+  }
+
+  private buildStatusFilter(statuses?: ParcelStatus[]) {
+    return statuses?.length ? { status: { in: statuses } } : {};
+  }
+
+  private buildDivergenciasFilter(divergencias?: ObservacaoConciliacao[]) {
+    return divergencias?.length
+      ? { observacoes: { some: { tipo: { in: divergencias } } } }
+      : {};
   }
 
   private includeAll() {
@@ -129,12 +158,16 @@ export class ConciliacaoParcService {
     };
   }
 
-  async findByDate(filialId: number, date: string) {
+  async findByDate(filialId: number, date: string, filters?: ParcFilters) {
     const start = new Date(`${date}T00:00:00.000Z`);
     const end = new Date(`${date}T23:59:59.999Z`);
 
     const conciliacoes = await this.prisma.conciliacaoParcela.findMany({
-      where: this.buildOrFilter(filialId, start, end),
+      where: {
+        ...this.buildStatusFilter(filters?.status),
+        ...this.buildDivergenciasFilter(filters?.divergencias),
+        ...this.buildOrFilter(filialId, start, end, filters?.bandeiras),
+      },
       include: this.includeAll(),
       orderBy: { createdAt: 'desc' },
     });
@@ -145,6 +178,7 @@ export class ConciliacaoParcService {
   async findByDateDivergentes(
     filialId: number,
     dateRange: { from: string; to: string },
+    filters?: Pick<ParcFilters, 'bandeiras' | 'divergencias'>,
   ) {
     const start = new Date(`${dateRange.from}T00:00:00.000Z`);
     const end = new Date(`${dateRange.to}T23:59:59.999Z`);
@@ -152,7 +186,8 @@ export class ConciliacaoParcService {
     const conciliacoes = await this.prisma.conciliacaoParcela.findMany({
       where: {
         status: 'DIVERGENTE',
-        ...this.buildOrFilter(filialId, start, end),
+        ...this.buildDivergenciasFilter(filters?.divergencias),
+        ...this.buildOrFilter(filialId, start, end, filters?.bandeiras),
       },
       include: this.includeAll(),
       orderBy: { createdAt: 'desc' },

@@ -9,6 +9,7 @@ import { TrierModule } from 'src/trier/trier.module';
 import { ConciliacaoModule } from 'src/conciliacao/conciliacao.module';
 import { ConciliacaoParcModule } from 'src/conciliacao-parc/conciliacao-parc.module';
 import { ParcEtlModule } from 'src/parcETL/card-etl.module';
+import { ReceivableModule } from 'src/receivable/receivable.module';
 import { JobExecutionContext } from './jobs.execContext.service';
 import { JobsGateway } from './jobs.gateway';
 
@@ -24,6 +25,7 @@ import { JobsGateway } from './jobs.gateway';
     ConciliacaoModule,
     ConciliacaoParcModule,
     ParcEtlModule,
+    ReceivableModule,
   ],
   exports: [JobsService, JobExecutionContext],
 })

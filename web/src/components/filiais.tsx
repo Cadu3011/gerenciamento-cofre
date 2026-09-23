@@ -1,74 +1,145 @@
 "use client";
 import { useEffect, useState } from "react";
+import { Plus, Pencil, Building2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { listFiliais, Filial } from "@/app/actions/filial";
 import { FormFilial } from "./form-filial";
-import { apiUrl, getFiliais } from "@/app/api/post";
 
-interface Props {
-  token: string;
-}
 export default function ExibirFiliais() {
-  const [filiais, setFiliais] = useState<any>([]);
+  const [filiais, setFiliais] = useState<Filial[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editing, setEditing] = useState<Filial | null>(null);
+
+  const fetchFiliais = async () => {
+    setLoading(true);
+    try {
+      const data = await listFiliais();
+      setFiliais(data);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchFiliais = async () => {
-      const filiais = await getFiliais();
-      const filiaisFormat = await filiais.map((filial: any) => ({
-        id: filial.id,
-        name: filial.name,
-      }));
-      setFiliais(filiaisFormat);
-    };
     fetchFiliais();
   }, []);
-  const [isOpen, setIsOpen] = useState(false);
+
+  const openCreate = () => {
+    setEditing(null);
+    setDialogOpen(true);
+  };
+
+  const openEdit = (filial: Filial) => {
+    setEditing(filial);
+    setDialogOpen(true);
+  };
 
   return (
-    <div className="w-full h-full relative bg-slate-600 flex justify-center items-center rounded-b">
-      <div
-        className={`${
-          isOpen
-            ? "z-10 fixed bg-slate-600 w-96 border border-black h-60 rounded"
-            : "hidden"
-        }`}
-      >
-        <FormFilial />
-        <div className="flex justify-end mr-3">
-          <button
-            className="bg-blue-400 pl-3 pr-3 rounded border border-black"
-            onClick={() => setIsOpen(!isOpen)}
-          >
-            voltar
-          </button>
-        </div>
-      </div>
-      <div className="z-0">
-        <div className="ml-24 mr-24">Gerenciar Filiais</div>
-
-        <div className="ml-5">
-          <button
-            className="bg-blue-400 pl-2 pr-2 mb-2 rounded border border-black"
-            onClick={() => setIsOpen(!isOpen)}
-          >
-            criar
-          </button>
-        </div>
-        <ul className="overflow-y-auto h-full p-1 w-full">
-          <div className=" flex justify-between">
-            <div className="ml-3 text-white "> Filial</div>{" "}
-            <div className="mr-28 text-white">ID</div>
+    <div className="flex min-h-screen w-full justify-center bg-neutral-50 p-6">
+      <Card className="w-full max-w-4xl bg-white shadow-sm">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0">
+          <div>
+            <CardTitle className="flex items-center gap-2 text-xl">
+              <Building2 className="h-5 w-5 text-neutral-500" />
+              Gerenciar Filiais
+            </CardTitle>
+            <CardDescription className="mt-1">
+              Cadastre e edite as filiais e suas configurações de integração.
+            </CardDescription>
           </div>
+          <Button onClick={openCreate}>
+            <Plus className="h-4 w-4" />
+            Nova filial
+          </Button>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-14">ID</TableHead>
+                <TableHead>Filial</TableHead>
+                <TableHead className="text-center">Cofre Trier</TableHead>
+                <TableHead className="text-center">Banco Padrão</TableHead>
+                <TableHead className="text-center">Banco Recebimentos</TableHead>
+                <TableHead className="text-right">Ações</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {loading ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="h-24 text-center text-neutral-400">
+                    Carregando filiais...
+                  </TableCell>
+                </TableRow>
+              ) : filiais.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="h-24 text-center text-neutral-400">
+                    Nenhuma filial encontrada.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                filiais.map((filial) => (
+                  <TableRow key={filial.id}>
+                    <TableCell className="font-medium text-neutral-500">
+                      {filial.id}
+                    </TableCell>
+                    <TableCell className="font-medium">{filial.name}</TableCell>
+                    <TableCell className="text-center">
+                      <Badge variant="secondary">
+                        {filial.idCofreTrier ?? "—"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <Badge variant="secondary">
+                        {filial.idBancoDefault ?? "—"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <Badge variant="secondary">
+                        {filial.idBancoRecebimentos ?? "—"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => openEdit(filial)}
+                      >
+                        <Pencil className="h-4 w-4" />
+                        Editar
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
 
-          {filiais.map((filial: any, index: number) => (
-            <li
-              key={index}
-              className="flex items-center justify-between  pl-2 pr-2 bg-slate-300  mb-2 rounded"
-            >
-              <strong className="items-start w-1/3 mr-3">{filial.name}</strong>
-              <strong> {filial.id}</strong>
-              <button>Editar</button>
-            </li>
-          ))}
-        </ul>
-      </div>
+      <FormFilial
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        filial={editing}
+        onSaved={fetchFiliais}
+      />
     </div>
   );
 }

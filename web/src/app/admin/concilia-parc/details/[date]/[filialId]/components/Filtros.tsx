@@ -16,9 +16,18 @@ import {
 } from "@/components/ui/popover";
 import { SlidersHorizontal, ChevronDown } from "lucide-react";
 
-const FONTES = ["TRIER", "REDE", "CIELO"] as const;
-const STATUSES = ["CONCILIADO", "DIVERGENTE", "NAO_ENCONTRADO"] as const;
-const DIVERGENCIAS = ["VALOR", "VL_LIQUIDO", "VENCIMENTO", "PARCELAS"] as const;
+export const FONTES = ["TRIER", "REDE", "CIELO"] as const;
+export const STATUSES = [
+  "CONCILIADO",
+  "DIVERGENTE",
+  "NAO_ENCONTRADO",
+] as const;
+export const DIVERGENCIAS = [
+  "DIVERGENCIA_VALOR",
+  "DIVERGENCIA_VALOR_LIQUIDO",
+  "DIVERGENCIA_VENCIMENTO",
+  "DIVERGENCIA_QUANTIDADE_PARCELAS",
+] as const;
 const MATCH_TYPES = ["NSU", "VALOR", "VALOR_DATA", "MANUAL", "VENDA_CONCILIADA"] as const;
 
 const ORIGEM_COLORS: Record<string, string> = {
@@ -40,17 +49,17 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 const DIV_COLORS: Record<string, string> = {
-  VALOR: "text-red-500",
-  VL_LIQUIDO: "text-orange-500",
-  VENCIMENTO: "text-blue-500",
-  PARCELAS: "text-purple-500",
+  DIVERGENCIA_VALOR: "text-red-500",
+  DIVERGENCIA_VALOR_LIQUIDO: "text-orange-500",
+  DIVERGENCIA_VENCIMENTO: "text-blue-500",
+  DIVERGENCIA_QUANTIDADE_PARCELAS: "text-purple-500",
 };
 
 const DIV_LABELS: Record<string, string> = {
-  VALOR: "Valor",
-  VL_LIQUIDO: "Vl. Liquido",
-  VENCIMENTO: "Vencimento",
-  PARCELAS: "Parcelas",
+  DIVERGENCIA_VALOR: "Valor",
+  DIVERGENCIA_VALOR_LIQUIDO: "Vl. Liquido",
+  DIVERGENCIA_VENCIMENTO: "Vencimento",
+  DIVERGENCIA_QUANTIDADE_PARCELAS: "Parcelas",
 };
 
 const MATCH_COLORS: Record<string, string> = {
@@ -73,10 +82,13 @@ interface FiltrosProps {
   activeFontes: Set<string>;
   activeStatuses: Set<string>;
   activeDivergencias: Set<string>;
+  activeBandeiras: Set<string>;
   activeMatchTypes: Set<string>;
+  bandeirasOptions: string[];
   onToggleFonte: (fonte: string) => void;
   onToggleStatus: (status: string) => void;
   onToggleDivergencia: (divergencia: string) => void;
+  onToggleBandeira: (bandeira: string) => void;
   onToggleMatchType: (matchType: string) => void;
 }
 
@@ -85,14 +97,14 @@ function MultiSelect({
   options,
   selected,
   onToggle,
-  colorMap,
+  colorMap = {},
   labelMap,
 }: {
   label: string;
   options: readonly string[];
   selected: Set<string>;
   onToggle: (value: string) => void;
-  colorMap: Record<string, string>;
+  colorMap?: Record<string, string>;
   labelMap?: Record<string, string>;
 }) {
   const [open, setOpen] = useState(false);
@@ -121,7 +133,7 @@ function MultiSelect({
           sideOffset={4}
           className="w-[--radix-popover-trigger-width] p-2"
         >
-          <div className="flex flex-col gap-1">
+          <div className="flex flex-col gap-1 max-h-[45vh] overflow-y-auto">
             {options.map((opt) => (
               <label
                 key={opt}
@@ -131,7 +143,7 @@ function MultiSelect({
                   checked={selected.has(opt)}
                   onCheckedChange={() => onToggle(opt)}
                 />
-                <span className={`text-sm font-medium ${colorMap[opt]}`}>
+                <span className={`text-sm font-medium ${colorMap[opt] ?? ""}`}>
                   {labelMap?.[opt] ?? opt}
                 </span>
               </label>
@@ -147,19 +159,34 @@ export default function Filtros({
   activeFontes,
   activeStatuses,
   activeDivergencias,
+  activeBandeiras,
   activeMatchTypes,
+  bandeirasOptions,
   onToggleFonte,
   onToggleStatus,
   onToggleDivergencia,
+  onToggleBandeira,
   onToggleMatchType,
 }: FiltrosProps) {
   const [open, setOpen] = useState(false);
 
   const allFontes = activeFontes.size === FONTES.length;
-  const allStatuses = activeStatuses.size === STATUSES.length;
-  const allDivergencias = activeDivergencias.size === DIVERGENCIAS.length;
   const allMatchTypes = activeMatchTypes.size === MATCH_TYPES.length;
-  const hasFilter = !allFontes || !allStatuses || !allDivergencias || !allMatchTypes;
+  const allStatuses =
+    activeStatuses.size === 0 || activeStatuses.size === STATUSES.length;
+  const allDivergencias =
+    activeDivergencias.size === 0 ||
+    activeDivergencias.size === DIVERGENCIAS.length;
+  const allBandeiras =
+    activeBandeiras.size === 0 ||
+    (bandeirasOptions.length > 0 &&
+      activeBandeiras.size === bandeirasOptions.length);
+  const hasFilter =
+    !allFontes ||
+    !allMatchTypes ||
+    !allStatuses ||
+    !allDivergencias ||
+    !allBandeiras;
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -206,6 +233,13 @@ export default function Filtros({
             onToggle={onToggleDivergencia}
             colorMap={DIV_COLORS}
             labelMap={DIV_LABELS}
+          />
+
+          <MultiSelect
+            label="Bandeira"
+            options={bandeirasOptions}
+            selected={activeBandeiras}
+            onToggle={onToggleBandeira}
           />
 
           <MultiSelect
