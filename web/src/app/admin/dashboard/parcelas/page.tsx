@@ -1,11 +1,19 @@
 import { getFiliais } from "@/app/api/post";
 import { getParcDashboard, getParcBandeiras } from "@/app/api/conciliacao-parc";
-import { formatDate } from "../utils";
+import {
+  formatDate,
+  BANDEIRAS_PADRAO,
+  getDefaultStartDate,
+  getDefaultEndDate,
+  getAnoStart,
+} from "../utils";
 import CardTotals from "../_components/CardTotals";
+import CardKPI from "../_components/CardKPI";
 import ChartLineParcelas from "./_components/ChartLineParcelas";
 import ChartColumnsParcDifsMensal from "./_components/ChartColumnsParcDifsMensal";
 import ChartRowBarsRankings from "./_components/ChartRowBarsRankings";
 import ChartHealthDivergencias from "./_components/ChartHealthDivergencias";
+import ChartAgingPendencias from "./_components/ChartAgingPendencias";
 import FilterBandeira from "../_components/FilterBandeira";
 
 type Props = {
@@ -18,34 +26,6 @@ type Props = {
 };
 
 export default async function DashboardParcelas({ searchParams }: Props) {
-  const BANDEIRAS_PADRAO = [
-    "PAGAMENTO ONLINE IFOOD",
-    "PIX SEGURO - PAGGPIX",
-    "BRASILCARD 1X",
-    "BRASILCARD 2X",
-    "BRASILCARD 3X",
-  ];
-  function getDefaultStartDate() {
-    const today = new Date();
-    const referenceDate = today.getDate() <= 5
-      ? new Date(today.getFullYear(), today.getMonth() - 1, 1)
-      : new Date(today.getFullYear(), today.getMonth(), 1);
-    return referenceDate.toISOString().split("T")[0];
-  }
-
-  function getDefaultEndDate() {
-    const today = new Date();
-    const referenceDate = today.getDate() <= 5
-      ? new Date(today.getFullYear(), today.getMonth(), 0)
-      : today;
-    return referenceDate.toISOString().split("T")[0];
-  }
-
-  function getAnoStart() {
-    const hoje = new Date();
-    return new Date(hoje.getFullYear() - 1, hoje.getMonth(), 1).toISOString().split("T")[0];
-  }
-
   const [filiais, bandeirasList] = await Promise.all([
     getFiliais(),
     getParcBandeiras(),
@@ -76,8 +56,15 @@ export default async function DashboardParcelas({ searchParams }: Props) {
       </div>
     );
 
-  const { cardsTotals, chartLines, rankings, chartRankingDivergencias } = data;
+  const { cardsTotals, chartLines, rankings, chartRankingDivergencias, aging } = data;
   const chartDiferencaMensal = dataAnual?.chartDiferencaMensal ?? [];
+
+  const somaAutomaticos = rankings.reduce((s: number, r: any) => s + (r.automaticos ?? 0), 0);
+  const somaGruposRanking = rankings.reduce((s: number, r: any) => s + (r.totalGrupos ?? 0), 0);
+  const taxaAutomGeral =
+    somaGruposRanking > 0
+      ? ((somaAutomaticos / somaGruposRanking) * 100).toFixed(1)
+      : "0";
 
   return (
     <div className="flex gap-2">
@@ -120,6 +107,20 @@ export default async function DashboardParcelas({ searchParams }: Props) {
                 </p>
               </div>
             </div>
+
+            <CardKPI
+              title="Materialidade"
+              value={`${cardsTotals.materialidade}%`}
+              sub="R$ divergente ÷ total Trier"
+              backgroundColor="bg-yellow-100"
+              emphasis={cardsTotals.materialidade >= 5}
+            />
+            <CardKPI
+              title="Conc. Automática"
+              value={`${taxaAutomGeral}%`}
+              sub="grupos não-manuais"
+              backgroundColor="bg-indigo-100"
+            />
           </div>
           <div className="w-full px-10">
             <FilterBandeira
@@ -134,6 +135,7 @@ export default async function DashboardParcelas({ searchParams }: Props) {
           <div className="w-full flex flex-col px-10 gap-10">
             <ChartRowBarsRankings data={rankings} />
             <ChartHealthDivergencias data={chartRankingDivergencias} />
+            <ChartAgingPendencias data={aging} />
           </div>
         </div>
       </div>

@@ -26,10 +26,21 @@ interface Props {
   data: {
     filial: string;
     filialId: number;
+    trier: number;
+    adquirentes: number;
     diferenca: number;
     divergencias: number;
+    valorDivergencias: number;
+    totalGrupos: number;
+    automaticos: number;
+    taxaAutomatica: number;
   }[];
 }
+
+const BRL = new Intl.NumberFormat("pt-BR", {
+  style: "currency",
+  currency: "BRL",
+});
 
 function CustomTooltip({ active, payload }: TooltipProps<number, string>) {
   if (!active || !payload?.length) return null;
@@ -58,7 +69,13 @@ function CustomTooltip({ active, payload }: TooltipProps<number, string>) {
           currency: "BRL",
         })}
       </p>
-      <p>Divergências: {item.divergencias}</p>
+      <p>
+        Divergências: <strong>{item.divergencias}</strong> ({item.valorDivergencias ? BRL.format(item.valorDivergencias) : "—"})
+      </p>
+      <p>Total grupos: {item.totalGrupos.toLocaleString("pt-BR")}</p>
+      <p>
+        Conc. automática: <strong>{item.taxaAutomatica}%</strong>
+      </p>
     </div>
   );
 }

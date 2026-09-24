@@ -54,6 +54,28 @@ export interface TotalsParcDay {
   totalTaxas: number;
 }
 
+export interface ParcTotaisDia {
+  conciliados: number;
+  divergentes: number;
+  naoEncontrados: number;
+  trierValor: number;
+  outraValor: number;
+  diferencaValor: number;
+  trierLiquido: number;
+  outraLiquido: number;
+  diferencaLiquido: number;
+  trierTaxa: number;
+  outraTaxa: number;
+}
+
+export interface ParcListResult {
+  items: ConciliacaoParcItem[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totais: ParcTotaisDia;
+}
+
 export interface FlatRow {
   groupId: number;
   groupStatus: string;
