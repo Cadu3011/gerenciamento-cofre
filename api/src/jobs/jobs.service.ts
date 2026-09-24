@@ -15,6 +15,7 @@ import { TrierParcCron } from 'src/parcETL/trier/cron/trier.cron';
 import { CieloParcETLCron } from 'src/parcETL/cielo/cron/cielo.cron';
 import { ConciParcCron } from 'src/conciliacao-parc/cron/conciliacao-parc.cron';
 import { ReceivableCron } from 'src/receivable/receivable.cron';
+import { FatoCartaoVendasCron } from 'src/fatoCartaoVendas/fato-cartao-vendas.cron';
 import { JobExecutionContext } from './jobs.execContext.service';
 import { JobsGateway } from './jobs.gateway';
 import { InfoJob } from './dto/options-job';
@@ -51,6 +52,9 @@ export class JobsService {
 
   @Inject()
   private readonly receivableCron: ReceivableCron;
+
+  @Inject()
+  private readonly fatoCartaoVendasCron: FatoCartaoVendasCron;
 
   @Inject()
   private readonly jobsGateway: JobsGateway;
@@ -507,6 +511,17 @@ export class JobsService {
           }
           throw error;
         }
+      },
+      this.normalizeOptions(options),
+    );
+  }
+
+  @Cron('10 15,18 * * 1-7')
+  runFatoCartaoVendas(options: RunJobQueryDto = {}) {
+    return this.runCronJob(
+      { jobName: 'FatoCartaoVendas' },
+      async (context, opts) => {
+        await this.fatoCartaoVendasCron.execute(context, opts);
       },
       this.normalizeOptions(options),
     );

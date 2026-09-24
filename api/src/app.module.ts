@@ -18,6 +18,7 @@ import { ConciliacaoModule } from './conciliacao/conciliacao.module';
 import { ParcEtlModule } from './parcETL/card-etl.module';
 import { ConciliacaoParcModule } from './conciliacao-parc/conciliacao-parc.module';
 import { ReceivableModule } from './receivable/receivable.module';
+import { FatoCartaoVendasModule } from './fatoCartaoVendas/fato-cartao-vendas.module';
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { ReceivableModule } from './receivable/receivable.module';
     ConciliacaoModule,
     ConciliacaoParcModule,
     ReceivableModule,
+    FatoCartaoVendasModule,
   ],
   controllers: [AppController],
   providers: [AppService],

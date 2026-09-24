@@ -144,6 +144,7 @@ model Filial {
   conciliacoes     Conciliacao[]
   diferencas       DiferencaCaixa[]    @relation("DiferencaCaixaAndFilial")
   recebimentos     Receivable[]        @relation("FilialAndReceivable")
+  fatoCartaoVendas FatoCartaoVendas[]
 }
 
 model CartaoVendas {
@@ -409,6 +410,8 @@ model TrierParcela {
   @@index([nsuAdministradora])
   @@index([dataVencimento])
   @@index([documentoFiscal])
+  @@index([filialId, dataEmissao])
+  @@index([vendaId])
 }
 
 model RedeParcela {
@@ -444,6 +447,7 @@ model RedeParcela {
   @@index([nsu])
   @@index([vencimento])
   @@index([receivableId])
+  @@index([filialId, dataVenda])
 }
 
 model CieloParcela {
@@ -489,6 +493,7 @@ model CieloParcela {
   @@index([nsu])
   @@index([dataVencimento])
   @@index([receivableId])
+  @@index([filialId, dataVenda])
 }
 
 model ConciliacaoLote {
@@ -554,6 +559,7 @@ model ConciliacaoParcelaItem {
   createdAt DateTime @default(now())
 
   @@index([conciliacaoParcelaId])
+  @@index([conciliacaoParcelaId, origem])
 
   @@index([trierParcelaId])
   @@index([redeParcelaId])
@@ -566,6 +572,8 @@ model ConciliacaoParcelaObservacao {
   conciliacaoParcela ConciliacaoParcela @relation(fields: [conciliacaoParcelaId], references: [id], onDelete: Cascade)
 
   tipo ObservacaoConciliacao
+
+  @@index([conciliacaoParcelaId, tipo])
 }
 
 enum ObservacaoConciliacao {
@@ -614,4 +622,32 @@ model Receivable {
   createdAt DateTime @default(now())
 
   @@index([filialId, dataRecebimento])
+}
+
+model FatoCartaoVendas {
+  id              Int               @id @default(autoincrement())
+  data            DateTime          @db.Date
+  filialId        Int
+  filial          Filial            @relation(fields: [filialId], references: [id])
+  adquirente      OrigemConciliacao
+  bandeira        String            @default("") @db.VarChar(80)
+
+  valorBruto      Decimal           @default(0) @db.Decimal(14, 2)
+  valorLiquido    Decimal           @default(0) @db.Decimal(14, 2)
+  taxa            Decimal           @default(0) @db.Decimal(14, 2)
+  quantidade      Int               @default(0)
+
+  valorConciliado Decimal           @default(0) @db.Decimal(14, 2)
+  valorDivergente Decimal           @default(0) @db.Decimal(14, 2)
+  valorPendente   Decimal           @default(0) @db.Decimal(14, 2)
+  qtdConciliado   Int               @default(0)
+  qtdDivergente   Int               @default(0)
+  qtdPendente     Int               @default(0)
+
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  @@unique([data, filialId, adquirente, bandeira])
+  @@index([filialId, data])
+  @@index([data, adquirente])
 }
