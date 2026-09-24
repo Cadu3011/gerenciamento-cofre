@@ -37,8 +37,11 @@ export default function ChartColumnsCardsDifs({ data }: Props) {
   const min = Math.min(...values);
   const max = Math.max(...values);
 
-  const yMin = min < 0 ? min * 1.05 : 0;
-  const yMax = max > 0 ? max * 1.05 : 0;
+  const range = max - min;
+const padding = range === 0 ? Math.abs(max) * 0.2 || 100 : range * 0.1;
+
+const yMin = min < 0 ? min - padding : 0;
+const yMax = max > 0 ? max + padding : 0;
 
   const getBarColor = (diferenca: number) => {
     return diferenca >= -100 && diferenca <= 100

@@ -183,26 +183,31 @@ export class ConciliacaoController {
     @Query('type')
     type: 'MANUAL_MENOR_2' | 'MANUAL_MAIOR_2' | 'UNICO' | 'DIVERGENTE',
     @Query('filialId') filialId?: number,
+    @Query('skipSales') skipSales?: string,
   ) {
     const user = req['sub'];
     if (user.roles.includes('OPERADOR')) {
       filialId = user.filialId;
     }
-    const cardsTotals = await this.conciliacaoDashboardService.totaisCards(
-      {
-        from: startDate,
-        to: endDate,
-      },
-      +filialId,
-    );
-    const chartLinesCards =
-      await this.conciliacaoDashboardService.chartLinesCards(
-        {
-          from: startDate,
-          to: endDate,
-        },
-        +filialId,
-      );
+    const skip = skipSales === 'true';
+    const cardsTotals = skip
+      ? undefined
+      : await this.conciliacaoDashboardService.totaisCards(
+          {
+            from: startDate,
+            to: endDate,
+          },
+          +filialId,
+        );
+    const chartLinesCards = skip
+      ? undefined
+      : await this.conciliacaoDashboardService.chartLinesCards(
+          {
+            from: startDate,
+            to: endDate,
+          },
+          +filialId,
+        );
     const chartRankingHealth =
       await this.conciliacaoDashboardService.chartRankingHealth(
         {
@@ -211,11 +216,8 @@ export class ConciliacaoController {
         },
         +filialId,
       );
-    const rankings =
-      await this.conciliacaoDashboardService.chartRankingPendencias({
-        from: startDate,
-        to: endDate,
-      });
+    const rankings = [];
+
     const movesRankingByHealth =
       await this.conciliacaoDashboardService.findMovimentosByHealthType(
         {
