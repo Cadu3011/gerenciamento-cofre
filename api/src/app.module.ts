@@ -19,6 +19,7 @@ import { ParcEtlModule } from './parcETL/card-etl.module';
 import { ConciliacaoParcModule } from './conciliacao-parc/conciliacao-parc.module';
 import { ReceivableModule } from './receivable/receivable.module';
 import { FatoCartaoVendasModule } from './fatoCartaoVendas/fato-cartao-vendas.module';
+import { FatoCartaoParcelasModule } from './fatoCartaoParcelas/fato-cartao-parcelas.module';
 
 @Module({
   imports: [
@@ -40,6 +41,7 @@ import { FatoCartaoVendasModule } from './fatoCartaoVendas/fato-cartao-vendas.mo
     ConciliacaoParcModule,
     ReceivableModule,
     FatoCartaoVendasModule,
+    FatoCartaoParcelasModule,
   ],
   controllers: [AppController],
   providers: [AppService],

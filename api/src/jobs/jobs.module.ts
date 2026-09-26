@@ -11,6 +11,7 @@ import { ConciliacaoParcModule } from 'src/conciliacao-parc/conciliacao-parc.mod
 import { ParcEtlModule } from 'src/parcETL/card-etl.module';
 import { ReceivableModule } from 'src/receivable/receivable.module';
 import { FatoCartaoVendasModule } from 'src/fatoCartaoVendas/fato-cartao-vendas.module';
+import { FatoCartaoParcelasModule } from 'src/fatoCartaoParcelas/fato-cartao-parcelas.module';
 import { JobExecutionContext } from './jobs.execContext.service';
 import { JobsGateway } from './jobs.gateway';
 
@@ -28,6 +29,7 @@ import { JobsGateway } from './jobs.gateway';
     ParcEtlModule,
     ReceivableModule,
     FatoCartaoVendasModule,
+    FatoCartaoParcelasModule,
   ],
   exports: [JobsService, JobExecutionContext],
 })

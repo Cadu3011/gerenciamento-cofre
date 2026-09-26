@@ -145,6 +145,7 @@ model Filial {
   diferencas       DiferencaCaixa[]    @relation("DiferencaCaixaAndFilial")
   recebimentos     Receivable[]        @relation("FilialAndReceivable")
   fatoCartaoVendas FatoCartaoVendas[]
+  fatoCartaoParcelas FatoCartaoParcelas[]
 }
 
 model CartaoVendas {
@@ -625,6 +626,34 @@ model Receivable {
 }
 
 model FatoCartaoVendas {
+  id              Int               @id @default(autoincrement())
+  data            DateTime          @db.Date
+  filialId        Int
+  filial          Filial            @relation(fields: [filialId], references: [id])
+  adquirente      OrigemConciliacao
+  bandeira        String            @default("") @db.VarChar(80)
+
+  valorBruto      Decimal           @default(0) @db.Decimal(14, 2)
+  valorLiquido    Decimal           @default(0) @db.Decimal(14, 2)
+  taxa            Decimal           @default(0) @db.Decimal(14, 2)
+  quantidade      Int               @default(0)
+
+  valorConciliado Decimal           @default(0) @db.Decimal(14, 2)
+  valorDivergente Decimal           @default(0) @db.Decimal(14, 2)
+  valorPendente   Decimal           @default(0) @db.Decimal(14, 2)
+  qtdConciliado   Int               @default(0)
+  qtdDivergente   Int               @default(0)
+  qtdPendente     Int               @default(0)
+
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  @@unique([data, filialId, adquirente, bandeira])
+  @@index([filialId, data])
+  @@index([data, adquirente])
+}
+
+model FatoCartaoParcelas {
   id              Int               @id @default(autoincrement())
   data            DateTime          @db.Date
   filialId        Int

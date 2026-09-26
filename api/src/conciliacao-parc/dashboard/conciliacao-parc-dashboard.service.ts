@@ -356,6 +356,85 @@ export class ConciliacaoParcDashboardService {
     });
   }
 
+  /**
+   * Contagens de grupo por filial (divergencias, valorDivergencias,
+   * totalGrupos, automaticos). Apenas as CTEs div_count + auto_count do
+   * chartRankingPendencias — sem trier_total/adq_total, que agora são
+   * servidos pela tabela FatoCartaoParcelas.
+   */
+  async rankingGruposPendencias(
+    dateRange: { from: string; to: string },
+    bandeiras?: string[],
+  ) {
+    const { start, end } = this.dateParams(dateRange);
+
+    const rows = await this.prisma.$queryRaw<
+      {
+        filialId: number;
+        divergencias: bigint;
+        valorDivergencias: any;
+        totalGrupos: bigint;
+        automaticos: bigint;
+      }[]
+    >(Prisma.sql`
+      WITH
+      div_count AS (
+        SELECT COALESCE(tp.filialId, rp.filialId, cip.filialId, 0) AS filialId,
+               COUNT(DISTINCT cp.id) AS divergencias,
+               COALESCE(SUM(CASE WHEN tp.id IS NOT NULL THEN tp.valor ELSE 0 END), 0) AS valorDivergencias
+        FROM ConciliacaoParcela cp
+        JOIN ConciliacaoParcelaItem cpi ON cpi.conciliacaoParcelaId = cp.id
+        LEFT JOIN TrierParcela tp ON tp.id = cpi.trierParcelaId
+        LEFT JOIN RedeParcela rp ON rp.id = cpi.redeParcelaId
+        LEFT JOIN CieloParcela cip ON cip.id = cpi.cieloParcelaId
+        WHERE cp.status = 'DIVERGENTE'
+          AND (
+            (tp.id IS NOT NULL AND tp.dataEmissao >= ${start} AND tp.dataEmissao <= ${end})
+            OR (rp.id IS NOT NULL AND rp.dataVenda >= ${start} AND rp.dataVenda <= ${end})
+            OR (cip.id IS NOT NULL AND cip.dataVenda >= ${start} AND cip.dataVenda <= ${end})
+          )
+        GROUP BY filialId
+      ),
+      auto_count AS (
+        SELECT COALESCE(tp.filialId, rp.filialId, cip.filialId, 0) AS filialId,
+               COUNT(DISTINCT cp.id) AS totalGrupos,
+               COUNT(DISTINCT CASE WHEN cp.tipoMatch IS NOT NULL AND cp.tipoMatch <> 'MANUAL' THEN cp.id END) AS automaticos
+        FROM ConciliacaoParcela cp
+        JOIN ConciliacaoParcelaItem cpi ON cpi.conciliacaoParcelaId = cp.id
+        LEFT JOIN TrierParcela tp ON tp.id = cpi.trierParcelaId
+        LEFT JOIN RedeParcela rp ON rp.id = cpi.redeParcelaId
+        LEFT JOIN CieloParcela cip ON cip.id = cpi.cieloParcelaId
+        WHERE (
+          (tp.id IS NOT NULL AND tp.dataEmissao >= ${start} AND tp.dataEmissao <= ${end})
+          OR (rp.id IS NOT NULL AND rp.dataVenda >= ${start} AND rp.dataVenda <= ${end})
+          OR (cip.id IS NOT NULL AND cip.dataVenda >= ${start} AND cip.dataVenda <= ${end})
+        )
+        GROUP BY filialId
+      )
+      SELECT filialId,
+        SUM(divergencias) AS divergencias,
+        SUM(valorDivergencias) AS valorDivergencias,
+        SUM(totalGrupos) AS totalGrupos,
+        SUM(automaticos) AS automaticos
+      FROM (
+        SELECT filialId, divergencias, valorDivergencias, 0 AS totalGrupos, 0 AS automaticos
+        FROM div_count
+        UNION ALL
+        SELECT filialId, 0, 0, totalGrupos, automaticos
+        FROM auto_count
+      ) u
+      GROUP BY filialId
+    `);
+
+    return rows.map((r) => ({
+      filialId: Number(r.filialId),
+      divergencias: Number(r.divergencias),
+      valorDivergencias: Number(r.valorDivergencias),
+      totalGrupos: Number(r.totalGrupos),
+      automaticos: Number(r.automaticos),
+    }));
+  }
+
   async chartRankingDivergencias(
     dateRange: { from: string; to: string },
     filialId?: number,

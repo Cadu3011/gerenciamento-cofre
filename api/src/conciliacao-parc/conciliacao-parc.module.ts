@@ -20,6 +20,6 @@ import { ConciliacaoParcDashboardService } from './dashboard/conciliacao-parc-da
     ConciParcCron,
     ConciliacaoParcDashboardService,
   ],
-  exports: [ConciParcCron],
+  exports: [ConciParcCron, ConciliacaoParcDashboardService],
 })
 export class ConciliacaoParcModule {}

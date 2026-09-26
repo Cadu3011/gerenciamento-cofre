@@ -16,6 +16,7 @@ import { CieloParcETLCron } from 'src/parcETL/cielo/cron/cielo.cron';
 import { ConciParcCron } from 'src/conciliacao-parc/cron/conciliacao-parc.cron';
 import { ReceivableCron } from 'src/receivable/receivable.cron';
 import { FatoCartaoVendasCron } from 'src/fatoCartaoVendas/fato-cartao-vendas.cron';
+import { FatoCartaoParcelasCron } from 'src/fatoCartaoParcelas/fato-cartao-parcelas.cron';
 import { JobExecutionContext } from './jobs.execContext.service';
 import { JobsGateway } from './jobs.gateway';
 import { InfoJob } from './dto/options-job';
@@ -55,6 +56,9 @@ export class JobsService {
 
   @Inject()
   private readonly fatoCartaoVendasCron: FatoCartaoVendasCron;
+
+  @Inject()
+  private readonly fatoCartaoParcelasCron: FatoCartaoParcelasCron;
 
   @Inject()
   private readonly jobsGateway: JobsGateway;
@@ -521,7 +525,31 @@ export class JobsService {
     return this.runCronJob(
       { jobName: 'FatoCartaoVendas' },
       async (context, opts) => {
-        await this.fatoCartaoVendasCron.execute(context, opts);
+        try {
+          await this.fatoCartaoVendasCron.execute(context, opts);
+          return;
+        } catch (e) {
+          const error = e as Error & {
+            obj?: { code: string };
+          };
+          if (error.obj?.code === '02') {
+            await context.warn('RETRY', error.message);
+            throw error;
+          }
+          throw error;
+        }
+      },
+
+      this.normalizeOptions(options),
+    );
+  }
+
+  @Cron('10 15,18 * * 1-7')
+  runFatoCartaoParcelas(options: RunJobQueryDto = {}) {
+    return this.runCronJob(
+      { jobName: 'FatoCartaoParcelas' },
+      async (context, opts) => {
+        await this.fatoCartaoParcelasCron.execute(context, opts);
       },
       this.normalizeOptions(options),
     );

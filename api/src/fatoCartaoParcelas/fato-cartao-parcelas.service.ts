@@ -1,5 +1,5 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
-import { OrigemConciliacao } from '@prisma/client';
+import { OrigemConciliacao, Prisma } from '@prisma/client';
 import { PrismaService } from 'src/database/prisma.service';
 import { JobExecutionContext } from 'src/jobs/jobs.execContext.service';
 
@@ -44,11 +44,11 @@ function round2(value: number): number {
 }
 
 @Injectable()
-export class FatoCartaoVendasService {
+export class FatoCartaoParcelasService {
   @Inject()
   private readonly prisma: PrismaService;
 
-  private readonly logger = new Logger(FatoCartaoVendasService.name);
+  private readonly logger = new Logger(FatoCartaoParcelasService.name);
 
   private toISODate(d: Date) {
     return d.toISOString().slice(0, 10);
@@ -118,49 +118,44 @@ export class FatoCartaoVendasService {
     const startD = new Date(`${start}T00:00:00.000Z`);
     const endD = new Date(`${end}T00:00:00.000Z`);
     const map = new Map<FatoKey, FatoRow>();
-    const semMapeamento = new Set<string>();
     let currentStep = '';
 
     try {
       currentStep = 'AGGREGATE';
       context.startStep(currentStep);
 
-      const [trier, rede, cielo, filiais] = await Promise.all([
-        this.prisma.trierCartaoVendas.groupBy({
+      const [trier, rede, cielo] = await Promise.all([
+        this.prisma.trierParcela.groupBy({
           by: ['dataEmissao', 'filialId', 'bandeira', 'statusConciliacao'],
           where: { dataEmissao: { gte: startD, lte: endD } },
-          _sum: { valor: true },
+          _sum: { valor: true, valorLiquido: true, valorTaxas: true },
           _count: { _all: true },
         }),
-        this.prisma.redeVenda.groupBy({
+        this.prisma.redeParcela.groupBy({
+          by: ['dataVenda', 'filialId', 'statusConciliacao'],
+          where: { dataVenda: { gte: startD, lte: endD } },
+          _sum: { valor: true, valorLiquido: true, taxa: true },
+          _count: { _all: true },
+        }),
+        this.prisma.cieloParcela.groupBy({
           by: ['dataVenda', 'filialId', 'bandeira', 'statusConciliacao'],
           where: { dataVenda: { gte: startD, lte: endD } },
-          _sum: { valor: true, valorLiquido: true },
+          _sum: { valor: true, valorLiquido: true, taxaAdministrativa: true },
           _count: { _all: true },
-        }),
-        this.prisma.cartaoVendas.groupBy({
-          by: ['dataVenda', 'estabelecimento', 'bandeira', 'statusConciliacao'],
-          where: { dataVenda: { gte: start, lte: end } },
-          _sum: {
-            valorBruto: true,
-            valorLiquido: true,
-            taxaAdministrativa: true,
-          },
-          _count: { _all: true },
-        }),
-        this.prisma.filial.findMany({
-          select: { id: true, idCielo: true },
         }),
       ]);
 
-      const filialMap = new Map<string, number>();
-      for (const f of filiais) {
-        if (f.idCielo) filialMap.set(String(f.idCielo).trim(), f.id);
-      }
-
       for (const g of trier) {
         const dataISO = this.toISODate(new Date(g.dataEmissao));
-        const row = this.getRow(map, dataISO, g.filialId, 'TRIER', g.bandeira);
+        const row = this.getRow(
+          map,
+          dataISO,
+          g.filialId,
+          'TRIER',
+          g.bandeira ?? '',
+        );
+        row.valorLiquido += Number(g._sum.valorLiquido ?? 0);
+        row.taxa += Number(g._sum.valorTaxas ?? 0);
         this.aplicarStatus(
           row,
           g.statusConciliacao,
@@ -171,49 +166,33 @@ export class FatoCartaoVendasService {
 
       for (const g of rede) {
         const dataISO = this.toISODate(new Date(g.dataVenda));
-        const valor = Number(g._sum.valor ?? 0);
-        const liquido = Number(g._sum.valorLiquido ?? 0);
-        const row = this.getRow(
-          map,
-          dataISO,
-          g.filialId,
-          'REDE',
-          g.bandeira ?? '',
-        );
-        row.valorLiquido += liquido;
-        row.taxa += round2(valor - liquido);
-        this.aplicarStatus(row, g.statusConciliacao, valor, g._count._all);
-      }
-
-      for (const g of cielo) {
-        const filialId = filialMap.get(String(g.estabelecimento).trim());
-        if (!filialId) {
-          semMapeamento.add(g.estabelecimento);
-          continue;
-        }
-        const dataISO = g.dataVenda;
-        const row = this.getRow(map, dataISO, filialId, 'CIELO', g.bandeira);
+        const row = this.getRow(map, dataISO, g.filialId, 'REDE', '');
         row.valorLiquido += Number(g._sum.valorLiquido ?? 0);
-        row.taxa += Number(g._sum.taxaAdministrativa ?? 0);
+        row.taxa += Number(g._sum.taxa ?? 0);
         this.aplicarStatus(
           row,
-          g.statusConciliacao ?? 'PENDENTE',
-          Number(g._sum.valorBruto ?? 0),
+          g.statusConciliacao,
+          Number(g._sum.valor ?? 0),
           g._count._all,
         );
       }
 
-      if (semMapeamento.size > 0) {
-        await context.warn(
-          currentStep,
-          `Cielo: ${semMapeamento.size} estabelecimentos sem filial mapeada: ${[
-            ...semMapeamento,
-          ]
-            .slice(0, 5)
-            .join(', ')}`,
+      for (const g of cielo) {
+        const dataISO = this.toISODate(new Date(g.dataVenda));
+        const row = this.getRow(
+          map,
+          dataISO,
+          g.filialId,
+          'CIELO',
+          g.bandeira ?? '',
         );
-        this.logger.warn(
-          `Cielo: estabelecimentos sem filial mapeada: ${[...semMapeamento].join(', ')}`,
+        row.valorLiquido += Number(g._sum.valorLiquido ?? 0);
+        row.taxa += Number(g._sum.taxaAdministrativa ?? 0);
+        this.aplicarStatus(
+          row,
+          g.statusConciliacao,
+          Number(g._sum.valor ?? 0),
+          g._count._all,
         );
       }
 
@@ -235,7 +214,6 @@ export class FatoCartaoVendasService {
         linhas: map.size,
         apagadas,
         inseridas,
-        semMapeamento: semMapeamento.size,
       };
     } catch (error: any) {
       await context.error(
@@ -268,24 +246,19 @@ export class FatoCartaoVendasService {
     let inseridas = 0;
     const BATCH = 1000;
 
-    await this.prisma.$transaction(
-      async (tx) => {
-        const del = await tx.fatoCartaoVendas.deleteMany({
-          where: { data: { gte: startD, lte: endD } },
-        });
-        apagadas = del.count;
+    await this.prisma.$transaction(async (tx) => {
+      const del = await tx.fatoCartaoParcelas.deleteMany({
+        where: { data: { gte: startD, lte: endD } },
+      });
+      apagadas = del.count;
 
-        for (let i = 0; i < rows.length; i += BATCH) {
-          const created = await tx.fatoCartaoVendas.createMany({
-            data: rows.slice(i, i + BATCH),
-          });
-          inseridas += created.count;
-        }
-      },
-      {
-        timeout: 60_000,
-      },
-    );
+      for (let i = 0; i < rows.length; i += BATCH) {
+        const created = await tx.fatoCartaoParcelas.createMany({
+          data: rows.slice(i, i + BATCH),
+        });
+        inseridas += created.count;
+      }
+    });
 
     return { apagadas, inseridas };
   }
@@ -294,7 +267,7 @@ export class FatoCartaoVendasService {
     const startD = new Date(`${params.startDate}T00:00:00.000Z`);
     const endD = new Date(`${params.endDate}T00:00:00.000Z`);
 
-    return this.prisma.fatoCartaoVendas.findMany({
+    return this.prisma.fatoCartaoParcelas.findMany({
       where: {
         data: { gte: startD, lte: endD },
         ...(params.filialId && { filialId: params.filialId }),
@@ -313,208 +286,192 @@ export class FatoCartaoVendasService {
     });
   }
 
+  /**
+   * O filtro de bandeiras é aplicado a Trier e Cielo (que possuem bandeira).
+   * Rede sempre passa, pois suas parcelas não têm bandeira no fato.
+   */
+  private buildDashboardWhere(
+    params: DashboardFatoParams,
+    startD: Date,
+    endD: Date,
+    applyFilialId: boolean,
+  ): Prisma.FatoCartaoParcelasWhereInput {
+    return {
+      data: { gte: startD, lte: endD },
+      ...(applyFilialId && params.filialId && { filialId: params.filialId }),
+      ...(params.adquirente && { adquirente: params.adquirente }),
+      ...(params.bandeiras?.length && {
+        OR: [
+          { adquirente: 'REDE' },
+          {
+            bandeira:
+              params.bandeirasModo === 'incluir'
+                ? { in: params.bandeiras }
+                : { notIn: params.bandeiras },
+          },
+        ],
+      }),
+    };
+  }
+
   async dashboard(params: DashboardFatoParams) {
     const startD = new Date(`${params.startDate}T00:00:00.000Z`);
     const endD = new Date(`${params.endDate}T23:59:59.999Z`);
 
     const where = this.buildDashboardWhere(params, startD, endD, true);
+    const rankingWhere = this.buildDashboardWhere(params, startD, endD, false);
 
-    const totais = await this.prisma.fatoCartaoVendas.groupBy({
-      by: ['adquirente'],
-      where,
-      _sum: { valorBruto: true, valorDivergente: true },
-    });
+    const [totais, porDia, porFilial] = await Promise.all([
+      this.prisma.fatoCartaoParcelas.groupBy({
+        by: ['adquirente'],
+        where,
+        _sum: {
+          valorBruto: true,
+          valorDivergente: true,
+          valorConciliado: true,
+        },
+      }),
+      this.prisma.fatoCartaoParcelas.groupBy({
+        by: ['data', 'adquirente'],
+        where,
+        _sum: { valorBruto: true },
+      }),
+      this.prisma.fatoCartaoParcelas.groupBy({
+        by: ['filialId', 'adquirente'],
+        where: rankingWhere,
+        _sum: { valorBruto: true, valorDivergente: true },
+      }),
+    ]);
 
     const valor = (adquirente: OrigemConciliacao) =>
       Number(
         totais.find((t) => t.adquirente === adquirente)?._sum.valorBruto ?? 0,
       );
 
-    const divergente = (adquirente: OrigemConciliacao) =>
-      Number(
-        totais.find((t) => t.adquirente === adquirente)?._sum.valorDivergente ??
-          0,
-      );
-
     const erp = valor('TRIER');
     const adquirentes = valor('REDE') + valor('CIELO');
 
-    const conciliado = await this.prisma.fatoCartaoVendas.aggregate({
-      where,
-      _sum: { valorConciliado: true },
-    });
-
-    const naoConciliados = round2(
-      divergente('TRIER') - divergente('REDE') - divergente('CIELO'),
+    const naoConciliados = Number(
+      totais.find((t) => t.adquirente === 'TRIER')?._sum.valorDivergente ?? 0,
     );
 
-    const porDia = await this.prisma.fatoCartaoVendas.groupBy({
-      by: ['data', 'adquirente'],
-      where,
-      _sum: {
-        valorBruto: true,
-        valorDivergente: true,
-      },
-    });
-
-    const totalDays =
-      Math.floor((endD.getTime() - startD.getTime()) / 86400000) + 1;
-    const granularidade: 'dia' | 'semana' | 'mes' =
-      totalDays <= 31 ? 'dia' : totalDays <= 122 ? 'semana' : 'mes';
-
-    const mapa: Record<string, any> = {};
-
-    for (const row of porDia) {
-      const key = this.getBucketKey(new Date(row.data), granularidade);
-      if (!mapa[key]) {
-        mapa[key] = { data: key, trier: 0, adquirentes: 0, diferenca: 0 };
-      }
-      const valorBruto = Number(row._sum.valorBruto ?? 0);
-      if (row.adquirente === 'TRIER') {
-        mapa[key].trier += valorBruto;
-      } else {
-        mapa[key].adquirentes += valorBruto;
-      }
-      const sinal = row.adquirente === 'TRIER' ? -1 : 1;
-      mapa[key].diferenca += Number(row._sum.valorDivergente ?? 0) * sinal;
-    }
-
-    const chartLinesCards = Object.values(mapa).sort((a: any, b: any) =>
-      a.data.localeCompare(b.data),
+    const conciliadoValor = Number(
+      totais.find((t) => t.adquirente === 'TRIER')?._sum.valorConciliado ?? 0,
     );
 
     const cardsTotals = {
       erp: round2(erp),
       adquirentes: round2(adquirentes),
       diferenca: round2(adquirentes - erp),
-      naoConciliados,
-      kpiConciTrier: Math.min(
-        100,
-        erp > 0
-          ? Number(
-              (
-                (Number(conciliado._sum.valorConciliado ?? 0) / erp) *
-                100
-              ).toFixed(2),
-            )
-          : 0,
-      ),
+      naoConciliados: round2(naoConciliados),
+      kpiConciTrier:
+        erp > 0 ? Number(((conciliadoValor / erp) * 100).toFixed(2)) : 0,
+      materialidade: erp > 0 ? Number(((naoConciliados / erp) * 100).toFixed(2)) : 0,
+      divergencias: 0,
     };
 
-    const rankingDivergencias = await this.rankingDivergencias(
-      params,
-      startD,
-      endD,
-    );
+    const mapaDia: Record<string, any> = {};
 
-    return { cardsTotals, chartLinesCards, rankingDivergencias };
-  }
-
-  private getBucketKey(
-    d: Date,
-    granularidade: 'dia' | 'semana' | 'mes',
-  ): string {
-    const iso = this.toISODate(d);
-
-    if (granularidade === 'dia') {
-      return iso;
+    for (const row of porDia) {
+      const dia = this.toISODate(new Date(row.data));
+      if (!mapaDia[dia]) {
+        mapaDia[dia] = { data: dia, trier: 0, adquirentes: 0, diferenca: 0 };
+      }
+      const valorBruto = Number(row._sum.valorBruto ?? 0);
+      if (row.adquirente === 'TRIER') {
+        mapaDia[dia].trier += valorBruto;
+      } else {
+        mapaDia[dia].adquirentes += valorBruto;
+      }
     }
 
-    if (granularidade === 'semana') {
-      const dow = (d.getUTCDay() + 6) % 7;
-      const segunda = new Date(d);
-      segunda.setUTCDate(d.getUTCDate() - dow);
-      return this.toISODate(segunda);
+    const chartLines = Object.values(mapaDia)
+      .map((d: any) => ({
+        ...d,
+        diferenca: round2(d.adquirentes - d.trier),
+      }))
+      .sort((a: any, b: any) => a.data.localeCompare(b.data));
+
+    const mapaMes: Record<string, any> = {};
+
+    for (const row of porDia) {
+      const mes = this.toISODate(new Date(row.data)).slice(0, 7);
+      if (!mapaMes[mes]) {
+        mapaMes[mes] = { mes, trier: 0, adquirentes: 0, diferenca: 0 };
+      }
+      const valorBruto = Number(row._sum.valorBruto ?? 0);
+      if (row.adquirente === 'TRIER') {
+        mapaMes[mes].trier += valorBruto;
+      } else {
+        mapaMes[mes].adquirentes += valorBruto;
+      }
     }
 
-    return `${iso.slice(0, 7)}-01`;
-  }
+    const chartDiferencaMensal = Object.values(mapaMes)
+      .map((d: any) => ({
+        ...d,
+        diferenca: round2(d.adquirentes - d.trier),
+      }))
+      .sort((a: any, b: any) => a.mes.localeCompare(b.mes));
 
-  private buildDashboardWhere(
-    params: DashboardFatoParams,
-    startD: Date,
-    endD: Date,
-    applyFilialId: boolean,
-  ) {
-    return {
-      data: { gte: startD, lte: endD },
-      ...(applyFilialId && params.filialId && { filialId: params.filialId }),
-      ...(params.adquirente && { adquirente: params.adquirente }),
-      ...(params.bandeiras?.length && {
-        bandeira:
-          params.bandeirasModo === 'excluir'
-            ? { notIn: params.bandeiras }
-            : { in: params.bandeiras },
-      }),
-    };
-  }
-
-  private async rankingDivergencias(
-    params: DashboardFatoParams,
-    startD: Date,
-    endD: Date,
-  ) {
-    const rankingWhere = this.buildDashboardWhere(params, startD, endD, false);
-
-    const rows = await this.prisma.fatoCartaoVendas.groupBy({
-      by: ['filialId', 'adquirente'],
-      where: rankingWhere,
-      _sum: { qtdDivergente: true, valorDivergente: true },
-    });
-
-    if (!rows.length) {
-      return [];
-    }
-
-    const mapa: Record<
+    const mapaFilial: Record<
       number,
       { trier: number; adquirentes: number; divergencias: number }
     > = {};
 
-    for (const row of rows) {
+    for (const row of porFilial) {
       const atual =
-        mapa[row.filialId] ??
-        (mapa[row.filialId] = {
+        mapaFilial[row.filialId] ??
+        (mapaFilial[row.filialId] = {
           trier: 0,
           adquirentes: 0,
           divergencias: 0,
         });
 
-      atual.divergencias += Number(row._sum.qtdDivergente ?? 0);
+      atual.divergencias += Number(row._sum.valorDivergente ?? 0);
 
-      const valor = Number(row._sum.valorDivergente ?? 0);
+      const valorBruto = Number(row._sum.valorBruto ?? 0);
       if (row.adquirente === 'TRIER') {
-        atual.trier += valor;
+        atual.trier += valorBruto;
       } else {
-        atual.adquirentes += valor;
+        atual.adquirentes += valorBruto;
       }
     }
 
-    const ids = Object.keys(mapa).map(Number);
-    const filiais = await this.prisma.filial.findMany({
-      where: { id: { in: ids } },
-      select: { id: true, name: true },
-    });
+    const ids = Object.keys(mapaFilial).map(Number);
+    const filiais = ids.length
+      ? await this.prisma.filial.findMany({
+          where: { id: { in: ids } },
+          select: { id: true, name: true },
+        })
+      : [];
 
     const filialMap = new Map(filiais.map((f) => [f.id, f.name]));
 
-    return ids
+    const rankingGraos = ids
       .map((id) => {
-        const m = mapa[id];
+        const m = mapaFilial[id];
         return {
           filial: filialMap.get(id) ?? `Filial ${id}`,
           filialId: id,
           trier: round2(m.trier),
           adquirentes: round2(m.adquirentes),
           diferenca: round2(m.adquirentes - m.trier),
-          divergencias: m.divergencias,
+          valorDivergencias: round2(m.divergencias),
         };
       })
       .sort((a, b) => Math.abs(b.diferenca) - Math.abs(a.diferenca));
+
+    return {
+      cardsTotals,
+      chartLines,
+      chartDiferencaMensal,
+      rankingGraos,
+    };
   }
 
-  async getFiltros() {
-    const result = await this.prisma.fatoCartaoVendas.groupBy({
+  async getFiltros(): Promise<Record<string, string[]>> {
+    const result = await this.prisma.fatoCartaoParcelas.groupBy({
       by: ['adquirente', 'bandeira'],
       where: { bandeira: { not: '' } },
       orderBy: [{ adquirente: 'asc' }, { bandeira: 'asc' }],

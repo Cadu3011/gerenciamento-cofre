@@ -1,8 +1,7 @@
 import { getFiliais } from "@/app/api/post";
-import { getParcDashboard, getParcBandeiras } from "@/app/api/conciliacao-parc";
+import { getFatoParcDashboard, getFatoParcFiltros } from "@/app/api/fato-parc";
 import {
   formatDate,
-  BANDEIRAS_PADRAO,
   getDefaultStartDate,
   getDefaultEndDate,
   getAnoStart,
@@ -14,39 +13,48 @@ import ChartColumnsParcDifsMensal from "./_components/ChartColumnsParcDifsMensal
 import ChartRowBarsRankings from "./_components/ChartRowBarsRankings";
 import ChartHealthDivergencias from "./_components/ChartHealthDivergencias";
 import ChartAgingPendencias from "./_components/ChartAgingPendencias";
-import FilterBandeira from "../_components/FilterBandeira";
+import FilterBandeiraOrigem from "../cartoes/_components/FilterBandeiraOrigem";
 
 type Props = {
   searchParams: {
     startDate?: string;
     endDate?: string;
     filialId?: string;
+    adquirente?: string;
     bandeiras?: string;
+    bandeirasModo?: string;
   };
 };
 
 export default async function DashboardParcelas({ searchParams }: Props) {
-  const [filiais, bandeirasList] = await Promise.all([
+  const [filiais, filtros] = await Promise.all([
     getFiliais(),
-    getParcBandeiras(),
+    getFatoParcFiltros(),
   ]);
 
   const {
     startDate = getDefaultStartDate(),
     endDate = getDefaultEndDate(),
     filialId,
+    adquirente,
     bandeiras,
+    bandeirasModo,
   } = await searchParams;
 
-  const bandeirasExcluidas = bandeiras ?? BANDEIRAS_PADRAO.join(",");
-
-  const params = { startDate, endDate, ...(filialId && { filialId }), bandeiras: bandeirasExcluidas };
+  const params = {
+    startDate,
+    endDate,
+    ...(filialId && { filialId }),
+    ...(adquirente && { adquirente }),
+    ...(bandeiras && { bandeiras }),
+    ...(bandeirasModo && { bandeirasModo }),
+  };
   const query = new URLSearchParams(params).toString();
   const anoQuery = new URLSearchParams({ ...params, startDate: getAnoStart() }).toString();
 
   const [data, dataAnual] = await Promise.all([
-    getParcDashboard(query),
-    getParcDashboard(anoQuery),
+    getFatoParcDashboard(query),
+    getFatoParcDashboard(anoQuery),
   ]);
 
   if (!data)
@@ -87,7 +95,7 @@ export default async function DashboardParcelas({ searchParams }: Props) {
             />
             <CardTotals
               title="Diferença"
-              value={String(Number(cardsTotals.diferenca) * -1)}
+              value={String(cardsTotals.diferenca)}
               backgroundColor="bg-green-200"
               fontSize="text-3xl"
               fontBold
@@ -123,10 +131,7 @@ export default async function DashboardParcelas({ searchParams }: Props) {
             />
           </div>
           <div className="w-full px-10">
-            <FilterBandeira
-              bandeiras={bandeirasList}
-              defaultExcluded={BANDEIRAS_PADRAO}
-            />
+            <FilterBandeiraOrigem filtros={filtros as Record<string, string[]>} />
           </div>
           <div className="w-full px-10 gap-5 flex justify-between">
             <ChartLineParcelas data={chartLines} />
