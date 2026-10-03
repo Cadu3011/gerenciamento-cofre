@@ -479,6 +479,27 @@ export class JobsService {
     );
   }
 
+  /**
+   * Reprocessa apenas as devoluções de parcelas do Trier.
+   *
+   * Sem `@Cron` de propósito: é tarefa de manutenção, pontual, para
+   * reprocessar histórico. Agendá-la todo dia só faria, a cada execução, a
+   * leitura dos estornos de todas as datas passadas sem alterar nada — a
+   * atualização diária já vem em cadeia dentro do ETL de parcelas.
+   *
+   * Aceita as mesmas opções dos demais (period DATE/RANGE/AUTO, bigCharge,
+   * force, logLevel).
+   */
+  runTrierDevolucao(options: RunJobQueryDto = {}) {
+    return this.runCronJob(
+      { jobName: 'TrierDevolucao' },
+      async (context, opts) => {
+        await this.trierPipelineParc.executeDevolucoes(context, opts);
+      },
+      this.normalizeOptions(options),
+    );
+  }
+
   @Cron('18,53 7,8,9,10,14 * * 1-7')
   runCieloETL() {
     return this.runCronJob({ jobName: 'CieloETL' }, async (context) => {
@@ -491,7 +512,7 @@ export class JobsService {
     return this.runCronJob(
       { jobName: 'CieloParc' },
       async (context, opts) => {
-        await this.cieloPipelineParc.execute(context, opts.bigCharge);
+        await this.cieloPipelineParc.execute(context, opts);
       },
       this.normalizeOptions(options),
     );

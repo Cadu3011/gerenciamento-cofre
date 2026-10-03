@@ -396,6 +396,8 @@ model TrierParcela {
 
   administradoraCartao String?
 
+  documentoFiscalEstorno Int?
+
   bandeira   String?
 
   vendaId           Int?
@@ -413,6 +415,7 @@ model TrierParcela {
   @@index([documentoFiscal])
   @@index([filialId, dataEmissao])
   @@index([vendaId])
+  @@index([filialId, documentoFiscal])
 }
 
 model RedeParcela {
