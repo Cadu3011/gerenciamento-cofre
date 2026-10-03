@@ -38,7 +38,7 @@ interface Props {
       valor: number;
       materialidade: number;
     }[];
-  };
+  } | null;
 }
 
 const LABEL_MAP: Record<string, string> = {
@@ -68,10 +68,15 @@ function CustomTooltip({ active, payload }: TooltipProps<number, string>) {
   return (
     <div className="rounded-md border bg-white p-3 shadow-md">
       <p className="font-semibold">{LABEL_MAP[item.tipo] || item.tipo}</p>
-      <p>Percentual: <strong>{item.percentual}%</strong></p>
-      <p>Quantidade: <strong>{item.quantidade}</strong></p>
       <p>
-        Materialidade: <strong>{item.valor ? BRL.format(item.valor) : "R$ 0,00"}</strong>
+        Percentual: <strong>{item.percentual}%</strong>
+      </p>
+      <p>
+        Quantidade: <strong>{item.quantidade}</strong>
+      </p>
+      <p>
+        Materialidade:{" "}
+        <strong>{item.valor ? BRL.format(item.valor) : "R$ 0,00"}</strong>
         {item.materialidade ? ` (${item.materialidade}%)` : ""}
       </p>
     </div>
@@ -79,6 +84,22 @@ function CustomTooltip({ active, payload }: TooltipProps<number, string>) {
 }
 
 export default function ChartHealthDivergencias({ data }: Props) {
+  // `data` chega `undefined` quando a API não responde (o fetcher do server
+  // devolve `null` e a seção repassa direto). Sem esta guarda o painel inteiro
+  // derruba a página com "cannot read properties of undefined".
+  if (!data?.resumo || !data?.ranking) {
+    return (
+      <div className="flex w-full flex-col gap-4">
+        <div>
+          <p className="text-lg font-semibold">Divergências</p>
+        </div>
+        <div className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
+          Não foi possível carregar os dados de conciliação.
+        </div>
+      </div>
+    );
+  }
+
   const chartData = [...data.ranking]
     .sort((a, b) => b.percentual - a.percentual)
     .map((item) => ({ ...item, tipo: LABEL_MAP[item.tipo] || item.tipo }));
@@ -92,26 +113,37 @@ export default function ChartHealthDivergencias({ data }: Props) {
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         <div className="rounded-lg border p-3">
           <p className="text-xs text-muted-foreground">Conciliados</p>
-          <p className="text-2xl font-bold text-green-600">{data.resumo.percentualConciliado}%</p>
+          <p className="text-2xl font-bold text-green-600">
+            {data.resumo.percentualConciliado}%
+          </p>
         </div>
         <div className="rounded-lg border p-3">
           <p className="text-xs text-muted-foreground">Divergentes</p>
-          <p className="text-2xl font-bold text-red-600">{data.resumo.percentualDivergente}%</p>
+          <p className="text-2xl font-bold text-yellow-600">
+            {data.resumo.percentualDivergente}%
+          </p>
         </div>
         <div className="rounded-lg border p-3">
           <p className="text-xs text-muted-foreground">Não Encontrados</p>
-          <p className="text-2xl font-bold text-yellow-600">{data.resumo.naoEncontrados}</p>
+          <p className="text-2xl font-bold text-red-600">
+            {data.resumo.naoEncontrados}
+          </p>
         </div>
         <div className="rounded-lg border p-3">
           <p className="text-xs text-muted-foreground">Total Grupos</p>
-          <p className="text-2xl font-bold">{data.resumo.totalGrupos.toLocaleString("pt-BR")}</p>
+          <p className="text-2xl font-bold">
+            {data.resumo.totalGrupos.toLocaleString("pt-BR")}
+          </p>
         </div>
       </div>
 
       <div className="flex flex-wrap gap-4 text-sm">
         {Object.entries(LABEL_MAP).map(([key, label]) => (
           <div key={key} className="flex items-center gap-2">
-            <div className="h-3 w-3 rounded-full" style={{ backgroundColor: COLOR_MAP[key] }} />
+            <div
+              className="h-3 w-3 rounded-full"
+              style={{ backgroundColor: COLOR_MAP[key] }}
+            />
             <span>{label}</span>
           </div>
         ))}
@@ -119,17 +151,42 @@ export default function ChartHealthDivergencias({ data }: Props) {
 
       <ChartContainer config={chartConfig} className="w-full h-[50vh]">
         <ResponsiveContainer width="100%" height={350}>
-          <BarChart data={chartData} layout="vertical" margin={{ left: 20, right: 60 }}>
+          <BarChart
+            data={chartData}
+            layout="vertical"
+            margin={{ left: 20, right: 60 }}
+          >
             <CartesianGrid horizontal={false} />
-            <XAxis type="number" domain={[0, 100]} tickFormatter={(value) => `${value}%`} />
-            <YAxis type="category" dataKey="tipo" width={140} tickLine={false} axisLine={false} />
+            <XAxis
+              type="number"
+              domain={[0, 100]}
+              tickFormatter={(value) => `${value}%`}
+            />
+            <YAxis
+              type="category"
+              dataKey="tipo"
+              width={140}
+              tickLine={false}
+              axisLine={false}
+            />
             <ChartTooltip content={<CustomTooltip />} />
             <Bar dataKey="percentual" radius={4}>
               {chartData.map((entry, index) => {
-                const originalTipo = Object.entries(LABEL_MAP).find(([, v]) => v === entry.tipo)?.[0];
-                return <Cell key={index} fill={COLOR_MAP[originalTipo || ""] || "#64748b"} />;
+                const originalTipo = Object.entries(LABEL_MAP).find(
+                  ([, v]) => v === entry.tipo,
+                )?.[0];
+                return (
+                  <Cell
+                    key={index}
+                    fill={COLOR_MAP[originalTipo || ""] || "#64748b"}
+                  />
+                );
               })}
-              <LabelList dataKey="percentual" position="right" formatter={(value: number) => `${value.toFixed(2)}%`} />
+              <LabelList
+                dataKey="percentual"
+                position="right"
+                formatter={(value: number) => `${value.toFixed(2)}%`}
+              />
             </Bar>
           </BarChart>
         </ResponsiveContainer>

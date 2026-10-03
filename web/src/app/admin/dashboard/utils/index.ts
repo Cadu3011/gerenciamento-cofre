@@ -55,7 +55,29 @@ export function getDefaultEndDate() {
 
 export function getAnoStart() {
   const hoje = new Date();
-  return new Date(hoje.getFullYear() - 1, hoje.getMonth(), 1)
-    .toISOString()
-    .split("T")[0];
+  return `${hoje.getFullYear()}-01-01`;
+}
+
+/**
+ * Início e fim do mês de uma chave `YYYY-MM` ou `YYYY-MM-DD`.
+ *
+ * A conta do último dia é `new Date(ano, mes, 0)` em horário local: o dia `0`
+ * do mês seguinte é o último do mês pedido. Montar a data e passar por
+ * `toISOString` converteria para UTC e, no fim do mês local, devolveria o dia
+ * anterior.
+ */
+function partesDoMes(iso: string) {
+  const [ano, mes] = iso.split("-");
+  return { ano: Number(ano), mes: Number(mes) };
+}
+
+export function primeiroDiaDoMes(iso: string) {
+  const { ano, mes } = partesDoMes(iso);
+  return `${ano}-${String(mes).padStart(2, "0")}-01`;
+}
+
+export function ultimoDiaDoMes(iso: string) {
+  const { ano, mes } = partesDoMes(iso);
+  const ultimo = new Date(ano, mes, 0).getDate();
+  return `${ano}-${String(mes).padStart(2, "0")}-${String(ultimo).padStart(2, "0")}`;
 }

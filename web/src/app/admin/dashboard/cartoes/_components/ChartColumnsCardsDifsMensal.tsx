@@ -20,20 +20,20 @@ import { toast } from "react-toastify";
 import { primeiroDiaDoMes, ultimoDiaDoMes } from "../../utils";
 
 const chartConfig = {
-  diferenca: { label: "Diferença", color: "#dc2626" },
+  diferenca: {
+    label: "Diferença",
+    color: "#dc2626",
+  },
 } satisfies ChartConfig;
 
-interface Props {
+export interface Props {
   data: {
     mes: string;
-    trier: number;
-    adquirentes: number;
     diferenca: number;
   }[];
 }
 
 function formatMes(mes: string) {
-  const [ano, m] = mes.split("-");
   const meses = [
     "Jan",
     "Fev",
@@ -48,33 +48,41 @@ function formatMes(mes: string) {
     "Nov",
     "Dez",
   ];
-  return `${meses[parseInt(m, 10) - 1]}/${ano}`;
+  const [, m] = mes.split("-");
+  return meses[parseInt(m, 10) - 1];
 }
 
-export default function ChartColumnsParcDifsMensal({ data }: Props) {
+/**
+ * Diferença mensal entre vendas Trier e adquirentes, na janela do ano
+ * corrente. Substitui o antigo gráfico de linhas: os dois gráficos ficam com
+ * a mesma métrica (divergência não conciliada, adquirentes menos Trier) e a
+ * mesma regra de cor, mudando só a granularidade e o período.
+ *
+ * Clicar numa barra abre em outra aba o dashboard já filtrado no mês clicado.
+ * Só as datas mudam — origem, bandeiras e situação continuam como estavam.
+ */
+export default function ChartColumnsCardsDifsMensal({ data }: Props) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
   const values = data.flatMap((item) => [item.diferenca]);
   const min = Math.min(...values);
   const max = Math.max(...values);
-  const yMin = min < 0 ? min * 1.1 : 0;
-  const yMax = max > 0 ? max * 1.1 : 0;
 
-  const maxAbs = Math.max(Math.abs(min), Math.abs(max), 1);
-  const threshold = maxAbs * 0.05;
+  const range = max - min;
+  const padding = range === 0 ? Math.abs(max) * 0.2 || 100 : range * 0.1;
 
-  const getBarColor = (diferenca: number) =>
-    diferenca >= -threshold && diferenca <= threshold
-      ? "#22c55e"
-      : diferenca > threshold
-        ? "#ca8a04"
-        : "#ef4444";
+  const yMin = min < 0 ? min - padding : 0;
+  const yMax = max > 0 ? max + padding : 0;
 
-  /**
-   * Abre o dashboard já filtrado no mês clicado em outra aba, para comparar
-   * mais de um mês sem ficar indo e voltando.
-   */
+  const getBarColor = (diferenca: number) => {
+    return diferenca >= -100 && diferenca <= 100
+      ? "#22c55e" // green-500
+      : diferenca > 100
+        ? "#ca8a04" // yellow-600
+        : "#ef4444"; // red-500
+  };
+
   function filtrarPeloMes(mes: string) {
     const params = new URLSearchParams(searchParams.toString());
 
@@ -96,19 +104,22 @@ export default function ChartColumnsParcDifsMensal({ data }: Props) {
     <div className="h-full w-1/2 flex flex-col">
       <div className="flex justify-between items-center">
         <div className="flex items-center gap-6">
-          <p className="font-bold">Diferença Trier vs Adquirentes por Mês</p>
+          <p className="font-bold">Vendas Trier vs Adquirentes por Mês</p>
+
           <div className="flex gap-4 text-sm">
             <div className="flex items-center gap-2">
               <div className="h-3 w-3 rounded-full bg-[#22c55e]" />
               <span>Moderado</span>
             </div>
+
             <div className="flex items-center gap-2">
               <div className="h-3 w-3 rounded-full bg-[#ef4444]" />
-              <span>Falta (Trier &lt; Adq)</span>
+              <span>Falta</span>
             </div>
+
             <div className="flex items-center gap-2">
               <div className="h-3 w-3 rounded-full bg-[#ca8a04]" />
-              <span>Sobra (Trier &gt; Adq)</span>
+              <span>Sobra</span>
             </div>
           </div>
         </div>
@@ -147,10 +158,15 @@ export default function ChartColumnsParcDifsMensal({ data }: Props) {
             {data.map((entry, index) => (
               <Cell key={index} fill={getBarColor(entry.diferenca)} />
             ))}
+
             <LabelList
               content={(props) => {
                 const { x, y, value } = props;
-                if (!value || Number(value) === 0) return null;
+
+                if (!value || Number(value) === 0) {
+                  return null;
+                }
+
                 return (
                   <text
                     x={Number(x)}
