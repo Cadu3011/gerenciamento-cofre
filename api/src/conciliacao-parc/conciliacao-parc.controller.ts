@@ -196,20 +196,35 @@ export class ConciliacaoParcController {
     const fid = filialId ? +filialId : undefined;
     const bandeirasArr = bandeiras ? bandeiras.split(',') : undefined;
 
-    const [cardsTotals, chartLines, rankings, chartRankingDivergencias, chartDiferencaMensal, aging] =
-      await this.mapLimit(
+    const [cardsTotals, chartLines, rankings, conciliacao, chartDiferencaMensal] =
+      (await this.mapLimit(
         [
           () => this.dashboardService.totaisCards(dateRange, fid, bandeirasArr),
           () => this.dashboardService.chartLines(dateRange, fid, bandeirasArr),
           () => this.dashboardService.chartRankingPendencias(dateRange, bandeirasArr),
-          () => this.dashboardService.chartRankingDivergencias(dateRange, fid, bandeirasArr),
+          () => this.dashboardService.resumoConciliacao(dateRange, fid, bandeirasArr),
           () => this.dashboardService.chartDiferencaMensal(dateRange, fid, bandeirasArr),
-          () => this.dashboardService.agingPendencias(dateRange, fid, bandeirasArr),
         ],
         2,
-      );
+      )) as [
+        Awaited<ReturnType<ConciliacaoParcDashboardService['totaisCards']>>,
+        Awaited<ReturnType<ConciliacaoParcDashboardService['chartLines']>>,
+        Awaited<ReturnType<ConciliacaoParcDashboardService['chartRankingPendencias']>>,
+        Awaited<ReturnType<ConciliacaoParcDashboardService['resumoConciliacao']>>,
+        Awaited<ReturnType<ConciliacaoParcDashboardService['chartDiferencaMensal']>>,
+      ];
 
-    return { cardsTotals, chartLines, rankings, chartRankingDivergencias, chartDiferencaMensal, aging };
+    return {
+      cardsTotals,
+      chartLines,
+      rankings,
+      chartRankingDivergencias: {
+        resumo: conciliacao.resumo,
+        ranking: conciliacao.ranking,
+      },
+      chartDiferencaMensal,
+      aging: conciliacao.aging,
+    };
   }
 
   @UseGuards(AuthGuard)

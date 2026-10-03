@@ -5,6 +5,7 @@ import { ObservacaoConciliacao, Prisma } from '@prisma/client';
 import { PrismaService } from 'src/database/prisma.service';
 import { ConciliacaoGrupo } from './repository/contract';
 import { JobExecutionContext } from 'src/jobs/jobs.execContext.service';
+import { createHash } from 'crypto';
 
 @Injectable()
 export class ConciliacaoParcPipeline {
@@ -19,7 +20,12 @@ export class ConciliacaoParcPipeline {
   @Inject()
   private readonly prisma: PrismaService;
 
-  async execute(date: string, filialId: number, context: JobExecutionContext, loteId: number) {
+  async execute(
+    date: string,
+    filialId: number,
+    context: JobExecutionContext,
+    loteId: number,
+  ) {
     let currentStep = '';
     try {
       currentStep = 'EXTRACT';
@@ -33,9 +39,15 @@ export class ConciliacaoParcPipeline {
       currentStep = 'MATCH';
       context.startStep(currentStep);
       const grupos = this.matchService.match(data);
-      const conciliados = grupos.filter((g) => g.status === 'CONCILIADO').length;
-      const divergentes = grupos.filter((g) => g.status === 'DIVERGENTE').length;
-      const naoEncontrados = grupos.filter((g) => g.status === 'NAO_ENCONTRADO').length;
+      const conciliados = grupos.filter(
+        (g) => g.status === 'CONCILIADO',
+      ).length;
+      const divergentes = grupos.filter(
+        (g) => g.status === 'DIVERGENTE',
+      ).length;
+      const naoEncontrados = grupos.filter(
+        (g) => g.status === 'NAO_ENCONTRADO',
+      ).length;
       context.incrementExtracted(grupos.length);
       await context.endStep(
         currentStep,
@@ -46,7 +58,10 @@ export class ConciliacaoParcPipeline {
       context.startStep(currentStep);
       await this.persistir(filialId, grupos, loteId, context);
       context.incrementInserted(conciliados + divergentes);
-      await context.endStep(currentStep, `Filial ${filialId} Data ${date} - Persistência concluída`);
+      await context.endStep(
+        currentStep,
+        `Filial ${filialId} Data ${date} - Persistência concluída`,
+      );
 
       return {
         total: grupos.length,
@@ -68,216 +83,257 @@ export class ConciliacaoParcPipeline {
     loteId: number,
     context: JobExecutionContext,
   ) {
-    await this.prisma.$transaction(async (tx) => {
-      const conciliados = grupos.filter((g) => g.status === 'CONCILIADO');
-      const divergentes = grupos.filter((g) => g.status === 'DIVERGENTE');
-      const naoEncontrados = grupos.filter(
-        (g) => g.status === 'NAO_ENCONTRADO',
-      );
+    await this.prisma.$transaction(
+      async (tx) => {
+        const conciliados = grupos.filter((g) => g.status === 'CONCILIADO');
+        const divergentes = grupos.filter((g) => g.status === 'DIVERGENTE');
+        const naoEncontrados = grupos.filter(
+          (g) => g.status === 'NAO_ENCONTRADO',
+        );
 
-      const allGroups = [...conciliados, ...divergentes, ...naoEncontrados];
+        const allGroups = [...conciliados, ...divergentes, ...naoEncontrados];
 
-      const allTrierIds = allGroups.flatMap((g) => g.trierIds);
-      const allRedeIds = [
-        ...new Set(
-          allGroups
-            .flatMap((g) => g.itens.map((i) => i.redeParcelaId))
-            .filter((id): id is number => id != null),
-        ),
-      ];
-      const allCieloIds = [
-        ...new Set(
-          allGroups
-            .flatMap((g) => g.itens.map((i) => i.cieloParcelaId))
-            .filter((id): id is number => id != null),
-        ),
-      ];
+        const allTrierIds = allGroups.flatMap((g) => g.trierIds);
+        const allRedeIds = [
+          ...new Set(
+            allGroups
+              .flatMap((g) => g.itens.map((i) => i.redeParcelaId))
+              .filter((id): id is number => id != null),
+          ),
+        ];
+        const allCieloIds = [
+          ...new Set(
+            allGroups
+              .flatMap((g) => g.itens.map((i) => i.cieloParcelaId))
+              .filter((id): id is number => id != null),
+          ),
+        ];
 
-      // 0. Coleta groupIds afetados ANTES de deletar as junctions
-      const whereJunction = [
-        ...(allTrierIds.length ? [{ trierParcelaId: { in: allTrierIds } }] : []),
-        ...(allRedeIds.length ? [{ redeParcelaId: { in: allRedeIds } }] : []),
-        ...(allCieloIds.length ? [{ cieloParcelaId: { in: allCieloIds } }] : []),
-      ];
+        // 0. Coleta groupIds afetados ANTES de deletar as junctions
+        const whereJunction = [
+          ...(allTrierIds.length
+            ? [{ trierParcelaId: { in: allTrierIds } }]
+            : []),
+          ...(allRedeIds.length ? [{ redeParcelaId: { in: allRedeIds } }] : []),
+          ...(allCieloIds.length
+            ? [{ cieloParcelaId: { in: allCieloIds } }]
+            : []),
+        ];
 
-      const affectedGrupoIds = whereJunction.length
-        ? [
-            ...new Set(
-              (await tx.conciliacaoParcelaItem.findMany({
-                where: { OR: whereJunction },
-                select: { conciliacaoParcelaId: true },
-              })).map((j) => j.conciliacaoParcelaId),
-            ),
-          ]
-        : [];
+        const affectedGrupoIds = whereJunction.length
+          ? [
+              ...new Set(
+                (
+                  await tx.conciliacaoParcelaItem.findMany({
+                    where: { OR: whereJunction },
+                    select: { conciliacaoParcelaId: true },
+                  })
+                ).map((j) => j.conciliacaoParcelaId),
+              ),
+            ]
+          : [];
 
-      // 1. Deleta junctions antigas para IDs sendo processados
-      if (allTrierIds.length) {
-        await tx.conciliacaoParcelaItem.deleteMany({
-          where: { trierParcelaId: { in: allTrierIds } },
+        // 1. Deleta junctions antigas para IDs sendo processados
+        if (allTrierIds.length) {
+          await tx.conciliacaoParcelaItem.deleteMany({
+            where: { trierParcelaId: { in: allTrierIds } },
+          });
+        }
+        if (allRedeIds.length) {
+          await tx.conciliacaoParcelaItem.deleteMany({
+            where: { redeParcelaId: { in: allRedeIds } },
+          });
+        }
+        if (allCieloIds.length) {
+          await tx.conciliacaoParcelaItem.deleteMany({
+            where: { cieloParcelaId: { in: allCieloIds } },
+          });
+        }
+        await context.info(
+          'PERSIST',
+          `Junctions deletadas: ${allTrierIds.length} trier, ${allRedeIds.length} rede, ${allCieloIds.length} cielo`,
+        );
+
+        // 2. Upsert grupos — key unificada com todos os items
+        const gruposCriados = await Promise.all(
+          allGroups.map((grupo) => {
+            const allItemKeys = [
+              ...grupo.trierIds.map((id) => `T${id}`),
+              ...grupo.itens.map((i) =>
+                i.redeParcelaId
+                  ? `R${i.redeParcelaId}`
+                  : `C${i.cieloParcelaId}`,
+              ),
+            ]
+              .sort()
+              .join(',');
+
+            const hash = createHash('sha256').update(allItemKeys).digest('hex');
+
+            const key = `PARC|${filialId}|${hash}`;
+
+            return tx.conciliacaoParcela.upsert({
+              where: { idempotencyKey: key },
+              update: {
+                status: grupo.status,
+                tipoMatch: grupo.tipoMatch,
+                observacao: grupo.observacao,
+              },
+              create: {
+                status: grupo.status,
+                tipoMatch: grupo.tipoMatch,
+                observacao: grupo.observacao,
+                idempotencyKey: key,
+                conciliacaoLoteId: loteId,
+              },
+            });
+          }),
+        );
+        await context.info(
+          'PERSIST',
+          `Grupos upserted: ${gruposCriados.length} total`,
+        );
+
+        // 3. Cria junctions novas — Trier, Rede e Cielo todos via ConciliacaoParcelaItem
+        const allItemJunctions = allGroups.flatMap((grupo, idx) => {
+          const trierItems = grupo.trierIds.map((trierId) => ({
+            conciliacaoParcelaId: gruposCriados[idx].id,
+            trierParcelaId: trierId,
+            redeParcelaId: null as number | null,
+            cieloParcelaId: null as number | null,
+            origem: 'TRIER' as const,
+          }));
+
+          const rcItems = grupo.itens.map((item) => ({
+            conciliacaoParcelaId: gruposCriados[idx].id,
+            trierParcelaId: null as number | null,
+            redeParcelaId: item.redeParcelaId ?? null,
+            cieloParcelaId: item.cieloParcelaId ?? null,
+            origem: (item.redeParcelaId ? 'REDE' : 'CIELO') as 'REDE' | 'CIELO',
+          }));
+
+          return [...trierItems, ...rcItems];
         });
-      }
-      if (allRedeIds.length) {
-        await tx.conciliacaoParcelaItem.deleteMany({
-          where: { redeParcelaId: { in: allRedeIds } },
+
+        if (allItemJunctions.length) {
+          await tx.conciliacaoParcelaItem.createMany({
+            data: allItemJunctions,
+          });
+        }
+        await context.info(
+          'PERSIST',
+          `Junctions criadas: ${allItemJunctions.length} items`,
+        );
+
+        // 4. Cria observações de divergência para cada grupo
+        const observacoes: {
+          conciliacaoParcelaId: number;
+          tipo: ObservacaoConciliacao;
+        }[] = [];
+
+        // As observações são recriadas do zero a cada execução, senão
+        // reprocessar a mesma data duplica as observações do mesmo grupo.
+        await tx.conciliacaoParcelaObservacao.deleteMany({
+          where: { conciliacaoParcelaId: { in: gruposCriados.map((g) => g.id) } },
         });
-      }
-      if (allCieloIds.length) {
-        await tx.conciliacaoParcelaItem.deleteMany({
-          where: { cieloParcelaId: { in: allCieloIds } },
-        });
-      }
-      await context.info(
-        'PERSIST',
-        `Junctions deletadas: ${allTrierIds.length} trier, ${allRedeIds.length} rede, ${allCieloIds.length} cielo`,
-      );
 
-      // 2. Upsert grupos — key unificada com todos os items
-      const gruposCriados = await Promise.all(
-        allGroups.map((grupo) => {
-          const allItemKeys = [
-            ...grupo.trierIds.map((id) => `T${id}`),
-            ...grupo.itens.map((i) =>
-              i.redeParcelaId ? `R${i.redeParcelaId}` : `C${i.cieloParcelaId}`,
-            ),
-          ]
-            .sort()
-            .join(',');
+        for (const [idx, grupo] of allGroups.entries()) {
+          const parcelaId = gruposCriados[idx].id;
+          const divergencias = new Set<ObservacaoConciliacao>();
 
-          const key = `PARC|${filialId}|${allItemKeys}`;
+          if (grupo.status === 'NAO_ENCONTRADO') {
+            divergencias.add('PARCELAS_NAO_ENCONTRADAS');
+          }
 
-          return tx.conciliacaoParcela.upsert({
-            where: { idempotencyKey: key },
-            update: {
-              status: grupo.status,
-              tipoMatch: grupo.tipoMatch,
-              observacao: grupo.observacao,
-            },
-            create: {
-              status: grupo.status,
-              tipoMatch: grupo.tipoMatch,
-              observacao: grupo.observacao,
-              idempotencyKey: key,
-              conciliacaoLoteId: loteId,
+          // Divergências do próprio grupo. Cobrem os grupos venda x estorno,
+          // que não têm item de adquirente para comparar uma a uma.
+          for (const divergencia of grupo.divergencias ?? []) {
+            divergencias.add(divergencia);
+          }
+
+          for (const item of grupo.itens) {
+            if (item.divergenciaValor)
+              divergencias.add('DIVERGENCIA_VALOR' as ObservacaoConciliacao);
+            if (item.divergenciaVencimento)
+              divergencias.add(
+                'DIVERGENCIA_VENCIMENTO' as ObservacaoConciliacao,
+              );
+            if (item.divergenciaValorLiquido)
+              divergencias.add(
+                'DIVERGENCIA_VALOR_LIQUIDO' as ObservacaoConciliacao,
+              );
+            if (item.divergenciaParcelas)
+              divergencias.add(
+                'DIVERGENCIA_QUANTIDADE_PARCELAS' as ObservacaoConciliacao,
+              );
+          }
+
+          for (const tipo of divergencias) {
+            observacoes.push({ conciliacaoParcelaId: parcelaId, tipo });
+          }
+        }
+
+        if (observacoes.length) {
+          await tx.conciliacaoParcelaObservacao.createMany({
+            data: observacoes,
+          });
+        }
+        await context.info(
+          'PERSIST',
+          `Observações criadas: ${observacoes.length} registros`,
+        );
+
+        // 5. Atualiza status nas fontes
+        const trierConciliados = conciliados.flatMap((g) => g.trierIds);
+        const trierDivergentes = divergentes.flatMap((g) => g.trierIds);
+        const trierNaoEncontrados = naoEncontrados.flatMap((g) => g.trierIds);
+
+        if (trierConciliados.length) {
+          await tx.trierParcela.updateMany({
+            where: { id: { in: trierConciliados } },
+            data: { statusConciliacao: 'CONCILIADO' },
+          });
+        }
+        if (trierDivergentes.length) {
+          await tx.trierParcela.updateMany({
+            where: { id: { in: trierDivergentes } },
+            data: { statusConciliacao: 'DIVERGENTE' },
+          });
+        }
+        if (trierNaoEncontrados.length) {
+          await tx.trierParcela.updateMany({
+            where: { id: { in: trierNaoEncontrados } },
+            data: { statusConciliacao: 'NAO_ENCONTRADO' },
+          });
+        }
+
+        if (allRedeIds.length) {
+          await this.atualizarStatusAdquirente(tx, 'rede', allRedeIds);
+        }
+        if (allCieloIds.length) {
+          await this.atualizarStatusAdquirente(tx, 'cielo', allCieloIds);
+        }
+        await context.info(
+          'PERSIST',
+          `Status atualizados: ${trierConciliados.length + trierDivergentes.length + trierNaoEncontrados.length} trier, ${allRedeIds.length} rede, ${allCieloIds.length} cielo`,
+        );
+
+        // 6. Limpa grupos órfãos (apenas os afetados por esta execução)
+        if (affectedGrupoIds.length) {
+          const orfosDeletados = await tx.conciliacaoParcela.deleteMany({
+            where: {
+              id: { in: affectedGrupoIds },
+              itens: { none: {} },
             },
           });
-        }),
-      );
-      await context.info(
-        'PERSIST',
-        `Grupos upserted: ${gruposCriados.length} total`,
-      );
-
-      // 3. Cria junctions novas — Trier, Rede e Cielo todos via ConciliacaoParcelaItem
-      const allItemJunctions = allGroups.flatMap((grupo, idx) => {
-        const trierItems = grupo.trierIds.map((trierId) => ({
-          conciliacaoParcelaId: gruposCriados[idx].id,
-          trierParcelaId: trierId,
-          redeParcelaId: null as number | null,
-          cieloParcelaId: null as number | null,
-          origem: 'TRIER' as const,
-        }));
-
-        const rcItems = grupo.itens.map((item) => ({
-          conciliacaoParcelaId: gruposCriados[idx].id,
-          trierParcelaId: null as number | null,
-          redeParcelaId: item.redeParcelaId ?? null,
-          cieloParcelaId: item.cieloParcelaId ?? null,
-          origem: (item.redeParcelaId ? 'REDE' : 'CIELO') as 'REDE' | 'CIELO',
-        }));
-
-        return [...trierItems, ...rcItems];
-      });
-
-      if (allItemJunctions.length) {
-        await tx.conciliacaoParcelaItem.createMany({
-          data: allItemJunctions,
-        });
-      }
-      await context.info(
-        'PERSIST',
-        `Junctions criadas: ${allItemJunctions.length} items`,
-      );
-
-      // 4. Cria observações de divergência para cada grupo
-      const observacoes: { conciliacaoParcelaId: number; tipo: ObservacaoConciliacao }[] = [];
-
-      for (const [idx, grupo] of allGroups.entries()) {
-        const parcelaId = gruposCriados[idx].id;
-        const divergencias = new Set<ObservacaoConciliacao>();
-
-        if (grupo.status === 'NAO_ENCONTRADO') {
-          divergencias.add('PARCELAS_NAO_ENCONTRADAS');
+          await context.info(
+            'PERSIST',
+            `Órfãos limpos: ${orfosDeletados.count} registros`,
+          );
         }
-
-        for (const item of grupo.itens) {
-          if (item.divergenciaValor) divergencias.add('DIVERGENCIA_VALOR' as ObservacaoConciliacao);
-          if (item.divergenciaVencimento) divergencias.add('DIVERGENCIA_VENCIMENTO' as ObservacaoConciliacao);
-          if (item.divergenciaValorLiquido) divergencias.add('DIVERGENCIA_VALOR_LIQUIDO' as ObservacaoConciliacao);
-          if (item.divergenciaParcelas) divergencias.add('DIVERGENCIA_QUANTIDADE_PARCELAS' as ObservacaoConciliacao);
-        }
-
-        for (const tipo of divergencias) {
-          observacoes.push({ conciliacaoParcelaId: parcelaId, tipo });
-        }
-      }
-
-      if (observacoes.length) {
-        await tx.conciliacaoParcelaObservacao.createMany({
-          data: observacoes,
-        });
-      }
-      await context.info(
-        'PERSIST',
-        `Observações criadas: ${observacoes.length} registros`,
-      );
-
-      // 5. Atualiza status nas fontes
-      const trierConciliados = conciliados.flatMap((g) => g.trierIds);
-      const trierDivergentes = divergentes.flatMap((g) => g.trierIds);
-      const trierNaoEncontrados = naoEncontrados.flatMap((g) => g.trierIds);
-
-      if (trierConciliados.length) {
-        await tx.trierParcela.updateMany({
-          where: { id: { in: trierConciliados } },
-          data: { statusConciliacao: 'CONCILIADO' },
-        });
-      }
-      if (trierDivergentes.length) {
-        await tx.trierParcela.updateMany({
-          where: { id: { in: trierDivergentes } },
-          data: { statusConciliacao: 'DIVERGENTE' },
-        });
-      }
-      if (trierNaoEncontrados.length) {
-        await tx.trierParcela.updateMany({
-          where: { id: { in: trierNaoEncontrados } },
-          data: { statusConciliacao: 'NAO_ENCONTRADO' },
-        });
-      }
-
-      if (allRedeIds.length) {
-        await this.atualizarStatusAdquirente(tx, 'rede', allRedeIds);
-      }
-      if (allCieloIds.length) {
-        await this.atualizarStatusAdquirente(tx, 'cielo', allCieloIds);
-      }
-      await context.info(
-        'PERSIST',
-        `Status atualizados: ${trierConciliados.length + trierDivergentes.length + trierNaoEncontrados.length} trier, ${allRedeIds.length} rede, ${allCieloIds.length} cielo`,
-      );
-
-      // 6. Limpa grupos órfãos (apenas os afetados por esta execução)
-      if (affectedGrupoIds.length) {
-        const orfosDeletados = await tx.conciliacaoParcela.deleteMany({
-          where: {
-            id: { in: affectedGrupoIds },
-            itens: { none: {} },
-          },
-        });
-        await context.info('PERSIST', `Órfãos limpos: ${orfosDeletados.count} registros`);
-      }
-    }, { timeout: 60000 });
+      },
+      { timeout: 60000 },
+    );
   }
 
   private async atualizarStatusAdquirente(

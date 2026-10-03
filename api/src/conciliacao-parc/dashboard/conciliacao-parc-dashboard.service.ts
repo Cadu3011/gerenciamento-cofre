@@ -49,6 +49,83 @@ export class ConciliacaoParcDashboardService {
     return Prisma.sql` AND ${Prisma.raw(prefix)}filialId = ${filialId}`;
   }
 
+  /**
+   * Corpo da CTE `gp`: ids de ConciliacaoParcela com ao menos um item de
+   * parcela dentro do período.
+   *
+   * Cada ConciliacaoParcelaItem tem exatamente uma FK preenchida e `origem`
+   * mapeia 1:1 para ela (verificado: 0 itens com mais de uma FK). Os três
+   * ramos são portanto disjuntos e `UNION` (deduplicante) equivale ao
+   * `SELECT DISTINCT` do padrão antigo.
+   *
+   * O ganho está em trocar o filtro `OR` de três ramos sobre três LEFT JOIN.
+   * No padrão antigo o MySQL varre ConciliacaoParcela inteira, expande os
+   * 410k itens, faz 3 lookups por item e só depois aplica a data no Filter —
+   * os índices (filialId, data) das três tabelas nunca eram usados. Aqui cada
+   * ramo parte da própria tabela de parcela e filtra pela data diretamente.
+   */
+  private gruposPeriodoSql(
+    dateRange: { from: string; to: string },
+    filialId?: number,
+    bandeiras?: string[],
+    origens?: string[],
+  ) {
+    const { start, end } = this.dateParams(dateRange);
+
+    // Cada ramo do UNION é a origem correspondente. Filtrar a origem é
+    // simplesmente não emitir o ramo: um grupo entra no conjunto se tem ao
+    // menos um item de parcela dentro do período E dentro das origens
+    // selecionadas. Sem `origens`, os três ramos entram (comportamento
+    // antigo).
+    const ramos: Prisma.Sql[] = [];
+
+    if (!origens?.length || origens.includes('TRIER')) {
+      ramos.push(Prisma.sql`
+        SELECT cpi.conciliacaoParcelaId AS id
+        FROM ConciliacaoParcelaItem cpi
+        JOIN TrierParcela tp ON tp.id = cpi.trierParcelaId
+        WHERE tp.dataEmissao >= ${start} AND tp.dataEmissao <= ${end}${this.trierWhere(
+          bandeiras,
+          filialId,
+          'tp',
+        )}
+      `);
+    }
+
+    if (!origens?.length || origens.includes('REDE')) {
+      ramos.push(Prisma.sql`
+        SELECT cpi.conciliacaoParcelaId AS id
+        FROM ConciliacaoParcelaItem cpi
+        JOIN RedeParcela rp ON rp.id = cpi.redeParcelaId
+        WHERE rp.dataVenda >= ${start} AND rp.dataVenda <= ${end}${this.filialWhere(
+          filialId,
+          'rp',
+        )}
+      `);
+    }
+
+    if (!origens?.length || origens.includes('CIELO')) {
+      ramos.push(Prisma.sql`
+        SELECT cpi.conciliacaoParcelaId AS id
+        FROM ConciliacaoParcelaItem cpi
+        JOIN CieloParcela cip ON cip.id = cpi.cieloParcelaId
+        WHERE cip.dataVenda >= ${start} AND cip.dataVenda <= ${end}${this.filialWhere(
+          filialId,
+          'cip',
+        )}
+      `);
+    }
+
+    // Nenhuma origem selecionada não pode gerar `UNION` vazio, que é
+    // sintaticamente inválido. Os ramos já foram omitidos nesse caso; devolve
+    // um conjunto vazio para a consulta não quebrar.
+    if (!ramos.length) {
+      return Prisma.sql`SELECT NULL AS id WHERE 1 = 0`;
+    }
+
+    return Prisma.join(ramos, ' UNION ');
+  }
+
   async totaisCards(
     dateRange: { from: string; to: string },
     filialId?: number,
@@ -264,7 +341,6 @@ export class ConciliacaoParcDashboardService {
         divergencias: bigint;
         valorDivergencias: any;
         totalGrupos: bigint;
-        automaticos: bigint;
       }[]
     >(Prisma.sql`
       WITH
@@ -304,8 +380,7 @@ export class ConciliacaoParcDashboardService {
       ),
       auto_count AS (
         SELECT COALESCE(tp.filialId, rp.filialId, cip.filialId, 0) AS filialId,
-               COUNT(DISTINCT cp.id) AS totalGrupos,
-               COUNT(DISTINCT CASE WHEN cp.tipoMatch IS NOT NULL AND cp.tipoMatch <> 'MANUAL' THEN cp.id END) AS automaticos
+               COUNT(DISTINCT cp.id) AS totalGrupos
         FROM ConciliacaoParcela cp
         JOIN ConciliacaoParcelaItem cpi ON cpi.conciliacaoParcelaId = cp.id
         LEFT JOIN TrierParcela tp ON tp.id = cpi.trierParcelaId
@@ -324,8 +399,7 @@ export class ConciliacaoParcDashboardService {
         COALESCE(tt.total, 0) - COALESCE(at.total, 0) AS diferenca,
         COALESCE(dc.divergencias, 0) AS divergencias,
         COALESCE(dc.valorDivergencias, 0) AS valorDivergencias,
-        COALESCE(ac.totalGrupos, 0) AS totalGrupos,
-        COALESCE(ac.automaticos, 0) AS automaticos
+        COALESCE(ac.totalGrupos, 0) AS totalGrupos
       FROM Filial f
       LEFT JOIN trier_total tt ON tt.filialId = f.id
       LEFT JOIN adq_total at ON at.filialId = f.id
@@ -335,25 +409,16 @@ export class ConciliacaoParcDashboardService {
       ORDER BY ABS(COALESCE(tt.total, 0) - COALESCE(at.total, 0)) DESC
     `);
 
-    return rows.map((r) => {
-      const totalGrupos = Number(r.totalGrupos);
-      const automaticos = Number(r.automaticos);
-      return {
-        filial: r.filial,
-        filialId: Number(r.filialId),
-        trier: Number(r.trier),
-        adquirentes: Number(r.adquirentes),
-        diferenca: Number(r.diferenca) * -1,
-        divergencias: Number(r.divergencias),
-        valorDivergencias: Number(r.valorDivergencias),
-        totalGrupos,
-        automaticos: Number(r.automaticos),
-        taxaAutomatica:
-          totalGrupos > 0
-            ? Number(((automaticos / totalGrupos) * 100).toFixed(2))
-            : 0,
-      };
-    });
+    return rows.map((r) => ({
+      filial: r.filial,
+      filialId: Number(r.filialId),
+      trier: Number(r.trier),
+      adquirentes: Number(r.adquirentes),
+      diferenca: Number(r.diferenca) * -1,
+      divergencias: Number(r.divergencias),
+      valorDivergencias: Number(r.valorDivergencias),
+      totalGrupos: Number(r.totalGrupos),
+    }));
   }
 
   /**
@@ -365,8 +430,69 @@ export class ConciliacaoParcDashboardService {
   async rankingGruposPendencias(
     dateRange: { from: string; to: string },
     bandeiras?: string[],
+    origens?: string[],
   ) {
     const { start, end } = this.dateParams(dateRange);
+    const t = this.bandeiraWhere(bandeiras, 'tp');
+
+    // Mesmo mecanismo de `gruposPeriodoSql`: a origem selecionada decide se o
+    // ramo entra no conjunto. Só os ramos reais são emitidos — um ramo "vazio"
+    // (`WHERE 1 = 0`) seria o primeiro do `UNION ALL` quando a origem escolhida
+    // não é a Trier, e aí o MySQL passaria a tipar as colunas da CTE a partir
+    // de literais NULL, coagindo o `filialId` e o `trierValor` das linhas reais
+    // das outras origens.
+    //
+    // `trierValor` vem NULL nos ramos de Rede/Cielo de propósito: o `SUM` de
+    // divergências usa o valor da parcela do Trier, que é quem carrega o
+    // importe comparado.
+    const ramos: Prisma.Sql[] = [];
+
+    if (!origens?.length || origens.includes('TRIER')) {
+      ramos.push(Prisma.sql`
+        SELECT cp.id AS id, cp.status AS status, cp.tipoMatch AS tipoMatch,
+               tp.filialId AS filialId, tp.valor AS trierValor
+        FROM ConciliacaoParcelaItem cpi
+        JOIN ConciliacaoParcela cp ON cp.id = cpi.conciliacaoParcelaId
+        JOIN TrierParcela tp ON tp.id = cpi.trierParcelaId
+        WHERE tp.dataEmissao >= ${start} AND tp.dataEmissao <= ${end}${t}
+      `);
+    }
+
+    if (!origens?.length || origens.includes('REDE')) {
+      ramos.push(Prisma.sql`
+        SELECT cp.id AS id, cp.status AS status, cp.tipoMatch AS tipoMatch,
+               rp.filialId AS filialId, NULL AS trierValor
+        FROM ConciliacaoParcelaItem cpi
+        JOIN ConciliacaoParcela cp ON cp.id = cpi.conciliacaoParcelaId
+        JOIN RedeParcela rp ON rp.id = cpi.redeParcelaId
+        WHERE rp.dataVenda >= ${start} AND rp.dataVenda <= ${end}
+      `);
+    }
+
+    if (!origens?.length || origens.includes('CIELO')) {
+      ramos.push(Prisma.sql`
+        SELECT cp.id AS id, cp.status AS status, cp.tipoMatch AS tipoMatch,
+               cip.filialId AS filialId, NULL AS trierValor
+        FROM ConciliacaoParcelaItem cpi
+        JOIN ConciliacaoParcela cp ON cp.id = cpi.conciliacaoParcelaId
+        JOIN CieloParcela cip ON cip.id = cpi.cieloParcelaId
+        WHERE cip.dataVenda >= ${start} AND cip.dataVenda <= ${end}
+      `);
+    }
+
+    // Só alcançável se `origens` vier com valores fora das três origens, o
+    // que o controller já recusa. Fica aqui para o `UNION` nunca ser vazio —
+    // e o ramo abaixo já vem tipado, para não virar a fonte do tipo da CTE.
+    const itemFilial = ramos.length
+      ? Prisma.join(ramos, ' UNION ALL ')
+      : Prisma.sql`
+          SELECT CAST(NULL AS SIGNED) AS id,
+                 CAST(NULL AS CHAR(20)) AS status,
+                 CAST(NULL AS CHAR(20)) AS tipoMatch,
+                 CAST(NULL AS SIGNED) AS filialId,
+                 CAST(NULL AS DECIMAL(20,2)) AS trierValor
+          WHERE 1 = 0
+        `;
 
     const rows = await this.prisma.$queryRaw<
       {
@@ -374,56 +500,21 @@ export class ConciliacaoParcDashboardService {
         divergencias: bigint;
         valorDivergencias: any;
         totalGrupos: bigint;
-        automaticos: bigint;
       }[]
     >(Prisma.sql`
-      WITH
-      div_count AS (
-        SELECT COALESCE(tp.filialId, rp.filialId, cip.filialId, 0) AS filialId,
-               COUNT(DISTINCT cp.id) AS divergencias,
-               COALESCE(SUM(CASE WHEN tp.id IS NOT NULL THEN tp.valor ELSE 0 END), 0) AS valorDivergencias
-        FROM ConciliacaoParcela cp
-        JOIN ConciliacaoParcelaItem cpi ON cpi.conciliacaoParcelaId = cp.id
-        LEFT JOIN TrierParcela tp ON tp.id = cpi.trierParcelaId
-        LEFT JOIN RedeParcela rp ON rp.id = cpi.redeParcelaId
-        LEFT JOIN CieloParcela cip ON cip.id = cpi.cieloParcelaId
-        WHERE cp.status = 'DIVERGENTE'
-          AND (
-            (tp.id IS NOT NULL AND tp.dataEmissao >= ${start} AND tp.dataEmissao <= ${end})
-            OR (rp.id IS NOT NULL AND rp.dataVenda >= ${start} AND rp.dataVenda <= ${end})
-            OR (cip.id IS NOT NULL AND cip.dataVenda >= ${start} AND cip.dataVenda <= ${end})
-          )
-        GROUP BY filialId
+      WITH item_filial AS (
+        ${itemFilial}
       ),
-      auto_count AS (
-        SELECT COALESCE(tp.filialId, rp.filialId, cip.filialId, 0) AS filialId,
-               COUNT(DISTINCT cp.id) AS totalGrupos,
-               COUNT(DISTINCT CASE WHEN cp.tipoMatch IS NOT NULL AND cp.tipoMatch <> 'MANUAL' THEN cp.id END) AS automaticos
-        FROM ConciliacaoParcela cp
-        JOIN ConciliacaoParcelaItem cpi ON cpi.conciliacaoParcelaId = cp.id
-        LEFT JOIN TrierParcela tp ON tp.id = cpi.trierParcelaId
-        LEFT JOIN RedeParcela rp ON rp.id = cpi.redeParcelaId
-        LEFT JOIN CieloParcela cip ON cip.id = cpi.cieloParcelaId
-        WHERE (
-          (tp.id IS NOT NULL AND tp.dataEmissao >= ${start} AND tp.dataEmissao <= ${end})
-          OR (rp.id IS NOT NULL AND rp.dataVenda >= ${start} AND rp.dataVenda <= ${end})
-          OR (cip.id IS NOT NULL AND cip.dataVenda >= ${start} AND cip.dataVenda <= ${end})
-        )
+      agg AS (
+        SELECT COALESCE(filialId, 0) AS filialId,
+               COUNT(DISTINCT CASE WHEN status = 'DIVERGENTE' THEN id END) AS divergencias,
+               COALESCE(SUM(CASE WHEN status = 'DIVERGENTE' THEN trierValor ELSE 0 END), 0) AS valorDivergencias,
+               COUNT(DISTINCT id) AS totalGrupos
+        FROM item_filial
         GROUP BY filialId
       )
-      SELECT filialId,
-        SUM(divergencias) AS divergencias,
-        SUM(valorDivergencias) AS valorDivergencias,
-        SUM(totalGrupos) AS totalGrupos,
-        SUM(automaticos) AS automaticos
-      FROM (
-        SELECT filialId, divergencias, valorDivergencias, 0 AS totalGrupos, 0 AS automaticos
-        FROM div_count
-        UNION ALL
-        SELECT filialId, 0, 0, totalGrupos, automaticos
-        FROM auto_count
-      ) u
-      GROUP BY filialId
+      SELECT filialId, divergencias, valorDivergencias, totalGrupos
+      FROM agg
     `);
 
     return rows.map((r) => ({
@@ -431,46 +522,90 @@ export class ConciliacaoParcDashboardService {
       divergencias: Number(r.divergencias),
       valorDivergencias: Number(r.valorDivergencias),
       totalGrupos: Number(r.totalGrupos),
-      automaticos: Number(r.automaticos),
     }));
   }
 
-  async chartRankingDivergencias(
+  /**
+   * Resumo de grupos + ranking de observações + aging de pendências, em UMA
+   * query.
+   *
+   * Antes eram três queries (duas delas sequenciais dentro de
+   * chartRankingDivergencias) que reconstruíam o mesmo conjunto de grupos do
+   * período. Todas compartilham a CTE `gp`, então agora o MySQL a materializa
+   * uma vez e deriva as três saídas dela.
+   *
+   * `kind` discrimina o agregado no resultado; os contadores por status e as
+   * faixas de aging não se sobrepõem entre si.
+   */
+  async resumoConciliacao(
     dateRange: { from: string; to: string },
     filialId?: number,
     bandeiras?: string[],
+    origens?: string[],
   ) {
-    const { start, end } = this.dateParams(dateRange);
-    const t = this.trierWhere(bandeiras, filialId, 'tp');
-    const r = this.filialWhere(filialId, 'rp');
-    const c = this.filialWhere(filialId, 'cip');
-
-    const statusRows = await this.prisma.$queryRaw<
-      { status: string; quantidade: bigint }[]
+    const rows = await this.prisma.$queryRaw<
+      { kind: string; label: string; quantidade: bigint; valor: any }[]
     >(Prisma.sql`
-      SELECT cp.status AS status, COUNT(DISTINCT cp.id) AS quantidade
-      FROM ConciliacaoParcela cp
-      JOIN ConciliacaoParcelaItem cpi ON cpi.conciliacaoParcelaId = cp.id
-      LEFT JOIN TrierParcela tp ON tp.id = cpi.trierParcelaId
-      LEFT JOIN RedeParcela rp ON rp.id = cpi.redeParcelaId
-      LEFT JOIN CieloParcela cip ON cip.id = cpi.cieloParcelaId
-      WHERE (
-        (tp.id IS NOT NULL AND tp.dataEmissao >= ${start} AND tp.dataEmissao <= ${end}${t})
-        OR (rp.id IS NOT NULL AND rp.dataVenda >= ${start} AND rp.dataVenda <= ${end}${r})
-        OR (cip.id IS NOT NULL AND cip.dataVenda >= ${start} AND cip.dataVenda <= ${end}${c})
+      WITH gp AS (
+        ${this.gruposPeriodoSql(dateRange, filialId, bandeiras, origens)}
+      ),
+      g AS (
+        SELECT cp.id AS id, cp.status AS status, cp.createdAt AS createdAt
+        FROM ConciliacaoParcela cp
+        JOIN gp ON gp.id = cp.id
+      ),
+      gv AS (
+        SELECT cpi.conciliacaoParcelaId AS grupoId,
+               COALESCE(SUM(tpv.valor), 0) AS valor
+        FROM ConciliacaoParcelaItem cpi
+        JOIN g ON g.id = cpi.conciliacaoParcelaId
+        LEFT JOIN TrierParcela tpv ON tpv.id = cpi.trierParcelaId
+        GROUP BY cpi.conciliacaoParcelaId
       )
-      GROUP BY cp.status
+      SELECT 'status' AS kind, g.status AS label, COUNT(*) AS quantidade,
+             CAST(NULL AS DECIMAL(20,2)) AS valor
+      FROM g
+      GROUP BY g.status
+      UNION ALL
+      SELECT 'aging' AS kind,
+        CASE
+          WHEN DATEDIFF(CURDATE(), g.createdAt) <= 2 THEN '0-2'
+          WHEN DATEDIFF(CURDATE(), g.createdAt) <= 7 THEN '3-7'
+          WHEN DATEDIFF(CURDATE(), g.createdAt) <= 30 THEN '8-30'
+          ELSE '30+'
+        END AS label,
+        COUNT(*) AS quantidade,
+        CAST(NULL AS DECIMAL(20,2)) AS valor
+      FROM g
+      WHERE g.status IN ('DIVERGENTE', 'NAO_ENCONTRADO')
+      GROUP BY 2
+      UNION ALL
+      SELECT 'obs' AS kind, cpo.tipo AS label, COUNT(*) AS quantidade,
+             COALESCE(SUM(gv.valor), 0) AS valor
+      FROM ConciliacaoParcelaObservacao cpo
+      JOIN gv ON gv.grupoId = cpo.conciliacaoParcelaId
+      GROUP BY cpo.tipo
     `);
+
+    const statusRows = rows.filter((r) => r.kind === 'status');
+    const agingRows = rows.filter((r) => r.kind === 'aging');
+    const observacoes = rows.filter((r) => r.kind === 'obs');
 
     const totalGrupos = statusRows.reduce(
       (acc, r2) => acc + Number(r2.quantidade),
       0,
     );
     const get = (status: string) =>
-      Number(statusRows.find((s) => s.status === status)?.quantidade ?? 0);
+      Number(statusRows.find((s) => s.label === status)?.quantidade ?? 0);
     const conciliados = get('CONCILIADO');
     const divergentes = get('DIVERGENTE');
     const naoEncontrados = get('NAO_ENCONTRADO');
+
+    const agingOrder = ['0-2', '3-7', '8-30', '30+'];
+    const aging = agingOrder.map((o) => ({
+      faixa: `${o} dias`,
+      quantidade: Number(agingRows.find((r) => r.label === o)?.quantidade ?? 0),
+    }));
 
     if (!totalGrupos) {
       return {
@@ -483,59 +618,33 @@ export class ConciliacaoParcDashboardService {
           percentualDivergente: 0,
         },
         ranking: [],
+        aging,
       };
     }
 
-    const observacoes = await this.prisma.$queryRaw<
-      { tipo: string; quantidade: bigint; valor: any }[]
-    >(Prisma.sql`
-      WITH grupos_periodo AS (
-        SELECT DISTINCT cp.id
-        FROM ConciliacaoParcela cp
-        JOIN ConciliacaoParcelaItem cpi ON cpi.conciliacaoParcelaId = cp.id
-        LEFT JOIN TrierParcela tp ON tp.id = cpi.trierParcelaId
-        LEFT JOIN RedeParcela rp ON rp.id = cpi.redeParcelaId
-        LEFT JOIN CieloParcela cip ON cip.id = cpi.cieloParcelaId
-        WHERE (
-          (tp.id IS NOT NULL AND tp.dataEmissao >= ${start} AND tp.dataEmissao <= ${end}${t})
-          OR (rp.id IS NOT NULL AND rp.dataVenda >= ${start} AND rp.dataVenda <= ${end}${r})
-          OR (cip.id IS NOT NULL AND cip.dataVenda >= ${start} AND cip.dataVenda <= ${end}${c})
-        )
-      ),
-      grupo_valor AS (
-        SELECT cpi.conciliacaoParcelaId AS grupoId,
-               COALESCE(SUM(tpv.valor), 0) AS valor
-        FROM ConciliacaoParcelaItem cpi
-        LEFT JOIN TrierParcela tpv ON tpv.id = cpi.trierParcelaId
-        WHERE cpi.conciliacaoParcelaId IN (SELECT id FROM grupos_periodo)
-        GROUP BY cpi.conciliacaoParcelaId
-      )
-      SELECT cpo.tipo AS tipo, COUNT(*) AS quantidade,
-             COALESCE(SUM(gv.valor), 0) AS valor
-      FROM ConciliacaoParcelaObservacao cpo
-      JOIN grupo_valor gv ON gv.grupoId = cpo.conciliacaoParcelaId
-      WHERE cpo.conciliacaoParcelaId IN (SELECT id FROM grupos_periodo)
-      GROUP BY cpo.tipo
-      ORDER BY quantidade DESC
-    `);
+    const orderedObs = [...observacoes].sort(
+      (a, b) => Number(b.quantidade) - Number(a.quantidade),
+    );
 
-    const totalObservacoes = observacoes.reduce(
+    const totalObservacoes = orderedObs.reduce(
       (acc, o) => acc + Number(o.quantidade),
       0,
     );
-    const totalValorObservacoes = observacoes.reduce(
+    const totalValorObservacoes = orderedObs.reduce(
       (acc, o) => acc + Number(o.valor),
       0,
     );
 
-    const ranking = observacoes.map((o) => {
+    const ranking = orderedObs.map((o) => {
       const valor = Number(o.valor);
       return {
-        tipo: o.tipo,
+        tipo: o.label,
         quantidade: Number(o.quantidade),
         percentual:
           totalObservacoes > 0
-            ? Number(((Number(o.quantidade) / totalObservacoes) * 100).toFixed(2))
+            ? Number(
+                ((Number(o.quantidade) / totalObservacoes) * 100).toFixed(2),
+              )
             : 0,
         valor,
         materialidade:
@@ -561,58 +670,8 @@ export class ConciliacaoParcDashboardService {
             : 0,
       },
       ranking,
+      aging,
     };
-  }
-
-  async agingPendencias(
-    dateRange: { from: string; to: string },
-    filialId?: number,
-    bandeiras?: string[],
-  ) {
-    const { start, end } = this.dateParams(dateRange);
-
-    const rows = await this.prisma.$queryRaw<
-      { faixa: string; quantidade: bigint }[]
-    >(Prisma.sql`
-      SELECT faixa, COUNT(*) AS quantidade
-      FROM (
-        SELECT DISTINCT cp.id,
-          CASE
-            WHEN DATEDIFF(CURDATE(), cp.createdAt) <= 2 THEN '0-2'
-            WHEN DATEDIFF(CURDATE(), cp.createdAt) <= 7 THEN '3-7'
-            WHEN DATEDIFF(CURDATE(), cp.createdAt) <= 30 THEN '8-30'
-            ELSE '30+'
-          END AS faixa
-        FROM ConciliacaoParcela cp
-        JOIN ConciliacaoParcelaItem cpi ON cpi.conciliacaoParcelaId = cp.id
-        LEFT JOIN TrierParcela tp ON tp.id = cpi.trierParcelaId
-        LEFT JOIN RedeParcela rp ON rp.id = cpi.redeParcelaId
-        LEFT JOIN CieloParcela cip ON cip.id = cpi.cieloParcelaId
-        WHERE cp.status IN ('DIVERGENTE', 'NAO_ENCONTRADO')
-          AND (
-            (tp.id IS NOT NULL AND tp.dataEmissao >= ${start} AND tp.dataEmissao <= ${end}${this.trierWhere(
-              bandeiras,
-              filialId,
-              'tp',
-            )})
-            OR (rp.id IS NOT NULL AND rp.dataVenda >= ${start} AND rp.dataVenda <= ${end}${this.filialWhere(
-              filialId,
-              'rp',
-            )})
-            OR (cip.id IS NOT NULL AND cip.dataVenda >= ${start} AND cip.dataVenda <= ${end}${this.filialWhere(
-              filialId,
-              'cip',
-            )})
-          )
-      ) d
-      GROUP BY faixa
-    `);
-
-    const order = ['0-2', '3-7', '8-30', '30+'];
-    return order.map((o) => ({
-      faixa: `${o} dias`,
-      quantidade: Number(rows.find((r) => r.faixa === o)?.quantidade ?? 0),
-    }));
   }
 
   async aReceber(

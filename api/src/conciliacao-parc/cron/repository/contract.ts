@@ -97,5 +97,12 @@ export interface ConciliacaoGrupo {
   status: $Enums.ParcelStatus;
   tipoMatch: $Enums.MatchType;
   observacao?: string;
+  /**
+   * Divergências do próprio grupo, quando não há item de adquirente para
+   * comparar. Usado pelos grupos venda x estorno, em que as duas pontas são
+   * parcelas da Trier. Os itens geram as suas divergências uma a uma; estes
+   * grupos não têm itens, então trazem as divergências aqui.
+   */
+  divergencias?: $Enums.ObservacaoConciliacao[];
   itens: ConciliacaoGrupoItem[];
 }
