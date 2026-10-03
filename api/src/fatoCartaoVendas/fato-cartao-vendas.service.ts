@@ -407,7 +407,52 @@ export class FatoCartaoVendasService {
       endD,
     );
 
-    return { cardsTotals, chartLinesCards, rankingDivergencias };
+    return {
+      cardsTotals,
+      chartLinesCards,
+      // O front precisa saber se cada barra do gráfico diário é de fato um dia:
+      // o clique abre a conciliação daquele dia, e uma barra de semana ou mês
+      // não tem dia para abrir.
+      granularidade,
+      rankingDivergencias,
+    };
+  }
+
+  /**
+   * Mesma métrica do gráfico diário de diferença, só que agregada por mês.
+   *
+   * Existe separado de `dashboard` porque a página usa a janela do ano
+   * corrente para este gráfico, independente do período escolhido nos filtros.
+   * Rodar o endpoint completo aqui refazia as agregações de ranking, que não
+   * são baratas, só para o resultado ser descartado.
+   *
+   * A fórmula é idêntica à de `chartLinesCards`: divergência não conciliada
+   * dos adquirentes menos a da Trier,bucketed por mês em vez de dia.
+   */
+  async diferencaMensal(params: DashboardFatoParams) {
+    const startD = new Date(`${params.startDate}T00:00:00.000Z`);
+    const endD = new Date(`${params.endDate}T23:59:59.999Z`);
+
+    const where = this.buildDashboardWhere(params, startD, endD, true);
+
+    const porMes = await this.prisma.fatoCartaoVendas.groupBy({
+      by: ['data', 'adquirente'],
+      where,
+      _sum: { valorDivergente: true },
+    });
+
+    const mapa: Record<string, number> = {};
+
+    for (const row of porMes) {
+      const mes = this.getBucketKey(new Date(row.data), 'mes');
+      const sinal = row.adquirente === 'TRIER' ? -1 : 1;
+      mapa[mes] =
+        (mapa[mes] ?? 0) + Number(row._sum.valorDivergente ?? 0) * sinal;
+    }
+
+    return Object.keys(mapa)
+      .sort((a, b) => a.localeCompare(b))
+      .map((mes) => ({ mes, diferenca: round2(mapa[mes]) }));
   }
 
   private getBucketKey(

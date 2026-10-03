@@ -30,13 +30,41 @@ interface FindFatoParams {
   bandeira?: string;
 }
 
+/**
+ * Situação da conciliação escolhida no filtro. Cada opção traz uma coluna
+ * própria, somada nos cards, gráficos e rankings:
+ *
+ *  - `PENDENTE`   -> `valorPendente`
+ *  - `DIVERGENTE` -> `valorDivergente`
+ *  - `CONCILIADO` -> `valorConciliado`
+ *
+ * Sem opção, a métrica é `valorBruto`.
+ */
+export type FatoStatus = 'PENDENTE' | 'DIVERGENTE' | 'CONCILIADO';
+
+/** Colunas do fato, usadas como métrica conforme o filtro de situação. */
+type ColunaMetrica =
+  | 'valorBruto'
+  | 'valorPendente'
+  | 'valorDivergente'
+  | 'valorConciliado';
+
+const COLUNA_POR_STATUS: Record<FatoStatus, ColunaMetrica> = {
+  PENDENTE: 'valorPendente',
+  DIVERGENTE: 'valorDivergente',
+  CONCILIADO: 'valorConciliado',
+};
+
 interface DashboardFatoParams {
   startDate: string;
   endDate: string;
   filialId?: number;
-  adquirente?: OrigemConciliacao;
+  /** Origens selecionadas. Vazio/ausente = todas. */
+  adquirentes?: OrigemConciliacao[];
   bandeiras?: string[];
   bandeirasModo?: 'incluir' | 'excluir';
+  /** Situações selecionadas. Vazio/ausente = bruto. */
+  status?: FatoStatus[];
 }
 
 function round2(value: number): number {
@@ -246,19 +274,24 @@ export class FatoCartaoParcelasService {
     let inseridas = 0;
     const BATCH = 1000;
 
-    await this.prisma.$transaction(async (tx) => {
-      const del = await tx.fatoCartaoParcelas.deleteMany({
-        where: { data: { gte: startD, lte: endD } },
-      });
-      apagadas = del.count;
-
-      for (let i = 0; i < rows.length; i += BATCH) {
-        const created = await tx.fatoCartaoParcelas.createMany({
-          data: rows.slice(i, i + BATCH),
+    await this.prisma.$transaction(
+      async (tx) => {
+        const del = await tx.fatoCartaoParcelas.deleteMany({
+          where: { data: { gte: startD, lte: endD } },
         });
-        inseridas += created.count;
-      }
-    });
+        apagadas = del.count;
+
+        for (let i = 0; i < rows.length; i += BATCH) {
+          const created = await tx.fatoCartaoParcelas.createMany({
+            data: rows.slice(i, i + BATCH),
+          });
+          inseridas += created.count;
+        }
+      },
+      {
+        timeout: 60_000,
+      },
+    );
 
     return { apagadas, inseridas };
   }
@@ -287,8 +320,16 @@ export class FatoCartaoParcelasService {
   }
 
   /**
-   * O filtro de bandeiras é aplicado a Trier e Cielo (que possuem bandeira).
-   * Rede sempre passa, pois suas parcelas não têm bandeira no fato.
+   * Filtro do dashboard.
+   *
+   * A origem é multi-seleção: `adquirentes` vazio/ausente = todas.
+   *
+   * Uma regra não é óbvia: **a Rede nunca é filtrada por bandeira.** A tabela
+   * de parcelas da Rede não tem coluna `bandeira` (ela só existe para o fato),
+   * então toda linha da Rede cairia fora de um `in`/`notIn` e o filtro
+   * esvaziaria o comparativo. Por isso o ramo `adquirente: 'REDE'` do `OR`:
+   * as parcelas da Rede continuam sendo retornadas mesmo com bandeiras
+   * selecionadas, e simplesmente não são filtráveis por bandeira.
    */
   private buildDashboardWhere(
     params: DashboardFatoParams,
@@ -296,10 +337,12 @@ export class FatoCartaoParcelasService {
     endD: Date,
     applyFilialId: boolean,
   ): Prisma.FatoCartaoParcelasWhereInput {
+    const origens = params.adquirentes?.length ? params.adquirentes : undefined;
+
     return {
       data: { gte: startD, lte: endD },
       ...(applyFilialId && params.filialId && { filialId: params.filialId }),
-      ...(params.adquirente && { adquirente: params.adquirente }),
+      ...(origens?.length && { adquirente: { in: origens } }),
       ...(params.bandeiras?.length && {
         OR: [
           { adquirente: 'REDE' },
@@ -314,50 +357,129 @@ export class FatoCartaoParcelasService {
     };
   }
 
-  async dashboard(params: DashboardFatoParams) {
+  /**
+   * Colunas somadas conforme o filtro de situação.
+   *
+   * A seleção é múltipla e as colunas se somam entre si: `aplicarStatus` joga
+   * cada parcela em **uma** das três colunas, então
+   * `conciliado + divergente + pendente = bruto` (verificado no banco, delta
+   * 0,00). Marcar "Pendente + Divergente" é, por isso, o mesmo que "todo o
+   * menos o conciliado" — sem risco de dupla contagem.
+   *
+   * Sem seleção, a métrica é `valorBruto`.
+   */
+  private metricas(params: DashboardFatoParams): ColunaMetrica[] {
+    if (!params.status?.length) return ['valorBruto'];
+    return [...new Set(params.status.map((s) => COLUNA_POR_STATUS[s]))];
+  }
+
+  /** Soma as colunas de métrica de uma linha agregada. */
+  private somaMetrica(
+    row: { _sum: unknown },
+    colunas: ColunaMetrica[],
+  ): number {
+    const sum = row._sum as Record<string, number | null> | null;
+    return colunas.reduce((acc, c) => acc + Number(sum?.[c] ?? 0), 0);
+  }
+
+  async dashboard(params: DashboardFatoParams & { somenteMensal?: boolean }) {
     const startD = new Date(`${params.startDate}T00:00:00.000Z`);
     const endD = new Date(`${params.endDate}T23:59:59.999Z`);
 
     const where = this.buildDashboardWhere(params, startD, endD, true);
     const rankingWhere = this.buildDashboardWhere(params, startD, endD, false);
+    const metricas = this.metricas(params);
 
-    const [totais, porDia, porFilial] = await Promise.all([
+    // As colunas vêm da lista fechada `COLUNA_POR_STATUS`, então os nomes não
+    // são entrada do usuário: é apenas o nome de campos do groupBy.
+    const somaMetrica = Object.fromEntries(metricas.map((c) => [c, true])) as {
+      [k: string]: true;
+    };
+
+    // O gráfico mensal é derivado do mesmo groupBy diário, então uma única
+    // consulta resolve. No modo `somenteMensal` as demais agregações são
+    // puladas: o gráfico não as usa e elas somam custo à resposta.
+    const porDia = await this.prisma.fatoCartaoParcelas.groupBy({
+      by: ['data', 'adquirente'],
+      where,
+      _sum: somaMetrica as any,
+    });
+
+    const mapaMes: Record<string, any> = {};
+
+    for (const row of porDia) {
+      const mes = this.toISODate(new Date(row.data)).slice(0, 7);
+      if (!mapaMes[mes]) {
+        mapaMes[mes] = { mes, trier: 0, adquirentes: 0, diferenca: 0 };
+      }
+      const valor = this.somaMetrica(row, metricas);
+      if (row.adquirente === 'TRIER') {
+        mapaMes[mes].trier += valor;
+      } else {
+        mapaMes[mes].adquirentes += valor;
+      }
+    }
+
+    const chartDiferencaMensal = Object.values(mapaMes)
+      .map((d: any) => ({
+        ...d,
+        diferenca: round2(d.adquirentes - d.trier),
+      }))
+      .sort((a: any, b: any) => a.mes.localeCompare(b.mes));
+
+    if (params.somenteMensal) {
+      return { chartDiferencaMensal } as any;
+    }
+
+    const [totais, porFilial] = await Promise.all([
       this.prisma.fatoCartaoParcelas.groupBy({
         by: ['adquirente'],
         where,
+        // Além da métrica escolhida, o bruto e as duas colunas usadas pelos
+        // KPIs de conciliação continuam somados: são proporções e não devem
+        // trocar de sentido com o filtro. `aplicarStatus` joga cada parcela em
+        // uma única coluna, então `conciliado + divergente
+        // + pendente = bruto`.
         _sum: {
+          ...somaMetrica,
           valorBruto: true,
-          valorDivergente: true,
           valorConciliado: true,
+          valorPendente: true,
         },
-      }),
-      this.prisma.fatoCartaoParcelas.groupBy({
-        by: ['data', 'adquirente'],
-        where,
-        _sum: { valorBruto: true },
       }),
       this.prisma.fatoCartaoParcelas.groupBy({
         by: ['filialId', 'adquirente'],
         where: rankingWhere,
-        _sum: { valorBruto: true, valorDivergente: true },
+        _sum: { ...somaMetrica, valorDivergente: true },
       }),
     ]);
 
-    const valor = (adquirente: OrigemConciliacao) =>
-      Number(
-        totais.find((t) => t.adquirente === adquirente)?._sum.valorBruto ?? 0,
-      );
+    const valor = (adquirente: OrigemConciliacao) => {
+      const row = totais.find((t) => t.adquirente === adquirente);
+      return row ? this.somaMetrica(row, metricas) : 0;
+    };
 
     const erp = valor('TRIER');
     const adquirentes = valor('REDE') + valor('CIELO');
 
-    const naoConciliados = Number(
-      totais.find((t) => t.adquirente === 'TRIER')?._sum.valorDivergente ?? 0,
-    );
+    const trierRow = totais.find((t) => t.adquirente === 'TRIER');
 
-    const conciliadoValor = Number(
-      totais.find((t) => t.adquirente === 'TRIER')?._sum.valorConciliado ?? 0,
-    );
+    const conciliadoValor = Number(trierRow?._sum.valorConciliado ?? 0);
+    const pendenteValor = Number(trierRow?._sum.valorPendente ?? 0);
+
+    // Base dos dois percentuais: o bruto inteiro do período, imune ao filtro de
+    // situação. `erp` não serve aqui — ele muda com a métrica escolhida, e
+    // marcar só "Pendente" encolheria a base para o próprio pendente, fazendo a
+    // taxa passar de 100%. Os demais filtros (período, filial, bandeira,
+    // origem) continuam valendo: a base é o todo *da seleção*.
+    const baseTotal = Number(trierRow?._sum.valorBruto ?? 0);
+
+    // "Não conciliado" é só o que ficou sem match: o bucket PENDENTE.
+    // DIVERGENTE não entra — nele a venda foi casada com o registro do
+    // adquirente e o que existe é uma observação sobre a comparação, não uma
+    // parcela órfã. Somar os dois fazia o indicador refletir o volume da
+    // conciliação, não o da falta dela.
+    const naoConciliados = pendenteValor;
 
     const cardsTotals = {
       erp: round2(erp),
@@ -365,8 +487,13 @@ export class FatoCartaoParcelasService {
       diferenca: round2(adquirentes - erp),
       naoConciliados: round2(naoConciliados),
       kpiConciTrier:
-        erp > 0 ? Number(((conciliadoValor / erp) * 100).toFixed(2)) : 0,
-      materialidade: erp > 0 ? Number(((naoConciliados / erp) * 100).toFixed(2)) : 0,
+        baseTotal > 0
+          ? Number(((conciliadoValor / baseTotal) * 100).toFixed(2))
+          : 0,
+      materialidade:
+        baseTotal > 0
+          ? Number(((naoConciliados / baseTotal) * 100).toFixed(2))
+          : 0,
       divergencias: 0,
     };
 
@@ -377,11 +504,11 @@ export class FatoCartaoParcelasService {
       if (!mapaDia[dia]) {
         mapaDia[dia] = { data: dia, trier: 0, adquirentes: 0, diferenca: 0 };
       }
-      const valorBruto = Number(row._sum.valorBruto ?? 0);
+      const valor = this.somaMetrica(row, metricas);
       if (row.adquirente === 'TRIER') {
-        mapaDia[dia].trier += valorBruto;
+        mapaDia[dia].trier += valor;
       } else {
-        mapaDia[dia].adquirentes += valorBruto;
+        mapaDia[dia].adquirentes += valor;
       }
     }
 
@@ -391,28 +518,6 @@ export class FatoCartaoParcelasService {
         diferenca: round2(d.adquirentes - d.trier),
       }))
       .sort((a: any, b: any) => a.data.localeCompare(b.data));
-
-    const mapaMes: Record<string, any> = {};
-
-    for (const row of porDia) {
-      const mes = this.toISODate(new Date(row.data)).slice(0, 7);
-      if (!mapaMes[mes]) {
-        mapaMes[mes] = { mes, trier: 0, adquirentes: 0, diferenca: 0 };
-      }
-      const valorBruto = Number(row._sum.valorBruto ?? 0);
-      if (row.adquirente === 'TRIER') {
-        mapaMes[mes].trier += valorBruto;
-      } else {
-        mapaMes[mes].adquirentes += valorBruto;
-      }
-    }
-
-    const chartDiferencaMensal = Object.values(mapaMes)
-      .map((d: any) => ({
-        ...d,
-        diferenca: round2(d.adquirentes - d.trier),
-      }))
-      .sort((a: any, b: any) => a.mes.localeCompare(b.mes));
 
     const mapaFilial: Record<
       number,
@@ -430,11 +535,11 @@ export class FatoCartaoParcelasService {
 
       atual.divergencias += Number(row._sum.valorDivergente ?? 0);
 
-      const valorBruto = Number(row._sum.valorBruto ?? 0);
+      const valor = this.somaMetrica(row, metricas);
       if (row.adquirente === 'TRIER') {
-        atual.trier += valorBruto;
+        atual.trier += valor;
       } else {
-        atual.adquirentes += valorBruto;
+        atual.adquirentes += valor;
       }
     }
 
