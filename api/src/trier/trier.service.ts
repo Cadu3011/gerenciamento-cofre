@@ -673,7 +673,7 @@ btnConfirmarCaixa=ty-button!id-btnConfirmarCaixa!ds-0!ro-0!fi-0!
       WHEN data >= ${prevStart} AND data <= ${prevEnd}
       THEN falta ELSE 0 END) AS total_falta_anterior
 
-  FROM cash_management_db.diferencacaixa
+  FROM diferencacaixa
   WHERE filialId = ${filialId}
   ${operadorId ? Prisma.sql`AND idOperador = ${operadorId}` : Prisma.empty}
 `;

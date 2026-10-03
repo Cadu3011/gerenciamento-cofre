@@ -205,211 +205,214 @@ export class Pipeline {
     hoje.setHours(0, 0, 0, 0);
 
     // 2️⃣ Cria todos os grupos e itens dentro de uma transação
-    await this.prisma.$transaction(async (tx) => {
-      const conciliacao = await tx.conciliacao.upsert({
-        where: {
-          filialId_startDate: {
+    await this.prisma.$transaction(
+      async (tx) => {
+        const conciliacao = await tx.conciliacao.upsert({
+          where: {
+            filialId_startDate: {
+              filialId,
+              startDate: new Date(`${date}T00:00:00.000Z`),
+            },
+          },
+          update: {},
+          create: {
             filialId,
             startDate: new Date(`${date}T00:00:00.000Z`),
-          },
-        },
-        update: {},
-        create: {
-          filialId,
-          startDate: new Date(`${date}T00:00:00.000Z`),
-          metodo: 'AUTO',
-        },
-      });
-      // Primeiro cria grupos conciliados
-      const conciliados = groups.filter((g) => g.status === 'CONCILIADO');
-
-      const gruposConciliados = await Promise.all(
-        conciliados.map((group) => {
-          const valorTrier = group.trier?.valor ?? new Decimal(0);
-          const valorRede = group.rede?.valor ?? new Decimal(0);
-          const valorCielo = group.cielo?._sum?.valorBruto ?? new Decimal(0);
-          const valorFinal = valorTrier.sub(valorRede.plus(valorCielo));
-          return tx.conciliacaoGrupo.upsert({
-            where: {
-              idempotencyKey: `|CONCILIADO|${hoje.toISOString().split('T')[0]}T00:00:00.000Z|${filialId}|${group.rede?.idempotencyKey}|${group.trier?.idempotencyKey}|${group.cielo?.codigoTransacao}`,
-            },
-            update: {},
-            create: {
-              conciliacaoId: conciliacao.id,
-              metodo: 'AUTO',
-              status: 'CONCILIADO',
-              valorFinal: valorFinal,
-              idempotencyKey: `|CONCILIADO|${hoje.toISOString().split('T')[0]}T00:00:00.000Z|${filialId}|${group.rede?.idempotencyKey}|${group.trier?.idempotencyKey}|${group.cielo?.codigoTransacao}`,
-              ...(group.cielo?._sum.valorBruto && {
-                valorCielo: group.cielo._sum.valorBruto,
-              }),
-              ...(group.rede?.valor && { valorRede: group.rede.valor }),
-              ...(group.trier?.valor && { valorTrier: group.trier.valor }),
-            },
-          });
-        }),
-      );
-
-      // Cria os itens correspondentes
-      const itensConciliados = gruposConciliados.flatMap((grupo, idx) =>
-        this.gerarItensParaGrupo(conciliados[idx], grupo.id),
-      );
-      if (itensConciliados.length > 0) {
-        const trierIds = [
-          ...new Set(itensConciliados.map((i) => i.trierId).filter(Boolean)),
-        ];
-        const redeIds = [
-          ...new Set(itensConciliados.map((i) => i.redeId).filter(Boolean)),
-        ];
-        const cieloIds = [
-          ...new Set(itensConciliados.map((i) => i.cieloId).filter(Boolean)),
-        ];
-
-        // 🔥 1. remove vínculos antigos
-        await tx.conciliacaoItem.deleteMany({
-          where: {
-            OR: [
-              { trierId: { in: trierIds } },
-              { redeId: { in: redeIds } },
-              { cieloId: { in: cieloIds } },
-            ],
-          },
-        });
-
-        // 🔥 2. cria novos itens
-        await tx.conciliacaoItem.createMany({
-          data: itensConciliados,
-        });
-
-        // 🔥 3. atualiza status
-        if (trierIds.length) {
-          await tx.trierCartaoVendas.updateMany({
-            where: { id: { in: trierIds } },
-            data: { statusConciliacao: 'CONCILIADO' },
-          });
-        }
-
-        if (redeIds.length) {
-          await tx.redeVenda.updateMany({
-            where: { id: { in: redeIds } },
-            data: { statusConciliacao: 'CONCILIADO' },
-          });
-        }
-
-        if (cieloIds.length) {
-          await tx.cartaoVendas.updateMany({
-            where: { id: { in: cieloIds } },
-            data: { statusConciliacao: 'CONCILIADO' },
-          });
-        }
-
-        // 🔥 4. remove grupos vazios
-        await tx.conciliacaoGrupo.deleteMany({
-          where: {
             metodo: 'AUTO',
-            OR: [{ status: 'DIVERGENTE' }, { status: 'PENDENTE' }],
-            itens: {
-              none: {},
-            },
           },
         });
-      }
+        // Primeiro cria grupos conciliados
+        const conciliados = groups.filter((g) => g.status === 'CONCILIADO');
 
-      // Depois cria grupos divergentes
-      const divergentes = groups.filter((g) => g.status === 'DIVERGENTE');
+        const gruposConciliados = await Promise.all(
+          conciliados.map((group) => {
+            const valorTrier = group.trier?.valor ?? new Decimal(0);
+            const valorRede = group.rede?.valor ?? new Decimal(0);
+            const valorCielo = group.cielo?._sum?.valorBruto ?? new Decimal(0);
+            const valorFinal = valorTrier.sub(valorRede.plus(valorCielo));
+            return tx.conciliacaoGrupo.upsert({
+              where: {
+                idempotencyKey: `|CONCILIADO|${hoje.toISOString().split('T')[0]}T00:00:00.000Z|${filialId}|${group.rede?.idempotencyKey}|${group.trier?.idempotencyKey}|${group.cielo?.codigoTransacao}`,
+              },
+              update: {},
+              create: {
+                conciliacaoId: conciliacao.id,
+                metodo: 'AUTO',
+                status: 'CONCILIADO',
+                valorFinal: valorFinal,
+                idempotencyKey: `|CONCILIADO|${hoje.toISOString().split('T')[0]}T00:00:00.000Z|${filialId}|${group.rede?.idempotencyKey}|${group.trier?.idempotencyKey}|${group.cielo?.codigoTransacao}`,
+                ...(group.cielo?._sum.valorBruto && {
+                  valorCielo: group.cielo._sum.valorBruto,
+                }),
+                ...(group.rede?.valor && { valorRede: group.rede.valor }),
+                ...(group.trier?.valor && { valorTrier: group.trier.valor }),
+              },
+            });
+          }),
+        );
 
-      const gruposDivergentes = await Promise.all(
-        divergentes.map((group) => {
-          const valorTrier = group.trier?.valor ?? new Decimal(0);
-          const valorRede = group.rede?.valor ?? new Decimal(0);
-          const valorCielo = group.cielo?._sum?.valorBruto ?? new Decimal(0);
-          const valorFinal = valorTrier.sub(valorRede.plus(valorCielo));
-          return tx.conciliacaoGrupo.upsert({
+        // Cria os itens correspondentes
+        const itensConciliados = gruposConciliados.flatMap((grupo, idx) =>
+          this.gerarItensParaGrupo(conciliados[idx], grupo.id),
+        );
+        if (itensConciliados.length > 0) {
+          const trierIds = [
+            ...new Set(itensConciliados.map((i) => i.trierId).filter(Boolean)),
+          ];
+          const redeIds = [
+            ...new Set(itensConciliados.map((i) => i.redeId).filter(Boolean)),
+          ];
+          const cieloIds = [
+            ...new Set(itensConciliados.map((i) => i.cieloId).filter(Boolean)),
+          ];
+
+          // 🔥 1. remove vínculos antigos
+          await tx.conciliacaoItem.deleteMany({
             where: {
-              idempotencyKey: `|DIVERGENTE|${hoje.toISOString().split('T')[0]}T00:00:00.000Z|${filialId}|${group.rede?.idempotencyKey}|${group.trier?.idempotencyKey}|${group.cielo?.codigoTransacao}`,
+              OR: [
+                { trierId: { in: trierIds } },
+                { redeId: { in: redeIds } },
+                { cieloId: { in: cieloIds } },
+              ],
             },
-            update: {},
-            create: {
-              conciliacaoId: conciliacao.id,
+          });
+
+          // 🔥 2. cria novos itens
+          await tx.conciliacaoItem.createMany({
+            data: itensConciliados,
+          });
+
+          // 🔥 3. atualiza status
+          if (trierIds.length) {
+            await tx.trierCartaoVendas.updateMany({
+              where: { id: { in: trierIds } },
+              data: { statusConciliacao: 'CONCILIADO' },
+            });
+          }
+
+          if (redeIds.length) {
+            await tx.redeVenda.updateMany({
+              where: { id: { in: redeIds } },
+              data: { statusConciliacao: 'CONCILIADO' },
+            });
+          }
+
+          if (cieloIds.length) {
+            await tx.cartaoVendas.updateMany({
+              where: { id: { in: cieloIds } },
+              data: { statusConciliacao: 'CONCILIADO' },
+            });
+          }
+
+          // 🔥 4. remove grupos vazios
+          await tx.conciliacaoGrupo.deleteMany({
+            where: {
               metodo: 'AUTO',
-              status: 'DIVERGENTE',
-              valorFinal: valorFinal,
-              idempotencyKey: `|DIVERGENTE|${hoje.toISOString().split('T')[0]}T00:00:00.000Z|${filialId}|${group.rede?.idempotencyKey}|${group.trier?.idempotencyKey}|${group.cielo?.codigoTransacao}`,
-              ...(group.cielo?._sum.valorBruto && {
-                valorCielo: group.cielo._sum.valorBruto,
-              }),
-              ...(group.rede?.valor && { valorRede: group.rede.valor }),
-              ...(group.trier?.valor && { valorTrier: group.trier.valor }),
+              OR: [{ status: 'DIVERGENTE' }, { status: 'PENDENTE' }],
+              itens: {
+                none: {},
+              },
             },
           });
-        }),
-      );
-
-      // Cria os itens correspondentes
-      const itensDivergentes = gruposDivergentes.flatMap((grupo, idx) =>
-        this.gerarItensParaGrupo(divergentes[idx], grupo.id),
-      );
-      if (itensDivergentes.length > 0) {
-        const trierIds = [
-          ...new Set(itensDivergentes.map((i) => i.trierId).filter(Boolean)),
-        ];
-        const redeIds = [
-          ...new Set(itensDivergentes.map((i) => i.redeId).filter(Boolean)),
-        ];
-        const cieloIds = [
-          ...new Set(itensDivergentes.map((i) => i.cieloId).filter(Boolean)),
-        ];
-
-        // 🔥 1. remove vínculos antigos
-        await tx.conciliacaoItem.deleteMany({
-          where: {
-            OR: [
-              { trierId: { in: trierIds } },
-              { redeId: { in: redeIds } },
-              { cieloId: { in: cieloIds } },
-            ],
-          },
-        });
-
-        // 🔥 2. cria novos itens
-        await tx.conciliacaoItem.createMany({
-          data: itensDivergentes,
-        });
-
-        // 🔥 3. atualiza status
-        if (trierIds.length) {
-          await tx.trierCartaoVendas.updateMany({
-            where: { id: { in: trierIds } },
-            data: { statusConciliacao: 'DIVERGENTE' },
-          });
         }
 
-        if (redeIds.length) {
-          await tx.redeVenda.updateMany({
-            where: { id: { in: redeIds } },
-            data: { statusConciliacao: 'DIVERGENTE' },
-          });
-        }
+        // Depois cria grupos divergentes
+        const divergentes = groups.filter((g) => g.status === 'DIVERGENTE');
 
-        if (cieloIds.length) {
-          await tx.cartaoVendas.updateMany({
-            where: { id: { in: cieloIds } },
-            data: { statusConciliacao: 'DIVERGENTE' },
-          });
-        }
+        const gruposDivergentes = await Promise.all(
+          divergentes.map((group) => {
+            const valorTrier = group.trier?.valor ?? new Decimal(0);
+            const valorRede = group.rede?.valor ?? new Decimal(0);
+            const valorCielo = group.cielo?._sum?.valorBruto ?? new Decimal(0);
+            const valorFinal = valorTrier.sub(valorRede.plus(valorCielo));
+            return tx.conciliacaoGrupo.upsert({
+              where: {
+                idempotencyKey: `|DIVERGENTE|${hoje.toISOString().split('T')[0]}T00:00:00.000Z|${filialId}|${group.rede?.idempotencyKey}|${group.trier?.idempotencyKey}|${group.cielo?.codigoTransacao}`,
+              },
+              update: {},
+              create: {
+                conciliacaoId: conciliacao.id,
+                metodo: 'AUTO',
+                status: 'DIVERGENTE',
+                valorFinal: valorFinal,
+                idempotencyKey: `|DIVERGENTE|${hoje.toISOString().split('T')[0]}T00:00:00.000Z|${filialId}|${group.rede?.idempotencyKey}|${group.trier?.idempotencyKey}|${group.cielo?.codigoTransacao}`,
+                ...(group.cielo?._sum.valorBruto && {
+                  valorCielo: group.cielo._sum.valorBruto,
+                }),
+                ...(group.rede?.valor && { valorRede: group.rede.valor }),
+                ...(group.trier?.valor && { valorTrier: group.trier.valor }),
+              },
+            });
+          }),
+        );
 
-        // 🔥 4. remove grupos vazios
-        await tx.conciliacaoGrupo.deleteMany({
-          where: {
-            metodo: 'AUTO',
-            OR: [{ status: 'DIVERGENTE' }, { status: 'PENDENTE' }],
+        // Cria os itens correspondentes
+        const itensDivergentes = gruposDivergentes.flatMap((grupo, idx) =>
+          this.gerarItensParaGrupo(divergentes[idx], grupo.id),
+        );
+        if (itensDivergentes.length > 0) {
+          const trierIds = [
+            ...new Set(itensDivergentes.map((i) => i.trierId).filter(Boolean)),
+          ];
+          const redeIds = [
+            ...new Set(itensDivergentes.map((i) => i.redeId).filter(Boolean)),
+          ];
+          const cieloIds = [
+            ...new Set(itensDivergentes.map((i) => i.cieloId).filter(Boolean)),
+          ];
 
-            itens: {
-              none: {},
+          // 🔥 1. remove vínculos antigos
+          await tx.conciliacaoItem.deleteMany({
+            where: {
+              OR: [
+                { trierId: { in: trierIds } },
+                { redeId: { in: redeIds } },
+                { cieloId: { in: cieloIds } },
+              ],
             },
-          },
-        });
-      }
-    });
+          });
+
+          // 🔥 2. cria novos itens
+          await tx.conciliacaoItem.createMany({
+            data: itensDivergentes,
+          });
+
+          // 🔥 3. atualiza status
+          if (trierIds.length) {
+            await tx.trierCartaoVendas.updateMany({
+              where: { id: { in: trierIds } },
+              data: { statusConciliacao: 'DIVERGENTE' },
+            });
+          }
+
+          if (redeIds.length) {
+            await tx.redeVenda.updateMany({
+              where: { id: { in: redeIds } },
+              data: { statusConciliacao: 'DIVERGENTE' },
+            });
+          }
+
+          if (cieloIds.length) {
+            await tx.cartaoVendas.updateMany({
+              where: { id: { in: cieloIds } },
+              data: { statusConciliacao: 'DIVERGENTE' },
+            });
+          }
+
+          // 🔥 4. remove grupos vazios
+          await tx.conciliacaoGrupo.deleteMany({
+            where: {
+              metodo: 'AUTO',
+              OR: [{ status: 'DIVERGENTE' }, { status: 'PENDENTE' }],
+
+              itens: {
+                none: {},
+              },
+            },
+          });
+        }
+      },
+      { timeout: 30_000 },
+    );
   }
 }
