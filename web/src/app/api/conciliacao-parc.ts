@@ -1,9 +1,14 @@
 "use server";
 
+import { unstable_cache } from "next/cache";
 import { cookies } from "next/headers";
-import { ConciliacaoParcItem, TotalsParcDay } from "@/app/types/conciParc";
+import {
+  ConciliacaoParcItem,
+  ParcListResult,
+  TotalsParcDay,
+} from "@/app/types/conciParc";
 
-const API = "http://localhost:4000";
+const API = process.env.API_URL ?? "http://localhost:4000";
 
 async function getToken() {
   return (await cookies()).get("access_token")?.value;
@@ -46,16 +51,40 @@ export async function getParcelasByDate(
   date: string,
   filialId?: number,
   filters?: ParcListFilters,
-): Promise<ConciliacaoParcItem[]> {
+  page = 1,
+  pageSize = 100,
+): Promise<ParcListResult> {
   const token = await getToken();
   const params = new URLSearchParams({ date });
   if (filialId) params.set("filialId", String(filialId));
   appendFilters(params, filters);
+  params.set("page", String(page));
+  params.set("pageSize", String(pageSize));
 
   const res = await fetch(`${API}/conciliacao-parc?${params}`, {
     headers: { Authorization: `Bearer ${token}` },
   });
-  if (!res.ok) return [];
+  if (!res.ok) {
+    return {
+      items: [],
+      total: 0,
+      page,
+      pageSize,
+      totais: {
+        conciliados: 0,
+        divergentes: 0,
+        naoEncontrados: 0,
+        trierValor: 0,
+        outraValor: 0,
+        diferencaValor: 0,
+        trierLiquido: 0,
+        outraLiquido: 0,
+        diferencaLiquido: 0,
+        trierTaxa: 0,
+        outraTaxa: 0,
+      },
+    };
+  }
   return res.json();
 }
 
@@ -64,44 +93,76 @@ export async function getParcelasDivergentes(
   endDate: string,
   filialId?: number,
   filters?: ParcListFilters,
-): Promise<ConciliacaoParcItem[]> {
+  page = 1,
+  pageSize = 100,
+): Promise<{ items: ConciliacaoParcItem[]; total: number; page: number; pageSize: number }> {
   const token = await getToken();
   const params = new URLSearchParams({ startDate, endDate });
   if (filialId) params.set("filialId", String(filialId));
   appendFilters(params, filters);
+  params.set("page", String(page));
+  params.set("pageSize", String(pageSize));
 
   const res = await fetch(`${API}/conciliacao-parc/divergentes?${params}`, {
     headers: { Authorization: `Bearer ${token}` },
   });
-  if (!res.ok) return [];
+  if (!res.ok) return { items: [], total: 0, page, pageSize };
   return res.json();
 }
+
+const getParcDashboardCached = (query: string) =>
+  unstable_cache(
+    async (token: string) => {
+      const res = await fetch(
+        `${API}/conciliacao-parc/dashboard/parcelas?${query}`,
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+      if (!res.ok) return null;
+      return res.json();
+    },
+    ["parc-dashboard", query],
+    { revalidate: 300 },
+  );
 
 export async function getParcDashboard(query: string) {
   const token = await getToken();
-  const res = await fetch(`${API}/conciliacao-parc/dashboard/parcelas?${query}`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  if (!res.ok) return null;
-  return res.json();
+  return getParcDashboardCached(query)(token ?? "");
 }
+
+const getParcAReceberCached = (query: string) =>
+  unstable_cache(
+    async (token: string) => {
+      const res = await fetch(
+        `${API}/conciliacao-parc/dashboard/a-receber?${query}`,
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+      if (!res.ok) return null;
+      return res.json();
+    },
+    ["parc-a-receber", query],
+    { revalidate: 300 },
+  );
 
 export async function getParcAReceber(query: string) {
   const token = await getToken();
-  const res = await fetch(`${API}/conciliacao-parc/dashboard/a-receber?${query}`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  if (!res.ok) return null;
-  return res.json();
+  return getParcAReceberCached(query)(token ?? "");
 }
+
+const getParcBandeirasCached = unstable_cache(
+  async (token: string) => {
+    const res = await fetch(`${API}/conciliacao-parc/dashboard/bandeiras`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) return [];
+    return res.json();
+  },
+  ["parc-bandeiras"],
+  { revalidate: 3600 },
+);
 
 export async function getParcBandeiras(): Promise<string[]> {
   const token = await getToken();
-  const res = await fetch(`${API}/conciliacao-parc/dashboard/bandeiras`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  if (!res.ok) return [];
-  return res.json();
+  return getParcBandeirasCached(token ?? "");
 }
 
 export async function executePipelineParc(

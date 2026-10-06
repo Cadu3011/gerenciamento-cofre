@@ -1,72 +1,60 @@
 import { getFiliais } from "@/app/api/post";
-import { getParcDashboard, getParcBandeiras } from "@/app/api/conciliacao-parc";
-import { formatDate } from "../utils";
+import { getFatoParcDashboard, getFatoParcFiltros } from "@/app/api/fato-parc";
+import {
+  formatDate,
+  getDefaultStartDate,
+  getDefaultEndDate,
+  getAnoStart,
+} from "../utils";
 import CardTotals from "../_components/CardTotals";
+import CardKPI from "../_components/CardKPI";
 import ChartLineParcelas from "./_components/ChartLineParcelas";
 import ChartColumnsParcDifsMensal from "./_components/ChartColumnsParcDifsMensal";
 import ChartRowBarsRankings from "./_components/ChartRowBarsRankings";
 import ChartHealthDivergencias from "./_components/ChartHealthDivergencias";
-import FilterBandeira from "../_components/FilterBandeira";
+import ChartAgingPendencias from "./_components/ChartAgingPendencias";
+import FilterBandeiraOrigem from "../cartoes/_components/FilterBandeiraOrigem";
 
 type Props = {
   searchParams: {
     startDate?: string;
     endDate?: string;
     filialId?: string;
+    adquirente?: string;
     bandeiras?: string;
+    bandeirasModo?: string;
   };
 };
 
 export default async function DashboardParcelas({ searchParams }: Props) {
-  const BANDEIRAS_PADRAO = [
-    "PAGAMENTO ONLINE IFOOD",
-    "PIX SEGURO - PAGGPIX",
-    "BRASILCARD 1X",
-    "BRASILCARD 2X",
-    "BRASILCARD 3X",
-  ];
-  function getDefaultStartDate() {
-    const today = new Date();
-    const referenceDate = today.getDate() <= 5
-      ? new Date(today.getFullYear(), today.getMonth() - 1, 1)
-      : new Date(today.getFullYear(), today.getMonth(), 1);
-    return referenceDate.toISOString().split("T")[0];
-  }
-
-  function getDefaultEndDate() {
-    const today = new Date();
-    const referenceDate = today.getDate() <= 5
-      ? new Date(today.getFullYear(), today.getMonth(), 0)
-      : today;
-    return referenceDate.toISOString().split("T")[0];
-  }
-
-  function getAnoStart() {
-    const hoje = new Date();
-    return new Date(hoje.getFullYear() - 1, hoje.getMonth(), 1).toISOString().split("T")[0];
-  }
-
-  const [filiais, bandeirasList] = await Promise.all([
+  const [filiais, filtros] = await Promise.all([
     getFiliais(),
-    getParcBandeiras(),
+    getFatoParcFiltros(),
   ]);
 
   const {
     startDate = getDefaultStartDate(),
     endDate = getDefaultEndDate(),
     filialId,
+    adquirente,
     bandeiras,
+    bandeirasModo,
   } = await searchParams;
 
-  const bandeirasExcluidas = bandeiras ?? BANDEIRAS_PADRAO.join(",");
-
-  const params = { startDate, endDate, ...(filialId && { filialId }), bandeiras: bandeirasExcluidas };
+  const params = {
+    startDate,
+    endDate,
+    ...(filialId && { filialId }),
+    ...(adquirente && { adquirente }),
+    ...(bandeiras && { bandeiras }),
+    ...(bandeirasModo && { bandeirasModo }),
+  };
   const query = new URLSearchParams(params).toString();
   const anoQuery = new URLSearchParams({ ...params, startDate: getAnoStart() }).toString();
 
   const [data, dataAnual] = await Promise.all([
-    getParcDashboard(query),
-    getParcDashboard(anoQuery),
+    getFatoParcDashboard(query),
+    getFatoParcDashboard(anoQuery),
   ]);
 
   if (!data)
@@ -76,8 +64,15 @@ export default async function DashboardParcelas({ searchParams }: Props) {
       </div>
     );
 
-  const { cardsTotals, chartLines, rankings, chartRankingDivergencias } = data;
+  const { cardsTotals, chartLines, rankings, chartRankingDivergencias, aging } = data;
   const chartDiferencaMensal = dataAnual?.chartDiferencaMensal ?? [];
+
+  const somaAutomaticos = rankings.reduce((s: number, r: any) => s + (r.automaticos ?? 0), 0);
+  const somaGruposRanking = rankings.reduce((s: number, r: any) => s + (r.totalGrupos ?? 0), 0);
+  const taxaAutomGeral =
+    somaGruposRanking > 0
+      ? ((somaAutomaticos / somaGruposRanking) * 100).toFixed(1)
+      : "0";
 
   return (
     <div className="flex gap-2">
@@ -100,7 +95,7 @@ export default async function DashboardParcelas({ searchParams }: Props) {
             />
             <CardTotals
               title="Diferença"
-              value={String(Number(cardsTotals.diferenca) * -1)}
+              value={String(cardsTotals.diferenca)}
               backgroundColor="bg-green-200"
               fontSize="text-3xl"
               fontBold
@@ -120,12 +115,23 @@ export default async function DashboardParcelas({ searchParams }: Props) {
                 </p>
               </div>
             </div>
+
+            <CardKPI
+              title="Materialidade"
+              value={`${cardsTotals.materialidade}%`}
+              sub="R$ divergente ÷ total Trier"
+              backgroundColor="bg-yellow-100"
+              emphasis={cardsTotals.materialidade >= 5}
+            />
+            <CardKPI
+              title="Conc. Automática"
+              value={`${taxaAutomGeral}%`}
+              sub="grupos não-manuais"
+              backgroundColor="bg-indigo-100"
+            />
           </div>
           <div className="w-full px-10">
-            <FilterBandeira
-              bandeiras={bandeirasList}
-              defaultExcluded={BANDEIRAS_PADRAO}
-            />
+            <FilterBandeiraOrigem filtros={filtros as Record<string, string[]>} />
           </div>
           <div className="w-full px-10 gap-5 flex justify-between">
             <ChartLineParcelas data={chartLines} />
@@ -134,6 +140,7 @@ export default async function DashboardParcelas({ searchParams }: Props) {
           <div className="w-full flex flex-col px-10 gap-10">
             <ChartRowBarsRankings data={rankings} />
             <ChartHealthDivergencias data={chartRankingDivergencias} />
+            <ChartAgingPendencias data={aging} />
           </div>
         </div>
       </div>

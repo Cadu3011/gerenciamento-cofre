@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
+import { unstable_cache } from "next/cache";
 import { jwtDecode } from "jwt-decode";
 import { ca } from "date-fns/locale";
 import { Caixa } from "../admin/conferir-caixas/components/ListCaixas";
@@ -443,19 +444,28 @@ export async function getCardsCaixas(query: string) {
   );
   return await resCard.json();
 }
+const getCardsTotalCardsCached = (query: string) =>
+  unstable_cache(
+    async (token: string) => {
+      const resCard = await fetch(
+        `http://localhost:4000/conciliacao/dashboard/cartoes?${query}`,
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        },
+      );
+      return await resCard.json();
+    },
+    ["fato-cartao-saude", query],
+    { revalidate: 300 },
+  );
+
 export async function getCardsTotalCards(query: string) {
   const tokenCookie = (await cookies()).get("access_token")?.value;
-  const resCard = await fetch(
-    `http://localhost:4000/conciliacao/dashboard/cartoes?${query}`,
-    {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${tokenCookie}`,
-      },
-    },
-  );
-  return await resCard.json();
+  return getCardsTotalCardsCached(query)(tokenCookie ?? "");
 }
 
 export async function openRelatorio(data: { filial: number; caixa: number }) {

@@ -1,6 +1,6 @@
 import { getFiliais } from "@/app/api/post";
 import { getParcAReceber, getParcBandeiras } from "@/app/api/conciliacao-parc";
-import { formatDate } from "../../utils";
+import { formatDate, getDefaultStartDate, getDefaultEndDate } from "../../utils";
 import CardTotaisReceber from "./_components/CardTotaisReceber";
 import ChartLineAReceber from "./_components/ChartLineAReceber";
 import TableAReceber from "./_components/TableAReceber";
@@ -9,22 +9,6 @@ import FilterBandeira from "../../_components/FilterBandeira";
 type Props = { searchParams: { startDate?: string; endDate?: string; filialId?: string; bandeiras?: string } };
 
 export default async function AReceberPage({ searchParams }: Props) {
-  function getDefaultStartDate() {
-    const today = new Date();
-    const referenceDate = today.getDate() <= 5
-      ? new Date(today.getFullYear(), today.getMonth() - 1, 1)
-      : new Date(today.getFullYear(), today.getMonth(), 1);
-    return referenceDate.toISOString().split("T")[0];
-  }
-
-  function getDefaultEndDate() {
-    const today = new Date();
-    const referenceDate = today.getDate() <= 5
-      ? new Date(today.getFullYear(), today.getMonth(), 0)
-      : today;
-    return referenceDate.toISOString().split("T")[0];
-  }
-
   const [filiais, bandeirasList] = await Promise.all([
     getFiliais(),
     getParcBandeiras(),

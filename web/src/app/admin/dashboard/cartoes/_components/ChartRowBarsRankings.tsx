@@ -19,8 +19,8 @@ import {
 } from "recharts";
 
 const chartConfig = {
-  valor: {
-    label: "Valor",
+  diferenca: {
+    label: "Diferença",
     color: "#2563eb",
   },
 } satisfies ChartConfig;
@@ -29,10 +29,17 @@ export interface Props {
   data: {
     filial: string;
     filialId: number;
+    trier: number;
+    adquirentes: number;
+    diferenca: number;
     divergencias: number;
-    valor: number;
   }[];
 }
+
+const BRL = new Intl.NumberFormat("pt-BR", {
+  style: "currency",
+  currency: "BRL",
+});
 
 function CustomTooltip({ active, payload }: TooltipProps<number, string>) {
   if (!active || !payload?.length) return null;
@@ -42,16 +49,12 @@ function CustomTooltip({ active, payload }: TooltipProps<number, string>) {
   return (
     <div className="rounded-md border bg-white p-3 text-black shadow-md">
       <p className="font-semibold">{item.filial}</p>
-
+      <p>Trier: {BRL.format(item.trier)}</p>
+      <p>Adquirentes: {BRL.format(item.adquirentes)}</p>
+      <p>Diferença: {BRL.format(item.diferenca)}</p>
       <p>
-        Valor:{" "}
-        {item.valor.toLocaleString("pt-BR", {
-          style: "currency",
-          currency: "BRL",
-        })}
+        Divergências: <strong>{item.divergencias}</strong>
       </p>
-
-      <p>Divergências: {item.divergencias}</p>
     </div>
   );
 }
@@ -60,12 +63,22 @@ export default function ChartRowBarsRankings({ data }: Props) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+
   const chartData = [...data]
-    .sort((a, b) => Math.abs(b.valor) - Math.abs(a.valor))
+    .sort((a, b) => Math.abs(b.diferenca) - Math.abs(a.diferenca))
     .map((item) => ({
       ...item,
-      valorAbs: Math.abs(item.valor),
+      valorAbs: Math.abs(item.diferenca),
     }));
+
+  const getBarColor = (diferenca: number) => {
+    return diferenca >= -100 && diferenca <= 100
+      ? "#22c55e" // green-500 (Moderado)
+      : diferenca > 100
+        ? "#ca8a04" // yellow-600 (Sobra)
+        : "#ef4444"; // red-500 (Falta)
+  };
+
   const handleClick = (data: any) => {
     if (!data?.filial) return;
 
@@ -75,11 +88,12 @@ export default function ChartRowBarsRankings({ data }: Props) {
 
     router.push(`${pathname}?${params.toString()}`);
   };
+
   return (
     <div className="flex h-[50vh] w-full flex-col">
       <div className="flex justify-between items-center">
         <div className="flex items-center gap-6">
-          <p className="font-medium">Ranking de Divergêncas</p>
+          <p className="font-medium">Ranking de Divergências</p>
 
           <div className="flex gap-4 text-sm">
             <div className="flex items-center gap-2">
@@ -136,24 +150,15 @@ export default function ChartRowBarsRankings({ data }: Props) {
               cursor="pointer"
             >
               {chartData.map((entry, index) => (
-                <Cell
-                  key={index}
-                  fill={
-                    entry.valor >= -100 && entry.valor <= 100
-                      ? "#22c55e" // verde
-                      : entry.valor > 100
-                        ? "#ef4444" // amarelo
-                        : "#ca8a04" // vermelho
-                  }
-                />
+                <Cell key={index} fill={getBarColor(entry.diferenca)} />
               ))}
 
               <LabelList
-                dataKey="valor"
+                dataKey="diferenca"
                 position="right"
                 fill="#000"
                 formatter={(value: number) =>
-                  (-value).toLocaleString("pt-BR", {
+                  value.toLocaleString("pt-BR", {
                     style: "currency",
                     currency: "BRL",
                     maximumFractionDigits: 0,

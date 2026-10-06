@@ -31,7 +31,13 @@ interface Props {
       percentualConciliado: number;
       percentualDivergente: number;
     };
-    ranking: { tipo: string; quantidade: number; percentual: number }[];
+    ranking: {
+      tipo: string;
+      quantidade: number;
+      percentual: number;
+      valor: number;
+      materialidade: number;
+    }[];
   };
 }
 
@@ -51,6 +57,11 @@ const COLOR_MAP: Record<string, string> = {
   PARCELAS_NAO_ENCONTRADAS: "#64748b",
 };
 
+const BRL = new Intl.NumberFormat("pt-BR", {
+  style: "currency",
+  currency: "BRL",
+});
+
 function CustomTooltip({ active, payload }: TooltipProps<number, string>) {
   if (!active || !payload?.length) return null;
   const item = payload[0].payload;
@@ -59,6 +70,10 @@ function CustomTooltip({ active, payload }: TooltipProps<number, string>) {
       <p className="font-semibold">{LABEL_MAP[item.tipo] || item.tipo}</p>
       <p>Percentual: <strong>{item.percentual}%</strong></p>
       <p>Quantidade: <strong>{item.quantidade}</strong></p>
+      <p>
+        Materialidade: <strong>{item.valor ? BRL.format(item.valor) : "R$ 0,00"}</strong>
+        {item.materialidade ? ` (${item.materialidade}%)` : ""}
+      </p>
     </div>
   );
 }

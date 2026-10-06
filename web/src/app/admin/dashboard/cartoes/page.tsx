@@ -1,12 +1,19 @@
-import { getCardsTotalCards, getFiliais } from "@/app/api/post";
-import CardTotals from "../_components/CardTotals";
-import { formatDate } from "../utils";
-import ChartLineCards from "./_components/ChartLineCardsSales";
-import ChartColumnsCardsDifs from "./_components/ChartColunmsCardsDifs";
-import ChartRowBarsRankings from "./_components/ChartRowBarsRankings";
-import ChartRowBarsRankingsHealth from "./_components/ChartRowBarsRankingsHealth";
-import { HealthDetailsDialog } from "./_components/HealthDetailsDialog";
-import DialogHealthWrapper from "./_components/DialogHealthWrapper";
+import { Suspense } from "react";
+import {
+  ChartsRowSection,
+  FilterSection,
+  HealthDialogSection,
+  HealthSection,
+  KpiRowSection,
+  RankingsSection,
+} from "./_components/DashboardSections";
+import {
+  SkeletonChartsRow,
+  SkeletonFilterBar,
+  SkeletonHealth,
+  SkeletonKpiRow,
+  SkeletonRankings,
+} from "./_components/skeletons";
 
 type Props = {
   searchParams: {
@@ -14,8 +21,9 @@ type Props = {
     endDate?: string;
     filialId?: string;
     type?: string;
-    // operadorId?: string;
-    // periodo?: string;
+    adquirente?: string;
+    bandeiras?: string;
+    bandeirasModo?: string;
   };
 };
 
@@ -42,97 +50,69 @@ export default async function Dashboard({ searchParams }: Props) {
     return referenceDate.toISOString().split("T")[0];
   }
 
-  const filiais = await getFiliais();
-
   const {
     startDate = getDefaultStartDate(),
     endDate = getDefaultEndDate(),
     filialId,
     type,
+    adquirente,
+    bandeiras,
+    bandeirasModo,
   } = await searchParams;
 
-  const query = new URLSearchParams({
+  const fatoQuery = new URLSearchParams({
+    startDate,
+    endDate,
+    ...(filialId && { filialId }),
+    ...(adquirente && { adquirente }),
+    ...(bandeiras && { bandeiras }),
+    ...(bandeirasModo && { bandeirasModo }),
+  }).toString();
+
+  const saudeQuery = new URLSearchParams({
     startDate,
     endDate,
     ...(filialId && { filialId }),
     ...(type && { type }),
+    skipSales: "true",
   }).toString();
-
-  const data = await getCardsTotalCards(query);
-
-  const {
-    cardsTotals,
-    chartLinesCards,
-    rankings,
-    chartRankingHealth,
-    movesRankingByHealth,
-  } = data;
 
   return (
     <div className="flex gap-2">
       <div className="flex flex-col w-full">
         <div className="">
           <div className="py-3 w-full flex flex-col gap-5">
-            <div className="">
-              <div className="w-full px-8 flex gap-3">
-                <CardTotals
-                  title="Total Trier"
-                  value={cardsTotals.erp}
-                  backgroundColor="bg-blue-200"
-                  fontSize="text-3xl"
-                  fontBold
-                />
-                <CardTotals
-                  title="Total Adquirentes"
-                  value={cardsTotals.adquirentes}
-                  backgroundColor="bg-orange-200"
-                  fontSize="text-3xl"
-                  fontBold
-                />
-                <CardTotals
-                  title="Total Diferença"
-                  value={String(cardsTotals.diferenca * -1)}
-                  backgroundColor="bg-green-200"
-                  fontSize="text-3xl"
-                  fontBold
-                />
-                <CardTotals
-                  title="Divergências não Conciliadas"
-                  value={String(cardsTotals.naoConciliados * -1)}
-                  backgroundColor="bg-zinc-100"
-                  fontSize="text-3xl"
-                  alertValue={true}
-                  fontBold
-                />
-                <div className="text-2xl p-2  rounded-md flex flex-col w-full bg-blue-950">
-                  <p className="text-center w-full text-white">
-                    Cartões Trier vs Adquirentes
-                  </p>
-                  <div className="bg-white  flex flex-col w-full">
-                    <p className="text-center">
-                      {filiais.find((f: any) => f.id === Number(filialId))
-                        ?.name || "todos"}
-                    </p>
-                    <p className="text-center ">
-                      {formatDate(startDate)} até <br />
-                      {formatDate(endDate)}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div className="w-full px-10 gap-5 flex justify-between">
-              <ChartLineCards chartLinesCards={chartLinesCards} />
-              <ChartColumnsCardsDifs data={chartLinesCards} />
-            </div>
+            <Suspense fallback={<SkeletonKpiRow />}>
+              <KpiRowSection
+                filialId={filialId}
+                startDate={startDate}
+                endDate={endDate}
+                fatoQuery={fatoQuery}
+              />
+            </Suspense>
+
+            <Suspense fallback={<SkeletonFilterBar />}>
+              <FilterSection />
+            </Suspense>
+
+            <Suspense fallback={<SkeletonChartsRow />}>
+              <ChartsRowSection fatoQuery={fatoQuery} />
+            </Suspense>
+
             <div className="w-full flex flex-col px-10 gap-10 ">
-              <ChartRowBarsRankings data={rankings} />
-              <ChartRowBarsRankingsHealth data={chartRankingHealth} />
+              <Suspense fallback={<SkeletonRankings />}>
+                <RankingsSection fatoQuery={fatoQuery} />
+              </Suspense>
+              <Suspense fallback={<SkeletonHealth />}>
+                <HealthSection saudeQuery={saudeQuery} />
+              </Suspense>
             </div>
           </div>
         </div>
       </div>
-      <DialogHealthWrapper data={movesRankingByHealth} type={type} />
+      <Suspense fallback={null}>
+        <HealthDialogSection saudeQuery={saudeQuery} type={type} />
+      </Suspense>
     </div>
   );
 }

@@ -12,6 +12,7 @@ export default async function DetailParc({
     status?: string;
     bandeiras?: string;
     divergencias?: string;
+    page?: string;
   }>;
 }) {
   const access_token = (await cookies()).get("access_token")?.value;
@@ -24,16 +25,24 @@ export default async function DetailParc({
   const statuses = sp.status?.split(",").filter(Boolean) ?? [];
   const bandeiras = sp.bandeiras?.split(",").filter(Boolean) ?? [];
   const divergencias = sp.divergencias?.split(",").filter(Boolean) ?? [];
+  const page = Math.max(1, Number(sp.page) || 1);
+  const pageSize = 100;
 
-  const data = await getParcelasByDate(date, Number(filialId), {
-    status: statuses,
-    bandeiras,
-    divergencias,
-  });
+  const result = await getParcelasByDate(
+    date,
+    Number(filialId),
+    { status: statuses, bandeiras, divergencias },
+    page,
+    pageSize,
+  );
 
   return (
     <TablesClient
-      data={data}
+      data={result.items}
+      total={result.total}
+      page={result.page}
+      pageSize={result.pageSize}
+      totais={result.totais}
       date={date}
       filialId={Number(filialId)}
       statuses={statuses}

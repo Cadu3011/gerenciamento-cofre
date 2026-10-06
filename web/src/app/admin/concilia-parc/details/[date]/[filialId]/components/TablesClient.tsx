@@ -10,7 +10,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { ConciliacaoParcItem, FlatRow } from "@/app/types/conciParc";
+import {
+  ConciliacaoParcItem,
+  FlatRow,
+  ParcTotaisDia,
+} from "@/app/types/conciParc";
 import LegendaConci from "./LegendaConci";
 import GroupDetailDialog from "./GroupDetailDialog";
 import Filtros, { DIVERGENCIAS, STATUSES } from "./Filtros";
@@ -27,6 +31,27 @@ const ORIGEM_COLORS: Record<string, string> = {
   REDE: "bg-orange-500 text-white",
   CIELO: "bg-purple-600 text-white",
 };
+
+const CURRENCY_FORMAT = new Intl.NumberFormat("pt-BR", {
+  style: "currency",
+  currency: "BRL",
+});
+
+const DATE_FORMAT_CACHE = new Map<string, string>();
+
+function formatCurrency(value: string | number) {
+  return CURRENCY_FORMAT.format(Number(value));
+}
+
+function formatVencimento(value: string) {
+  if (!value) return "-";
+  let cached = DATE_FORMAT_CACHE.get(value);
+  if (!cached) {
+    cached = new Date(value).toLocaleDateString("pt-BR");
+    DATE_FORMAT_CACHE.set(value, cached);
+  }
+  return cached;
+}
 
 function flattenData(data: ConciliacaoParcItem[]): FlatRow[] {
   const rows: FlatRow[] = [];
@@ -90,13 +115,6 @@ function flattenData(data: ConciliacaoParcItem[]): FlatRow[] {
   return rows;
 }
 
-function formatCurrency(value: string | number) {
-  return Number(value).toLocaleString("pt-BR", {
-    style: "currency",
-    currency: "BRL",
-  });
-}
-
 function divergenciaIcons(row: FlatRow): string {
   const icons: string[] = [];
   if (row.divergenciaValor) icons.push("$");
@@ -114,6 +132,10 @@ function rowBg(row: FlatRow): string {
 
 export default function TablesClient({
   data,
+  total,
+  page,
+  pageSize,
+  totais,
   date,
   filialId,
   statuses,
@@ -121,6 +143,10 @@ export default function TablesClient({
   divergencias,
 }: {
   data: ConciliacaoParcItem[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totais: ParcTotaisDia;
   date: string;
   filialId: number;
   statuses: string[];
@@ -181,44 +207,14 @@ export default function TablesClient({
     return m;
   }, [data]);
 
-  const totalDivergentes = data.filter((g) => g.status === "DIVERGENTE").length;
-  const totalNaoEncontrados = data.filter(
-    (g) => g.status === "NAO_ENCONTRADO",
-  ).length;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
-  const totalTrierValor = data.reduce(
-    (sum, g) => sum + g.triers.reduce((s, t) => s + Number(t.valor), 0),
-    0,
-  );
-  const totalOutraValor = data.reduce(
-    (sum, g) =>
-      sum +
-      g.itens.reduce((s, i) => s + Number(i.valor), 0),
-    0,
-  );
-  const diferencaValor = totalTrierValor - totalOutraValor;
-
-  const totalTrierLiquido = data.reduce(
-    (sum, g) => sum + g.triers.reduce((s, t) => s + Number(t.valorLiquido), 0),
-    0,
-  );
-  const totalOutraLiquido = data.reduce(
-    (sum, g) =>
-      sum +
-      g.itens.reduce(
-        (s, i) => s + Number(i.valorLiquido),
-        0,
-      ),
-    0,
-  );
-  const diferencaLiquido = totalTrierLiquido - totalOutraLiquido;
-
-  const totalTrierTaxa = filteredRows
-    .filter((r) => r.origem === "TRIER")
-    .reduce((sum, r) => sum + Number(r.taxa), 0);
-  const totalOutraTaxa = filteredRows
-    .filter((r) => r.origem !== "TRIER")
-    .reduce((sum, r) => sum + Number(r.taxa), 0);
+  function goToPage(nextPage: number) {
+    const params = new URLSearchParams(searchParams.toString());
+    if (nextPage <= 1) params.delete("page");
+    else params.set("page", String(nextPage));
+    router.replace(`?${params.toString()}`, { scroll: false });
+  }
 
   function toggleFonte(fonte: string) {
     setActiveFontes((prev) => {
@@ -262,6 +258,7 @@ export default function TablesClient({
     } else {
       params.set(key, [...next].join(","));
     }
+    params.delete("page");
     router.replace(`?${params.toString()}`, { scroll: false });
   }
 
@@ -290,9 +287,9 @@ export default function TablesClient({
             <p className="text-3xl">FILIAL {filialId}</p>
             <p className="text-3xl">{formatDate(date)}</p>
             <p className="text-3xl text-start">
-              {totalDivergentes === 0 && totalNaoEncontrados === 0
+              {totais.divergentes === 0 && totais.naoEncontrados === 0
                 ? "Tudo Conciliado"
-                : `${totalDivergentes} divergente(s), ${totalNaoEncontrados} n\u00e3o encontrado(s)`}
+                : `${totais.divergentes} divergente(s), ${totais.naoEncontrados} n\u00e3o encontrado(s)`}
             </p>
           </div>
 
@@ -303,13 +300,13 @@ export default function TablesClient({
               </span>
               <div className="flex flex-col">
                 <span className="text-white text-lg leading-tight">
-                  {formatCurrency(totalTrierValor)}
+                  {formatCurrency(totais.trierValor)}
                 </span>
                 <span className="text-blue-300/80 text-xs">
-                  Liquido {formatCurrency(totalTrierLiquido)}
+                  Liquido {formatCurrency(totais.trierLiquido)}
                 </span>
                 <span className="text-blue-300/80 text-xs">
-                  Taxa {formatCurrency(totalTrierTaxa)}
+                  Taxa {formatCurrency(totais.trierTaxa)}
                 </span>
               </div>
             </div>
@@ -320,27 +317,27 @@ export default function TablesClient({
               </span>
               <div className="flex flex-col">
                 <span className="text-white text-lg leading-tight">
-                  {formatCurrency(totalOutraValor)}
+                  {formatCurrency(totais.outraValor)}
                 </span>
                 <span className="text-orange-300/80 text-xs">
-                  Liquido {formatCurrency(totalOutraLiquido)}
+                  Liquido {formatCurrency(totais.outraLiquido)}
                 </span>
                 <span className="text-orange-300/80 text-xs">
-                  Taxa {formatCurrency(totalOutraTaxa)}
+                  Taxa {formatCurrency(totais.outraTaxa)}
                 </span>
               </div>
             </div>
 
             <div
               className={`rounded-lg px-4 py-3 flex flex-col gap-1 min-w-[180px] border ${
-                diferencaValor !== 0 || diferencaLiquido !== 0
+                totais.diferencaValor !== 0 || totais.diferencaLiquido !== 0
                   ? "bg-red-900/40 border-red-700/50"
                   : "bg-green-900/40 border-green-700/50"
               }`}
             >
               <span
                 className={`text-xs uppercase tracking-wide ${
-                  diferencaValor !== 0 || diferencaLiquido !== 0
+                  totais.diferencaValor !== 0 || totais.diferencaLiquido !== 0
                     ? "text-red-300"
                     : "text-green-300"
                 }`}
@@ -350,19 +347,21 @@ export default function TablesClient({
               <div className="flex flex-col">
                 <span
                   className={`text-lg leading-tight font-bold ${
-                    diferencaValor !== 0 ? "text-red-400" : "text-green-400"
+                    totais.diferencaValor !== 0
+                      ? "text-red-400"
+                      : "text-green-400"
                   }`}
                 >
-                  {formatCurrency(diferencaValor)}
+                  {formatCurrency(totais.diferencaValor)}
                 </span>
                 <span
                   className={`text-xs ${
-                    diferencaLiquido !== 0
+                    totais.diferencaLiquido !== 0
                       ? "text-red-300/80"
                       : "text-green-300/80"
                   }`}
                 >
-                  Liquido {formatCurrency(diferencaLiquido)}
+                  Liquido {formatCurrency(totais.diferencaLiquido)}
                 </span>
               </div>
             </div>
@@ -389,9 +388,28 @@ export default function TablesClient({
           />
 
           <div className="flex items-center gap-1 ml-auto">
+            <button
+              type="button"
+              disabled={page <= 1}
+              onClick={() => goToPage(page - 1)}
+              className="px-3 py-1 rounded-md bg-white/10 text-white text-xs disabled:opacity-30"
+            >
+              Anterior
+            </button>
             <span className="text-white text-xs">
               {filteredRows.length} de {allRows.length} linhas
             </span>
+            <span className="text-white text-xs">
+              | {total.toLocaleString("pt-BR")} grupo(s) — pág. {page}/{totalPages}
+            </span>
+            <button
+              type="button"
+              disabled={page >= totalPages}
+              onClick={() => goToPage(page + 1)}
+              className="px-3 py-1 rounded-md bg-white/10 text-white text-xs disabled:opacity-30"
+            >
+              Próxima
+            </button>
           </div>
         </div>
       </div>
@@ -460,9 +478,7 @@ export default function TablesClient({
                     {formatCurrency(row.taxa)}
                   </TableCell>
                   <TableCell className="text-right">
-                    {row.vencimento
-                      ? new Date(row.vencimento).toLocaleDateString("pt-BR")
-                      : "-"}
+                    {formatVencimento(row.vencimento)}
                   </TableCell>
                   <TableCell>
                     <span
