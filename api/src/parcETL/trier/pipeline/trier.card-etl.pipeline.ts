@@ -5,7 +5,7 @@ import { TrierPipelineStrategy } from '../contracts/trier.pipeline.strategy';
 import { TrierParcExtractor } from '../extract/trier.cardExtractor';
 import { TrierParcLoad } from '../load/trier.cardLoad';
 import { TrierParcTransform } from '../transform/trier.cardTransform';
-import { TrierApiClient } from '../infra/http/trier-api.client';
+import { TrierDevolucaoPipeline } from '../devolucao/pipeline/trier.devolucao.pipeline';
 import { JobExecutionContext } from 'src/jobs/jobs.execContext.service';
 
 export class TrierParcETLPipeline implements TrierPipelineStrategy {
@@ -19,7 +19,7 @@ export class TrierParcETLPipeline implements TrierPipelineStrategy {
   private readonly loader: TrierParcLoad;
 
   @Inject()
-  private readonly trierApiClient: TrierApiClient;
+  private readonly devolucaoPipeline: TrierDevolucaoPipeline;
 
   key = 'Parc_ETL';
   async execute(ctx: TrierAuth, context: JobExecutionContext) {
@@ -29,48 +29,14 @@ export class TrierParcETLPipeline implements TrierPipelineStrategy {
       context.startStep(currentStep);
       const rawData = await this.extractor.execute(ctx);
 
-      const estornos = await this.trierApiClient.getEstornos(
-        ctx.date,
-        ctx.tokenLocalTrier,
-      );
-
-      const filialId = rawData.length > 0 ? rawData[0].filialId : null;
-
-      const estornoParcels = estornos.estornos
-        .filter((est) => filialId === null || estornos.codigoLoja === filialId)
-        .map((est) => ({
-          filialId: estornos.codigoLoja,
-          codigoCartao: 0,
-          // nota da venda
-          documentoFiscalEstorno: Number(est.numeroNotaOrigem),
-
-          // nota do estorno
-          documentoFiscal: Number(est.numeroNotaDevolucao),
-          idTransacao: `VE:${est.numeroNotaOrigem}`,
-          prazoVenda: '',
-          valorParcela: -Number(est.totalNotaDevolucao),
-          modalidadeVenda: null as string | null,
-          nomeCartao: null as string | null,
-          dataVencimento: est.dataEmissaoDevolucao,
-          dataPagamento: null as string | null,
-          nsuAdministradora: '',
-          dataEmissao: est.dataEmissaoDevolucao,
-          administradoraCartao: '',
-          totalParcelas: 1,
-          numeroParcela: 1,
-          valorTaxas: 0,
-        }));
-
-      const rawDataComEstorno = [...rawData, ...estornoParcels];
-
-      context.incrementExtracted(rawDataComEstorno.length);
+      context.incrementExtracted(rawData.length);
       await context.endStep(
         currentStep,
-        `${rawDataComEstorno.length} Registros extraidos (${rawData.length} parcelas, ${estornoParcels.length} estornos)`,
+        `${rawData.length} Registros extraidos`,
       );
       currentStep = 'TRANSFORM';
       context.startStep(currentStep);
-      const trasformed = await this.transform.execute(rawDataComEstorno);
+      const trasformed = await this.transform.execute(rawData);
       await context.endStep(
         currentStep,
         `${trasformed.length} Registros transformados`,
@@ -80,6 +46,23 @@ export class TrierParcETLPipeline implements TrierPipelineStrategy {
       const inserteds = await this.loader.execute(trasformed);
       context.incrementInserted(inserteds);
       await context.endStep(currentStep, `${inserteds} Linhas Inseridas`);
+
+      // Devoluções em cadeia, depois das parcelas. Precisa vir depois do LOAD
+      // porque o transform de devolução lê `TrierCartaoVendas`, que é
+      // alimentado pelo ETL de cartões — e a marca da devolução é a da venda
+      // original.
+      //
+      // Falha de devolução não derruba as parcelas do dia: são domínios
+      // separados, e o dia já foi gravado com sucesso. O erro é reportado e
+      // o cron segue para o próximo dia.
+      try {
+        await this.devolucaoPipeline.execute(ctx, context);
+      } catch (error) {
+        context.error(
+          'DEVOLUCOES',
+          `Falha no ETL de devoluções: ${error.message}`,
+        );
+      }
     } catch (error) {
       context.error(currentStep, error.message);
 

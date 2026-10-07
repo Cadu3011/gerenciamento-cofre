@@ -96,3 +96,26 @@ export interface FlatRow {
   divergenciaValorLiquido: boolean;
   divergenciaParcelas: boolean;
 }
+
+/** Recebível com saldo pendente (falta receber), para o dialog do dashboard a-receber. */
+export interface RecebivelPendente {
+  id: number;
+  adquirente: string;
+  dataRecebimento: string;
+  valorEsperado: number;
+  valorRecebido: number | null;
+  diferenca: number | null;
+  saldo: number;
+  status: string;
+  movimentoTrierId: number | null;
+  filialId: number;
+  nParcelas: number;
+  origens: string[];
+  bandeiras: string[];
+}
+
+export interface RecebiveisPendentesResult {
+  total: number;
+  valorSaldo: number;
+  items: RecebivelPendente[];
+}

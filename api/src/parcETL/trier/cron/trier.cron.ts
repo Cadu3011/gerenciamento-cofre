@@ -1,5 +1,7 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { TrierParcETLPipeline } from '../pipeline/trier.card-etl.pipeline.js';
+import { TrierDevolucaoPipeline } from '../devolucao/pipeline/trier.devolucao.pipeline';
+import { TrierAuth } from '../contracts/trier.extract.strategy';
 import { FilialService } from 'src/filial/filial.service';
 import { PrismaService } from 'src/database/prisma.service';
 import { JobExecutionContext } from 'src/jobs/jobs.execContext.service.js';
@@ -16,6 +18,9 @@ function sleep(ms: number) {
 export class TrierParcCron {
   @Inject()
   private readonly pipeline: TrierParcETLPipeline;
+
+  @Inject()
+  private readonly devolucaoPipeline: TrierDevolucaoPipeline;
 
   @Inject()
   private readonly filialService: FilialService;
@@ -164,6 +169,56 @@ export class TrierParcCron {
   }
 
   async execute(context: JobExecutionContext, options: RunJobQueryDto) {
+    const tokensFinal = await this.autenticarTodas(context);
+
+    return this.executarPorFiliais({
+      tokensFinal,
+      context,
+      options,
+      rotulo: 'ETL Trier Parc',
+      executarDia: async (auth, date, ctx) => {
+        await this.pipeline.execute(this.montarCtx(auth, date), ctx);
+      },
+    });
+  }
+
+  /**
+   * Reprocessa só as devoluções, sem reextrair as parcelas do dia.
+   *
+   * Mesmas opções dos outros jobs (DATE/RANGE/AUTO, bigCharge, force), mesma
+   * autenticação por filial e mesmo laço de datas — a única diferença é a
+   * pipeline chamada. Existe para o reprocessamento: as devoluções são a
+   * parcela do histórico que já estava gravada sem bandeira, e corrigi-las não
+   * exige baixar de novo as ~245 mil parcelas, só os estornos.
+   */
+  async executeDevolucoes(
+    context: JobExecutionContext,
+    options: RunJobQueryDto,
+  ) {
+    const tokensFinal = await this.autenticarTodas(context);
+
+    return this.executarPorFiliais({
+      tokensFinal,
+      context,
+      options,
+      rotulo: 'ETL Trier Devolucoes',
+      executarDia: async (auth, date, ctx) => {
+        await this.devolucaoPipeline.execute(this.montarCtx(auth, date), ctx);
+      },
+    });
+  }
+
+  private montarCtx(auth: AuthOk, date: string): TrierAuth {
+    return {
+      date,
+      tokenLocalTrier: auth.token,
+      urlLocalTrier: auth.url,
+    };
+  }
+
+  private async autenticarTodas(
+    context: JobExecutionContext,
+  ): Promise<AuthOk[]> {
     const filiais = await this.filialService.findAll();
 
     const authResults = await Promise.allSettled(
@@ -216,6 +271,26 @@ export class TrierParcCron {
       );
     });
 
+    return tokensFinal;
+  }
+
+  private async executarPorFiliais({
+    tokensFinal,
+    context,
+    options,
+    rotulo,
+    executarDia,
+  }: {
+    tokensFinal: AuthOk[];
+    context: JobExecutionContext;
+    options: RunJobQueryDto;
+    rotulo: string;
+    executarDia: (
+      auth: AuthOk,
+      date: string,
+      ctx: JobExecutionContext,
+    ) => Promise<void>;
+  }) {
     const processFilial = async ({
       token,
       url,
@@ -268,26 +343,19 @@ export class TrierParcCron {
         }
 
         let current = start;
-        const progressKey = `TrierParc-${filial}`;
+        const progressKey = `${rotulo}-${filial}`;
 
         await executionContext.startDateProgress(progressKey, start, end);
 
         while (this.diffDays(current, end) >= 0) {
-          this.logger.log(`ETL Trier Parc filial ${filial} - dia ${current}`);
+          this.logger.log(`${rotulo} filial ${filial} - dia ${current}`);
 
           await executionContext.info(
             'PIPELINE',
             `Pipeline iniciada filial ${filial} - dia ${current}`,
           );
 
-          await this.pipeline.execute(
-            {
-              date: current,
-              tokenLocalTrier: token,
-              urlLocalTrier: url,
-            },
-            executionContext,
-          );
+          await executarDia({ token, url, filial }, current, executionContext);
           await executionContext.updateDateProgress(progressKey, current);
           current = this.addDays(current, 1);
         }

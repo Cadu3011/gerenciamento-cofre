@@ -63,6 +63,59 @@ export class FatoCartaoVendasController {
     });
   }
 
+  /**
+   * Só o gráfico de diferença mensal. Fica separado do endpoint principal
+   * porque a página o consome numa janela maior — o ano corrente — e o
+   * endpoint completo refazia aqui as agregações de ranking, que são as caras,
+   * para depois descartar o resultado.
+   */
+  @UseGuards(AuthGuard)
+  @Roles(Role.GESTOR, Role.OPERADOR)
+  @Get('cartao-vendas/diferenca-mensal')
+  async diferencaMensal(
+    @Req() req: Request,
+    @Query('startDate') startDate: string,
+    @Query('endDate') endDate: string,
+    @Query('filialId') filialId?: string,
+    @Query('adquirente') adquirente?: string,
+    @Query('bandeiras') bandeiras?: string,
+    @Query('bandeirasModo') bandeirasModo?: string,
+  ) {
+    if (!startDate || !endDate) {
+      throw new BadRequestException('startDate e endDate são obrigatórios');
+    }
+
+    if (adquirente && !ADQUIRENTES.includes(adquirente)) {
+      throw new BadRequestException('adquirente inválido');
+    }
+
+    if (bandeirasModo && !['incluir', 'excluir'].includes(bandeirasModo)) {
+      throw new BadRequestException('bandeirasModo inválido');
+    }
+
+    const user = req['sub'] as any;
+    if (user?.roles?.includes('OPERADOR')) {
+      filialId = String(user.filialId);
+    }
+
+    const bandeirasArr = bandeiras
+      ?.split(',')
+      .map((b) => b.trim())
+      .filter(Boolean);
+
+    const chartDiferencaMensal =
+      await this.fatoCartaoVendasService.diferencaMensal({
+        startDate,
+        endDate,
+        filialId: filialId ? Number(filialId) : undefined,
+        adquirente: adquirente as any,
+        bandeiras: bandeirasArr,
+        bandeirasModo: bandeirasModo as 'incluir' | 'excluir' | undefined,
+      });
+
+    return { chartDiferencaMensal };
+  }
+
   @UseGuards(AuthGuard)
   @Roles(Role.GESTOR, Role.OPERADOR)
   @Get('cartao-vendas/filtros')

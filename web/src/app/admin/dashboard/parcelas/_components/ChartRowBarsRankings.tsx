@@ -32,8 +32,6 @@ interface Props {
     divergencias: number;
     valorDivergencias: number;
     totalGrupos: number;
-    automaticos: number;
-    taxaAutomatica: number;
   }[];
 }
 
@@ -70,12 +68,10 @@ function CustomTooltip({ active, payload }: TooltipProps<number, string>) {
         })}
       </p>
       <p>
-        Divergências: <strong>{item.divergencias}</strong> ({item.valorDivergencias ? BRL.format(item.valorDivergencias) : "—"})
+        Divergências: <strong>{item.divergencias}</strong> (
+        {item.valorDivergencias ? BRL.format(item.valorDivergencias) : "—"})
       </p>
       <p>Total grupos: {item.totalGrupos.toLocaleString("pt-BR")}</p>
-      <p>
-        Conc. automática: <strong>{item.taxaAutomatica}%</strong>
-      </p>
     </div>
   );
 }

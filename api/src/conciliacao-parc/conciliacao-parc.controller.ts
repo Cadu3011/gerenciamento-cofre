@@ -6,12 +6,9 @@ import {
   Query,
   Req,
   UseGuards,
+  BadRequestException,
 } from '@nestjs/common';
-import {
-  ObservacaoConciliacao,
-  ParcelStatus,
-  Role,
-} from '@prisma/client';
+import { ObservacaoConciliacao, ParcelStatus, Role } from '@prisma/client';
 import { AuthGuard } from 'src/auth/auth.guard';
 import { Roles } from 'src/auth/role.decorator';
 import { ConciliacaoParcService } from './conciliacao-parc.service';
@@ -43,9 +40,7 @@ export class ConciliacaoParcController {
   ): ObservacaoConciliacao[] | undefined {
     const list = this.parseList(value);
     const valid = Object.values(ObservacaoConciliacao) as string[];
-    return list?.filter(
-      (v): v is ObservacaoConciliacao => valid.includes(v),
-    );
+    return list?.filter((v): v is ObservacaoConciliacao => valid.includes(v));
   }
 
   private parsePagination(page?: string, pageSize?: string) {
@@ -196,20 +191,51 @@ export class ConciliacaoParcController {
     const fid = filialId ? +filialId : undefined;
     const bandeirasArr = bandeiras ? bandeiras.split(',') : undefined;
 
-    const [cardsTotals, chartLines, rankings, chartRankingDivergencias, chartDiferencaMensal, aging] =
-      await this.mapLimit(
-        [
-          () => this.dashboardService.totaisCards(dateRange, fid, bandeirasArr),
-          () => this.dashboardService.chartLines(dateRange, fid, bandeirasArr),
-          () => this.dashboardService.chartRankingPendencias(dateRange, bandeirasArr),
-          () => this.dashboardService.chartRankingDivergencias(dateRange, fid, bandeirasArr),
-          () => this.dashboardService.chartDiferencaMensal(dateRange, fid, bandeirasArr),
-          () => this.dashboardService.agingPendencias(dateRange, fid, bandeirasArr),
-        ],
-        2,
-      );
+    const [
+      cardsTotals,
+      chartLines,
+      rankings,
+      conciliacao,
+      chartDiferencaMensal,
+    ] = (await this.mapLimit(
+      [
+        () => this.dashboardService.totaisCards(dateRange, fid, bandeirasArr),
+        () => this.dashboardService.chartLines(dateRange, fid, bandeirasArr),
+        () =>
+          this.dashboardService.chartRankingPendencias(dateRange, bandeirasArr),
+        () =>
+          this.dashboardService.resumoConciliacao(dateRange, fid, bandeirasArr),
+        () =>
+          this.dashboardService.chartDiferencaMensal(
+            dateRange,
+            fid,
+            bandeirasArr,
+          ),
+      ],
+      2,
+    )) as [
+      Awaited<ReturnType<ConciliacaoParcDashboardService['totaisCards']>>,
+      Awaited<ReturnType<ConciliacaoParcDashboardService['chartLines']>>,
+      Awaited<
+        ReturnType<ConciliacaoParcDashboardService['chartRankingPendencias']>
+      >,
+      Awaited<ReturnType<ConciliacaoParcDashboardService['resumoConciliacao']>>,
+      Awaited<
+        ReturnType<ConciliacaoParcDashboardService['chartDiferencaMensal']>
+      >,
+    ];
 
-    return { cardsTotals, chartLines, rankings, chartRankingDivergencias, chartDiferencaMensal, aging };
+    return {
+      cardsTotals,
+      chartLines,
+      rankings,
+      chartRankingDivergencias: {
+        resumo: conciliacao.resumo,
+        ranking: conciliacao.ranking,
+      },
+      chartDiferencaMensal,
+      aging: conciliacao.aging,
+    };
   }
 
   @UseGuards(AuthGuard)
@@ -220,11 +246,56 @@ export class ConciliacaoParcController {
     @Query('endDate') endDate: string,
     @Query('filialId') filialId?: string,
     @Query('bandeiras') bandeiras?: string,
+    @Query('bandeirasModo') bandeirasModo?: string,
+    @Query('adquirentes') adquirentes?: string,
+    @Query('status') status?: string,
   ) {
+    if (bandeirasModo && !['incluir', 'excluir'].includes(bandeirasModo)) {
+      throw new BadRequestException('bandeirasModo inválido');
+    }
     const dateRange = { from: startDate, to: endDate };
     const fid = filialId ? +filialId : undefined;
     const bandeirasArr = bandeiras ? bandeiras.split(',') : undefined;
-    return this.dashboardService.aReceber(dateRange, fid, bandeirasArr);
+    return this.dashboardService.aReceber(
+      dateRange,
+      fid,
+      bandeirasArr,
+      bandeirasModo as 'incluir' | 'excluir' | undefined,
+      this.parseList(adquirentes),
+      this.parseList(status),
+    );
+  }
+
+  @UseGuards(AuthGuard)
+  @Roles(Role.GESTOR)
+  @Get('a-receber/pendentes')
+  async pendentesReceber(
+    @Query('startDate') startDate: string,
+    @Query('endDate') endDate: string,
+    @Query('filialId') filialId?: string,
+    @Query('bandeiras') bandeiras?: string,
+    @Query('bandeirasModo') bandeirasModo?: string,
+    @Query('adquirentes') adquirentes?: string,
+    @Query('status') status?: string,
+  ) {
+    if (bandeirasModo && !['incluir', 'excluir'].includes(bandeirasModo)) {
+      throw new BadRequestException('bandeirasModo inválido');
+    }
+    return this.dashboardService.pendentesReceber(
+      { from: startDate, to: endDate },
+      filialId ? +filialId : undefined,
+      bandeiras ? bandeiras.split(',') : undefined,
+      bandeirasModo as 'incluir' | 'excluir' | undefined,
+      this.parseList(adquirentes),
+      this.parseList(status),
+    );
+  }
+
+  @UseGuards(AuthGuard)
+  @Roles(Role.GESTOR)
+  @Get('a-receber/grupos')
+  async gruposPorRecebivel(@Query('recebivelId') recebivelId: string) {
+    return this.service.gruposPorRecebivel(+recebivelId);
   }
 
   @UseGuards(AuthGuard)

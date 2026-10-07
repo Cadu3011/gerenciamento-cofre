@@ -27,6 +27,9 @@ import { CieloParcTransform } from './cielo/transform/cielo.cardTransform';
 import { CieloParcLoad } from './cielo/load/cielo.cardLoad';
 import { CieloParcETLCron } from './cielo/cron/cielo.cron';
 import { JobExecutionContext } from 'src/jobs/jobs.execContext.service';
+import { TrierDevolucaoPipeline } from './trier/devolucao/pipeline/trier.devolucao.pipeline';
+import { TrierDevolucaoTransform } from './trier/devolucao/transform/trier.devolucaoTransform';
+import { TrierDevolucaoLoad } from './trier/devolucao/load/trier.devolucaoLoad';
 
 // import { RedisService } from '../redis/redis.service'; futuramente
 
@@ -40,6 +43,9 @@ import { JobExecutionContext } from 'src/jobs/jobs.execContext.service';
     TrierApiClient,
     PrismaService,
     TrierParcCron,
+    TrierDevolucaoPipeline,
+    TrierDevolucaoTransform,
+    TrierDevolucaoLoad,
     RedeParcCron,
     RedeParcETLPipeline,
     RedeParcExtractor,

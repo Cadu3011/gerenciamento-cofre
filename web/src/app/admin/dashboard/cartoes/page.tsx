@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import { getAnoStart } from "../utils";
 import {
   ChartsRowSection,
   FilterSection,
@@ -77,6 +78,17 @@ export default async function Dashboard({ searchParams }: Props) {
     skipSales: "true",
   }).toString();
 
+  // Janela do gráfico mensal: ano corrente, independente do período escolhido
+  // nos filtros.
+  const anoQuery = new URLSearchParams({
+    startDate: getAnoStart(),
+    endDate,
+    ...(filialId && { filialId }),
+    ...(adquirente && { adquirente }),
+    ...(bandeiras && { bandeiras }),
+    ...(bandeirasModo && { bandeirasModo }),
+  }).toString();
+
   return (
     <div className="flex gap-2">
       <div className="flex flex-col w-full">
@@ -96,7 +108,7 @@ export default async function Dashboard({ searchParams }: Props) {
             </Suspense>
 
             <Suspense fallback={<SkeletonChartsRow />}>
-              <ChartsRowSection fatoQuery={fatoQuery} />
+              <ChartsRowSection fatoQuery={fatoQuery} anoQuery={anoQuery} />
             </Suspense>
 
             <div className="w-full flex flex-col px-10 gap-10 ">

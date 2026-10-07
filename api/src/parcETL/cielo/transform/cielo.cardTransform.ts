@@ -34,6 +34,10 @@ export class CieloParcTransform {
 
     const date = parts[2];
 
+    if (!date || !/^\d{8}/.test(date)) {
+      return null;
+    }
+
     return `${date.substring(0, 4)}-${date.substring(4, 6)}-${date.substring(6, 8)}`;
   }
   async execute(fileNames: string[], context?: JobExecutionContext) {
@@ -76,7 +80,9 @@ export class CieloParcTransform {
         }
         if (context) {
           const date = this.extractDate(fileName);
-          await context.updateDateProgress('CieloParc', date);
+          if (date) {
+            await context.updateDateProgress('CieloParc', date);
+          }
         }
       } catch (err) {
         this.logger.error(`Erro ao ler/parsing do arquivo ${fileName}:`, err);

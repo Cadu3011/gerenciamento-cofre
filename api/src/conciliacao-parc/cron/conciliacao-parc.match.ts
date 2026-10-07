@@ -8,7 +8,7 @@ import {
   Rede,
   Trier,
 } from './repository/contract';
-import { MatchType, ParcelStatus } from '@prisma/client';
+import { $Enums, MatchType, ParcelStatus } from '@prisma/client';
 
 @Injectable()
 export class ConciliacaoParcMatch {
@@ -113,7 +113,31 @@ export class ConciliacaoParcMatch {
         const triers = concFontes.filter((f) => f.origem === 'TRIER');
         const rcs = concFontes.filter((f) => f.origem !== 'TRIER');
 
-        if (triers.length === 0 || rcs.length === 0) {
+        if (rcs.length === 0) {
+          // Venda x estorno: as duas vendas são da Trier, então não existe lado
+          // adquirente para comparar. Este grupo era descartado aqui e as
+          // parcelas caíam todas em NAO_ENCONTRADO, mesmo com as vendas
+          // conciliadas entre si na conciliação de vendas.
+          //
+          // Só vira grupo de parcelas quando existe venda E estorno (valor
+          // positivo e negativo). Grupo só-TRIER de uma venda única não é
+          // conciliação de parcelas: são as parcelas de uma só venda, e
+          // agrupá-las entre si seria compará-las consigo mesmas.
+          const temVenda = triers.some((f) => Number(f.parcela.valor) > 0);
+          const temEstorno = triers.some((f) => Number(f.parcela.valor) < 0);
+
+          if (triers.length > 1 && temVenda && temEstorno) {
+            result.push({
+              group: triers,
+              tipoMatch: MatchType.VENDA_CONCILIADA,
+            });
+            for (const f of triers) usedKeys.add(this.fonteKey(f));
+          }
+
+          continue;
+        }
+
+        if (triers.length === 0) {
           continue;
         }
 
@@ -282,6 +306,53 @@ export class ConciliacaoParcMatch {
     return seguras;
   }
 
+  /**
+   * Status de um grupo venda x estorno, em que as duas pontas são parcelas da
+   * Trier — não existe parcela de adquirente para comparar.
+   *
+   * Só é conciliado quando o estorno espelha a venda uma a uma: mesma
+   * quantidade de parcelas, mesmo número de parcela e mesmo valor absoluto.
+   * Caso contrário diverge. Exemplo: venda em 5x contra estorno lançado em 1x
+   * pelo valor total — os valores fecham, mas as parcelas não se
+   * correspondem, então o grupo fica DIVERGENTE para revisão manual.
+   */
+  private avaliarVendaEstorno(
+    trierList: Trier[],
+  ): {
+    status: ParcelStatus;
+    divergencias: $Enums.ObservacaoConciliacao[];
+  } {
+    const venda = trierList.filter((t) => Number(t.valor) > 0);
+    const estorno = trierList.filter((t) => Number(t.valor) < 0);
+
+    const divergencias = new Set<$Enums.ObservacaoConciliacao>();
+
+    if (venda.length !== estorno.length) {
+      divergencias.add('DIVERGENCIA_QUANTIDADE_PARCELAS');
+    }
+
+    for (const v of venda) {
+      const par = estorno.some(
+        (e) =>
+          e.parcela === v.parcela && Number(e.valor) === -Number(v.valor),
+      );
+
+      if (!par) divergencias.add('DIVERGENCIA_VALOR');
+    }
+
+    const liquido = trierList.reduce((soma, t) => soma + Number(t.valor), 0);
+    if (Math.abs(liquido) > 0.005) {
+      divergencias.add('DIVERGENCIA_VALOR');
+    }
+
+    return {
+      status: divergencias.size
+        ? ParcelStatus.DIVERGENTE
+        : ParcelStatus.CONCILIADO,
+      divergencias: [...divergencias],
+    };
+  }
+
   private buildItem(
     trierRef: Trier,
     outra: Rede | Cielo,
@@ -329,7 +400,16 @@ export class ConciliacaoParcMatch {
         (f) => f.origem === 'REDE' || f.origem === 'CIELO',
       );
 
-      if (triers.length === 0 || rcs.length === 0) continue;
+      if (triers.length === 0) continue;
+
+      // Grupo venda x estorno: as duas pontas são Trier, então não há total de
+      // adquirente para comparar e o limiar de R$ 5,00 não se aplica — se
+      // fosse aplicado, `totalRc` seria 0 e o grupo cairia em `parcelasSeguras`,
+      // que só reconhece par Trier/adquirente com NSU, e seria descartado.
+      if (rcs.length === 0) {
+        gruposValidados.push({ group, tipoMatch });
+        continue;
+      }
 
       const totalTrier = triers.reduce(
         (sum, f) => sum + Number((f.parcela as Trier).valor),
@@ -362,7 +442,28 @@ export class ConciliacaoParcMatch {
         (f) => f.origem === 'REDE' || f.origem === 'CIELO',
       );
 
-      if (trierList.length === 0 || redeCielo.length === 0) {
+      if (trierList.length === 0) {
+        continue;
+      }
+
+      // Grupo venda x estorno: não há item de adquirente, então o grupo leva
+      // todas as parcelas da conciliação de venda e o status sai da comparação
+      // entre a venda e o seu estorno.
+      if (redeCielo.length === 0) {
+        const { status, divergencias } = this.avaliarVendaEstorno(trierList);
+
+        grupos.push({
+          trierIds: trierList.map((t) => t.id),
+          status,
+          tipoMatch,
+          itens: [],
+          divergencias,
+          observacao:
+            status === ParcelStatus.CONCILIADO
+              ? 'Venda e estorno conciliados com a mesma estrutura de parcelas'
+              : 'Venda e estorno conciliados, mas as parcelas nao se correspondem uma a uma',
+        });
+
         continue;
       }
 

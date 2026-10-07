@@ -15,6 +15,7 @@ import { TrierParcCron } from 'src/parcETL/trier/cron/trier.cron';
 import { CieloParcETLCron } from 'src/parcETL/cielo/cron/cielo.cron';
 import { ConciParcCron } from 'src/conciliacao-parc/cron/conciliacao-parc.cron';
 import { ReceivableCron } from 'src/receivable/receivable.cron';
+import { ReceivableConciliacaoCron } from 'src/receivable/receivable.conciliacao.cron';
 import { FatoCartaoVendasCron } from 'src/fatoCartaoVendas/fato-cartao-vendas.cron';
 import { FatoCartaoParcelasCron } from 'src/fatoCartaoParcelas/fato-cartao-parcelas.cron';
 import { JobExecutionContext } from './jobs.execContext.service';
@@ -53,6 +54,9 @@ export class JobsService {
 
   @Inject()
   private readonly receivableCron: ReceivableCron;
+
+  @Inject()
+  private readonly receivableConciliacaoCron: ReceivableConciliacaoCron;
 
   @Inject()
   private readonly fatoCartaoVendasCron: FatoCartaoVendasCron;
@@ -479,6 +483,27 @@ export class JobsService {
     );
   }
 
+  /**
+   * Reprocessa apenas as devoluções de parcelas do Trier.
+   *
+   * Sem `@Cron` de propósito: é tarefa de manutenção, pontual, para
+   * reprocessar histórico. Agendá-la todo dia só faria, a cada execução, a
+   * leitura dos estornos de todas as datas passadas sem alterar nada — a
+   * atualização diária já vem em cadeia dentro do ETL de parcelas.
+   *
+   * Aceita as mesmas opções dos demais (period DATE/RANGE/AUTO, bigCharge,
+   * force, logLevel).
+   */
+  runTrierDevolucao(options: RunJobQueryDto = {}) {
+    return this.runCronJob(
+      { jobName: 'TrierDevolucao' },
+      async (context, opts) => {
+        await this.trierPipelineParc.executeDevolucoes(context, opts);
+      },
+      this.normalizeOptions(options),
+    );
+  }
+
   @Cron('18,53 7,8,9,10,14 * * 1-7')
   runCieloETL() {
     return this.runCronJob({ jobName: 'CieloETL' }, async (context) => {
@@ -491,7 +516,7 @@ export class JobsService {
     return this.runCronJob(
       { jobName: 'CieloParc' },
       async (context, opts) => {
-        await this.cieloPipelineParc.execute(context, opts.bigCharge);
+        await this.cieloPipelineParc.execute(context, opts);
       },
       this.normalizeOptions(options),
     );
@@ -504,6 +529,38 @@ export class JobsService {
       async (context, opts) => {
         try {
           await this.receivableCron.execute(context, opts);
+          return;
+        } catch (e) {
+          const error = e as Error & {
+            obj?: { code: string };
+          };
+          if (error.obj?.code === '02') {
+            await context.warn('RETRY', error.message);
+            throw error;
+          }
+          throw error;
+        }
+      },
+      this.normalizeOptions(options),
+    );
+  }
+
+  /**
+   * Confirma os recebimentos já enviados ao ERP.
+   *
+   * Dispara três vezes por dia, mas `runCronJob` só deixa uma execução
+   * terminar com sucesso por data — as outras saem com "já finalizada". O que
+   * sobra disso é retentativa automática: se o das 08h falhar, o das 14h roda.
+   *
+   * Depende da tarefa `ConciReceb` existir em `Jobs`.
+   */
+  @Cron('40 8,14,20 * * 1-7')
+  runConciReceb(options: RunJobQueryDto = {}) {
+    return this.runCronJob(
+      { jobName: 'ConciReceb' },
+      async (context, opts) => {
+        try {
+          await this.receivableConciliacaoCron.execute(context, opts);
           return;
         } catch (e) {
           const error = e as Error & {

@@ -19,12 +19,33 @@ const getFatoCardsDashboardCached = (query: string) =>
       return res.json();
     },
     ["fato-cartao-dashboard", query],
-    { revalidate: 300 },
+    { revalidate: 5 },
   );
 
 export async function getFatoCardsDashboard(query: string) {
   const token = await getToken();
   return getFatoCardsDashboardCached(query)(token ?? "");
+}
+
+const getFatoCardsDiferencaMensalCached = (query: string) =>
+  unstable_cache(
+    async (token: string) => {
+      const res = await fetch(
+        `${API}/fatos/cartao-vendas/diferenca-mensal?${query}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      );
+      if (!res.ok) return null;
+      return res.json();
+    },
+    ["fato-carto-diferenca-mensal", query],
+    { revalidate: 5 },
+  );
+
+export async function getFatoCardsDiferencaMensal(query: string) {
+  const token = await getToken();
+  return getFatoCardsDiferencaMensalCached(query)(token ?? "");
 }
 
 const getFatoCardsFiltrosCached = unstable_cache(
@@ -36,7 +57,7 @@ const getFatoCardsFiltrosCached = unstable_cache(
     return res.json();
   },
   ["fato-cartao-filtros"],
-  { revalidate: 3600 },
+  { revalidate: 5 },
 );
 
 export async function getFatoCardsFiltros() {

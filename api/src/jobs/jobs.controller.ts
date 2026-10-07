@@ -47,11 +47,12 @@ export class JobsController {
       ConciCards: () => this.jobsService.runConciCards(options),
       RedeParc: () => this.jobsService.runRedeParc(options),
       TrierParc: () => this.jobsService.runTrierParc(options),
+      TrierDevolucao: () => this.jobsService.runTrierDevolucao(options),
       CieloParc: () => this.jobsService.runCieloParc(options),
       Receivables: () => this.jobsService.runRecebimentos(options),
+      ConciReceb: () => this.jobsService.runConciReceb(options),
       FatoCartaoVendas: () => this.jobsService.runFatoCartaoVendas(options),
-      FatoCartaoParcelas: () =>
-        this.jobsService.runFatoCartaoParcelas(options),
+      FatoCartaoParcelas: () => this.jobsService.runFatoCartaoParcelas(options),
     };
 
     const job = jobs[jobName];
