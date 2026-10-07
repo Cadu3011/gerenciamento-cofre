@@ -142,12 +142,7 @@ export default function Sidebar({ role }: { role: string }) {
                       >
                         Conferir Caixas
                       </Link>
-                      <Link
-                        href="/workspace/pesquisa-cartao"
-                        className="hover:text-green-400"
-                      >
-                        Pesquisar Cartões
-                      </Link>
+
                       <Link
                         href="/workspace/gerencia-cofre"
                         className="hover:text-green-400"
