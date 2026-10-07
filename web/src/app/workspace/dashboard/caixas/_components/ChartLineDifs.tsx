@@ -51,12 +51,21 @@ const chartConfig = {
 export default function ChartLineDifs({ data }: Props) {
   const [modo, setModo] = useState<"DETALHADO" | "TOTAL">("DETALHADO");
 
-  const parsedData = data.map((item) => ({
-    ...item,
-    total_falta: Number(item.total_falta),
-    total_sobra: Number(item.total_sobra),
-    total_geral: Number(item.total_geral),
-  }));
+  // Some o último período (ciclo 26→25) enquanto ele estiver aberto: o mês
+  // só conta como fechado quando a data final do rótulo (dia 25) já chegou.
+  // ex.: hoje ≥ 25/09 → "26/08 a 25/09" aparece; fim posterior a hoje
+  // (ex.: "26/09 a 25/10") = aberto e não é exibido.
+  const hoje = new Date();
+  const hojeStr = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, "0")}-${String(hoje.getDate()).padStart(2, "0")}`;
+
+  const parsedData = data
+    .filter((item) => (item.periodo.split(" a ")[1] ?? "") <= hojeStr)
+    .map((item) => ({
+      ...item,
+      total_falta: Number(item.total_falta),
+      total_sobra: Number(item.total_sobra),
+      total_geral: Number(item.total_geral),
+    }));
 
   return (
     <div className="h-full w-full flex flex-col">

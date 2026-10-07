@@ -23,12 +23,7 @@ export default function Workspace() {
           >
             Conferir Caixas
           </Link>
-          <Link
-            href="/workspace/pesquisa-cartao"
-            className="hover:bg-green-400 bg-white py-5 px-5 rounded-md"
-          >
-            Pesquisar Cartões
-          </Link>
+
           <Link
             href="/workspace/gerencia-cofre"
             className="hover:bg-green-400 bg-white py-5 px-5 rounded-md"
