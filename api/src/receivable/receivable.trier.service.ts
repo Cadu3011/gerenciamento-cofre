@@ -19,7 +19,6 @@ interface CreateRecebimentoInput {
   parcela?: number;
   totalParcelas?: number;
   documentoFiscal?: number | null;
-  bandeira?: string | null;
 }
 
 @Injectable()
@@ -71,6 +70,21 @@ export class ReceivableTrierService {
     return filialDestino.idBancoRecebimentos;
   }
 
+  /**
+   * Sessão autenticada no financeiro do Trier.
+   *
+   * Único lugar com as credenciais: `send` usa para lançar, e
+   * `ReceivableConciliacaoService` usa para conferir o que foi lançado.
+   */
+  async getToken(): Promise<string> {
+    const sessao = await authTrier({
+      login: '95',
+      password: 'cadu3011',
+    });
+
+    return sessao.token;
+  }
+
   async send(recebivelId: number) {
     const recebivel = await this.prisma.receivable.findUnique({
       where: { id: recebivelId },
@@ -95,21 +109,25 @@ export class ReceivableTrierService {
       );
     }
 
-    const token = (
-      await authTrier({
-        login: '95',
-        password: 'cadu3011',
-      })
-    ).token;
+    const token = await this.getToken();
 
     const idContaBanco = await this.resolveIdContaBanco(
       recebivel,
       filial.idBancoRecebimentos,
     );
 
-    const porParcela =
-      recebivel.adquirente === ADQUIRENTE_BRASILCARD ||
-      recebivel.adquirente === ADQUIRENTE_INDEFINIDO;
+    // Recebível INDEFINIDO não é lançado no ERP: bandeira não mapeada fica
+    // como diferença nos dashboards, nunca como movimento. A geração já não
+    // cria mais estes recebíveis; a guarda cobre sobras antigas em qualquer
+    // caminho (cron, retentativa ou endpoint manual).
+    if (recebivel.adquirente === ADQUIRENTE_INDEFINIDO) {
+      this.logger.warn(
+        `Recebível ${recebivelId} é INDEFINIDO — não é lançado no ERP.`,
+      );
+      return recebivel;
+    }
+
+    const porParcela = recebivel.adquirente === ADQUIRENTE_BRASILCARD;
     const parcelaTrier = porParcela ? recebivel.trierParcelas[0] : undefined;
 
     const movimentoId = await this.createRecebimento({
@@ -122,10 +140,6 @@ export class ReceivableTrierService {
       parcela: parcelaTrier?.parcela,
       totalParcelas: parcelaTrier?.totalParcelas,
       documentoFiscal: parcelaTrier?.documentoFiscal,
-      bandeira:
-        recebivel.adquirente === ADQUIRENTE_INDEFINIDO
-          ? parcelaTrier?.bandeira
-          : undefined,
     });
 
     if (typeof movimentoId === 'number') {
@@ -167,10 +181,6 @@ export class ReceivableTrierService {
       if (move.documentoFiscal != null) {
         descricao += ` ${move.documentoFiscal}`;
       }
-    }
-
-    if (move.bandeira) {
-      descricao += ` ${move.bandeira}`;
     }
 
     const raw = JSON.stringify({

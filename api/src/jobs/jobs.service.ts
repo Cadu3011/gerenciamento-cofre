@@ -15,6 +15,7 @@ import { TrierParcCron } from 'src/parcETL/trier/cron/trier.cron';
 import { CieloParcETLCron } from 'src/parcETL/cielo/cron/cielo.cron';
 import { ConciParcCron } from 'src/conciliacao-parc/cron/conciliacao-parc.cron';
 import { ReceivableCron } from 'src/receivable/receivable.cron';
+import { ReceivableConciliacaoCron } from 'src/receivable/receivable.conciliacao.cron';
 import { FatoCartaoVendasCron } from 'src/fatoCartaoVendas/fato-cartao-vendas.cron';
 import { FatoCartaoParcelasCron } from 'src/fatoCartaoParcelas/fato-cartao-parcelas.cron';
 import { JobExecutionContext } from './jobs.execContext.service';
@@ -53,6 +54,9 @@ export class JobsService {
 
   @Inject()
   private readonly receivableCron: ReceivableCron;
+
+  @Inject()
+  private readonly receivableConciliacaoCron: ReceivableConciliacaoCron;
 
   @Inject()
   private readonly fatoCartaoVendasCron: FatoCartaoVendasCron;
@@ -525,6 +529,38 @@ export class JobsService {
       async (context, opts) => {
         try {
           await this.receivableCron.execute(context, opts);
+          return;
+        } catch (e) {
+          const error = e as Error & {
+            obj?: { code: string };
+          };
+          if (error.obj?.code === '02') {
+            await context.warn('RETRY', error.message);
+            throw error;
+          }
+          throw error;
+        }
+      },
+      this.normalizeOptions(options),
+    );
+  }
+
+  /**
+   * Confirma os recebimentos já enviados ao ERP.
+   *
+   * Dispara três vezes por dia, mas `runCronJob` só deixa uma execução
+   * terminar com sucesso por data — as outras saem com "já finalizada". O que
+   * sobra disso é retentativa automática: se o das 08h falhar, o das 14h roda.
+   *
+   * Depende da tarefa `ConciReceb` existir em `Jobs`.
+   */
+  @Cron('40 8,14,20 * * 1-7')
+  runConciReceb(options: RunJobQueryDto = {}) {
+    return this.runCronJob(
+      { jobName: 'ConciReceb' },
+      async (context, opts) => {
+        try {
+          await this.receivableConciliacaoCron.execute(context, opts);
           return;
         } catch (e) {
           const error = e as Error & {

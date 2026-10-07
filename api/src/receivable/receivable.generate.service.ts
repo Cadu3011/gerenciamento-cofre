@@ -26,10 +26,7 @@ interface ReceivableBucket {
  * Adquirentes cujos recebimentos NÃO são agrupados por vencimento: cada parcela
  * gera um recebimento individual no Trier (título com parcela e documento).
  */
-const ADQUIRENTES_POR_PARCELA = new Set<string>([
-  ADQUIRENTE_BRASILCARD,
-  ADQUIRENTE_INDEFINIDO,
-]);
+const ADQUIRENTES_POR_PARCELA = new Set<string>([ADQUIRENTE_BRASILCARD]);
 
 @Injectable()
 export class ReceivableGenerateService {
@@ -52,10 +49,10 @@ export class ReceivableGenerateService {
   /**
    * Agrupa parcelas vencidas na data alvo por (filialId, adquirente).
    * Rede usa suas próprias parcelas; Cielo usa as suas, separando PIX (CIELO PIX)
-   * dos cartões (CIELO); Trier entra apenas para bandeiras sem fonte própria
-   * (IFOOD/PAGGPIX/BRASILCARD), ignorando as demais. Parcelas de bandeira
-   * não mapeada com statusConciliacao=NAO_ENCONTRADO (exceto PIX) entram como
-   * INDEFINIDO. BRASILCARD e INDEFINIDO entram por parcela.
+   * dos cartões (CIELO); Trier entra apenas para bandeiras com fonte própria
+   * (IFOOD/PAGGPIX/BRASILCARD). Bandeiras não mapeadas não geram recebimento —
+   * ficam como diferença nos dashboards de conciliação. BRASILCARD entra por
+   * parcela.
    */
   async groupByAdquirente(
     filialId: number,
@@ -85,7 +82,6 @@ export class ReceivableGenerateService {
           id: true,
           valorLiquido: true,
           bandeira: true,
-          statusConciliacao: true,
         },
       }),
     ]);
@@ -120,17 +116,9 @@ export class ReceivableGenerateService {
     }
 
     for (const p of trierParcelas) {
-      let adquirente = mapearBandeiraTrier(p.bandeira ?? '');
+      const adquirente = mapearBandeiraTrier(p.bandeira ?? '');
 
-      const bandeira = (p.bandeira ?? '').trim().toUpperCase();
-      if (
-        !adquirente &&
-        p.statusConciliacao === 'NAO_ENCONTRADO' &&
-        bandeira !== 'PIX'
-      ) {
-        adquirente = ADQUIRENTE_INDEFINIDO;
-      }
-
+      // Bandeira não mapeada: não gera recebimento (ver doc do método).
       if (!adquirente) continue;
       if (adquirente === ADQUIRENTE_REDE || adquirente === ADQUIRENTE_CIELO) {
         continue;
@@ -279,6 +267,10 @@ export class ReceivableGenerateService {
         });
       }
 
+      // Limpa recebíveis por-parcela (BRASILCARD) que saíram do bucket atual —
+      // parcela mudou de data ou foi cancelada. INDEFINIDO continua na lista só
+      // para purgar sobras de execuções antigas que nunca foram enviadas ao ERP:
+      // nenhum recebimento INDEFINIDO novo é gerado.
       await tx.receivable.deleteMany({
         where: {
           filialId,

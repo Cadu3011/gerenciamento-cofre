@@ -3,6 +3,9 @@ import { ReceivableController } from './receivable.controller';
 import { ReceivableGenerateService } from './receivable.generate.service';
 import { ReceivableTrierService } from './receivable.trier.service';
 import { ReceivableCron } from './receivable.cron';
+import { ReceivableErpClient } from './receivable.erp.client';
+import { ReceivableConciliacaoService } from './receivable.conciliacao.service';
+import { ReceivableConciliacaoCron } from './receivable.conciliacao.cron';
 import { DatabaseModule } from 'src/database/database.module';
 
 @Module({
@@ -12,7 +15,10 @@ import { DatabaseModule } from 'src/database/database.module';
     ReceivableGenerateService,
     ReceivableTrierService,
     ReceivableCron,
+    ReceivableErpClient,
+    ReceivableConciliacaoService,
+    ReceivableConciliacaoCron,
   ],
-  exports: [ReceivableCron],
+  exports: [ReceivableCron, ReceivableConciliacaoCron],
 })
 export class ReceivableModule {}

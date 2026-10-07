@@ -50,6 +50,7 @@ export class JobsController {
       TrierDevolucao: () => this.jobsService.runTrierDevolucao(options),
       CieloParc: () => this.jobsService.runCieloParc(options),
       Receivables: () => this.jobsService.runRecebimentos(options),
+      ConciReceb: () => this.jobsService.runConciReceb(options),
       FatoCartaoVendas: () => this.jobsService.runFatoCartaoVendas(options),
       FatoCartaoParcelas: () => this.jobsService.runFatoCartaoParcelas(options),
     };
