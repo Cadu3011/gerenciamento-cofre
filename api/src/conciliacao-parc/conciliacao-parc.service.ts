@@ -1,9 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import {
-  ObservacaoConciliacao,
-  ParcelStatus,
-  Prisma,
-} from '@prisma/client';
+import { ObservacaoConciliacao, ParcelStatus, Prisma } from '@prisma/client';
 import { PrismaService } from 'src/database/prisma.service';
 import { ConciliacaoParcPipeline } from './cron/conciliacao-parc.pipeline';
 import { JobExecutionContext } from 'src/jobs/jobs.execContext.service';
@@ -126,10 +122,12 @@ export class ConciliacaoParcService {
     end: Date,
     bandeiras?: string[],
   ) {
-    const trierBandeira =
-      bandeiras?.length ? { bandeira: { in: bandeiras } } : {};
-    const cieloBandeira =
-      bandeiras?.length ? { bandeira: { in: bandeiras } } : {};
+    const trierBandeira = bandeiras?.length
+      ? { bandeira: { in: bandeiras } }
+      : {};
+    const cieloBandeira = bandeiras?.length
+      ? { bandeira: { in: bandeiras } }
+      : {};
 
     return {
       itens: {
@@ -220,6 +218,51 @@ export class ConciliacaoParcService {
     };
   }
 
+  /**
+   * Grupos de conciliação que contêm as parcelas de um recebível
+   * (Trier/Rede/Cielo ligadas por `receivableId`). Usado no detalhe do
+   * dashboard a-receber: o dialog do recebível mostra os grupos das parcelas
+   * que ainda faltam receber para investigar a pendência.
+   */
+  async gruposPorRecebivel(recebivelId: number) {
+    const [triers, redes, cielos] = await Promise.all([
+      this.prisma.trierParcela.findMany({
+        where: { receivableId: recebivelId },
+        select: { id: true },
+      }),
+      this.prisma.redeParcela.findMany({
+        where: { receivableId: recebivelId },
+        select: { id: true },
+      }),
+      this.prisma.cieloParcela.findMany({
+        where: { receivableId: recebivelId },
+        select: { id: true },
+      }),
+    ]);
+
+    const filtros: Prisma.ConciliacaoParcelaItemWhereInput[] = [
+      ...(triers.length
+        ? [{ trierParcelaId: { in: triers.map((p) => p.id) } }]
+        : []),
+      ...(redes.length
+        ? [{ redeParcelaId: { in: redes.map((p) => p.id) } }]
+        : []),
+      ...(cielos.length
+        ? [{ cieloParcelaId: { in: cielos.map((p) => p.id) } }]
+        : []),
+    ];
+
+    if (!filtros.length) return [];
+
+    const grupos = await this.prisma.conciliacaoParcela.findMany({
+      where: { itens: { some: { OR: filtros } } },
+      include: this.includeAll(),
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+    });
+
+    return grupos.map((g) => this.mapGrupo(g));
+  }
+
   private async findTotais(
     filialId: number,
     start: Date,
@@ -298,7 +341,8 @@ export class ConciliacaoParcService {
           totais.outraValor += Number(it.cieloParcela.valor);
           totais.outraLiquido += Number(it.cieloParcela.valorLiquido);
           totais.outraTaxa +=
-            Number(it.cieloParcela.valor) - Number(it.cieloParcela.valorLiquido);
+            Number(it.cieloParcela.valor) -
+            Number(it.cieloParcela.valorLiquido);
         }
       }
     }

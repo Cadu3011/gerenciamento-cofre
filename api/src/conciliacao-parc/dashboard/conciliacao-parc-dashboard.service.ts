@@ -50,6 +50,146 @@ export class ConciliacaoParcDashboardService {
   }
 
   /**
+   * Fragmentos de filtro para `Receivable` (alias `r`).
+   *
+   * `Receivable` não tem bandeira própria nem origem — agrega parcelas da
+   * Trier, Rede e Cielo (cada uma com `receivableId` indexado). Origem e
+   * bandeira atravessam, então, essas parcelas ligadas:
+   *
+   *  - origem: `EXISTS` na tabela da origem (TRIER/REDE/CIELO);
+   *  - bandeira em modo `excluir`: uma parcela Trier/Cielo com bandeira
+   *    excluída derruba o recebível inteiro (os buckets são homogêneos por
+   *    adquirente; no INDEFINIDO, misturado, perder junto é o lado grosso);
+   *  - bandeira em modo `incluir`: vale ao menos uma parcela Trier/Cielo com
+   *    bandeira na lista ou ser da Rede — Rede não é filtrável por bandeira.
+   */
+  private recebivelOrigem(adquirentes?: string[]): Prisma.Sql {
+    if (!adquirentes?.length) return Prisma.empty;
+    const tabelas: Record<string, { tabela: string; alias: string }> = {
+      TRIER: { tabela: 'TrierParcela', alias: 'tp' },
+      REDE: { tabela: 'RedeParcela', alias: 'rp' },
+      CIELO: { tabela: 'CieloParcela', alias: 'cp' },
+    };
+    const ramos = [...new Set(adquirentes)]
+      .filter((o) => tabelas[o])
+      .map((o) => {
+        const { tabela, alias } = tabelas[o];
+        return Prisma.sql`EXISTS (
+          SELECT 1 FROM ${Prisma.raw(tabela)} ${Prisma.raw(alias)}
+          WHERE ${Prisma.raw(alias)}.receivableId = r.id
+        )`;
+      });
+    return ramos.length
+      ? Prisma.sql` AND (${Prisma.join(ramos, ' OR ')})`
+      : Prisma.empty;
+  }
+
+  private recebivelBandeira(
+    bandeiras?: string[],
+    modo: 'incluir' | 'excluir' = 'excluir',
+  ): Prisma.Sql {
+    if (!bandeiras?.length) return Prisma.empty;
+    if (modo === 'incluir') {
+      return Prisma.sql`
+        AND (
+          EXISTS (
+            SELECT 1 FROM TrierParcela tp
+            WHERE tp.receivableId = r.id AND tp.bandeira IN (${Prisma.join(
+              bandeiras,
+            )})
+          )
+          OR EXISTS (
+            SELECT 1 FROM CieloParcela cp
+            WHERE cp.receivableId = r.id AND cp.bandeira IN (${Prisma.join(
+              bandeiras,
+            )})
+          )
+          OR EXISTS (
+            SELECT 1 FROM RedeParcela rp WHERE rp.receivableId = r.id
+          )
+        )
+      `;
+    }
+    return Prisma.sql`
+      AND NOT EXISTS (
+        SELECT 1 FROM TrierParcela tp
+        WHERE tp.receivableId = r.id AND tp.bandeira IN (${Prisma.join(
+          bandeiras,
+        )})
+      )
+      AND NOT EXISTS (
+        SELECT 1 FROM CieloParcela cp
+        WHERE cp.receivableId = r.id AND cp.bandeira IN (${Prisma.join(
+          bandeiras,
+        )})
+      )
+    `;
+  }
+
+  /**
+   * Filtro de situação sobre `Receivable.status`. A UI usa os rótulos das
+   * parcelas (PENDENTE/DIVERGENTE/CONCILIADO); no recebível o "Pendente" é
+   * `ENVIADO_ERP` (aguardando baixa) ou `ABERTO`.
+   */
+  private recebivelStatus(status?: string[]): Prisma.Sql {
+    if (!status?.length) return Prisma.empty;
+    const mapa: Record<string, string[]> = {
+      PENDENTE: ['ABERTO', 'ENVIADO_ERP'],
+      CONCILIADO: ['CONCILIADO'],
+      DIVERGENTE: ['DIVERGENTE'],
+    };
+    const valores = [...new Set(status.flatMap((s) => mapa[s] ?? []))];
+    if (!valores.length) return Prisma.empty;
+    return Prisma.sql` AND r.status IN (${Prisma.join(valores)})`;
+  }
+
+  /**
+   * `WHERE` dos recebíveis (alias `r`) com todos os filtros do dashboard
+   * a-receber — período, filial, origem, bandeiras e situação. Compartilhado
+   * por barras, totais, faixas de vencimento e a lista de pendências.
+   *
+   * `comPeriodo = false` remove só o range de `dataRecebimento` (usado pela
+   * base das faixas fora da "Vencido", que são globais); filial, origem,
+   * bandeiras e situação continuam valendo.
+   */
+  private recebiveisWhere(
+    dateRange: { from: string; to: string },
+    filialId?: number,
+    bandeiras?: string[],
+    bandeirasModo: 'incluir' | 'excluir' = 'excluir',
+    adquirentes?: string[],
+    status?: string[],
+    comPeriodo = true,
+  ): Prisma.Sql {
+    const { start, end } = this.dateParams(dateRange);
+    return Prisma.sql`
+      WHERE ${
+        comPeriodo
+          ? Prisma.sql`r.dataRecebimento >= ${start} AND r.dataRecebimento <= ${end}`
+          : Prisma.sql`(1 = 1)`
+      }
+        ${this.filialWhere(filialId, 'r')}
+        ${this.recebivelOrigem(adquirentes)}
+        ${this.recebivelBandeira(bandeiras, bandeirasModo)}
+        ${this.recebivelStatus(status)}
+    `;
+  }
+
+  /** Fragmento ` AND [alias.]bandeira IN|NOT IN (...)` usado nas faixas. */
+  private bandeiraFaixa(
+    bandeiras?: string[],
+    modo: 'incluir' | 'excluir' = 'excluir',
+    alias = '',
+  ): Prisma.Sql {
+    if (!bandeiras?.length) return Prisma.empty;
+    const prefix = alias ? `${alias}.` : '';
+    const op = modo === 'incluir' ? 'IN' : 'NOT IN';
+    return Prisma.sql` AND ${Prisma.raw(prefix)}bandeira ${Prisma.raw(op)} (${Prisma.join(
+      bandeiras,
+    )})`;
+  }
+
+  /**
    * Corpo da CTE `gp`: ids de ConciliacaoParcela com ao menos um item de
    * parcela dentro do período.
    *
@@ -678,6 +818,9 @@ export class ConciliacaoParcDashboardService {
     dateRange: { from: string; to: string },
     filialId?: number,
     bandeiras?: string[],
+    bandeirasModo: 'incluir' | 'excluir' = 'excluir',
+    adquirentes?: string[],
+    status?: string[],
   ) {
     const { start, end } = this.dateParams(dateRange);
 
@@ -696,18 +839,31 @@ export class ConciliacaoParcDashboardService {
     const daqui60 = new Date(hoje);
     daqui60.setDate(daqui60.getDate() + 60);
 
+    // Filtro de origem pula o ramo da tabela que não foi selecionada (mesma
+    // ideia dos ramos da CTE de grupos). Nas faixas "Trier" é o ramo da Trier
+    // e "Adquirentes" é Rede + Cielo; bandeira vale para Trier e Cielo (que
+    // têm bandeira), Rede não é filtrável.
+    const origensSelecionadas = adquirentes?.length
+      ? new Set(adquirentes)
+      : null;
+    const inclui = (origem: string) =>
+      !origensSelecionadas || origensSelecionadas.has(origem);
+
+    // Só a faixa "Vencido" é interferida pelo range do período: ela soma os
+    // vencimentos DENTRO do período que já venceram (≤ hoje). As demais
+    // faixas ignoram o range e exibem o valor coerente (global) do pipeline
+    // de vencimentos relativo a hoje.
     const faixaSQL = (
       tabela: 'TrierParcela' | 'RedeParcela' | 'CieloParcela',
       colVenc: string,
-      colData: string,
+      comBandeira: boolean,
     ) => {
-      const extra =
-        tabela === 'TrierParcela'
-          ? this.trierWhere(bandeiras, filialId)
-          : this.filialWhere(filialId);
+      const bandeira = comBandeira
+        ? this.bandeiraFaixa(bandeiras, bandeirasModo)
+        : Prisma.empty;
       return Prisma.sql`
         SELECT
-          COALESCE(SUM(CASE WHEN ${Prisma.raw(colVenc)} <= ${hojeEnd} THEN valor END), 0) AS vencido,
+          COALESCE(SUM(CASE WHEN ${Prisma.raw(colVenc)} >= ${start} AND ${Prisma.raw(colVenc)} <= ${end} AND ${Prisma.raw(colVenc)} <= ${hojeEnd} THEN valor END), 0) AS vencido,
           COALESCE(SUM(CASE WHEN ${Prisma.raw(colVenc)} >= ${hojeStart} AND ${Prisma.raw(colVenc)} <= ${hojeEnd} THEN valor END), 0) AS hoje,
           COALESCE(SUM(CASE WHEN ${Prisma.raw(colVenc)} > ${hojeEnd} AND ${Prisma.raw(colVenc)} <= ${daqui7.toISOString()} THEN valor END), 0) AS d1_7,
           COALESCE(SUM(CASE WHEN ${Prisma.raw(colVenc)} > ${daqui7.toISOString()} AND ${Prisma.raw(colVenc)} <= ${daqui15.toISOString()} THEN valor END), 0) AS d8_15,
@@ -715,18 +871,33 @@ export class ConciliacaoParcDashboardService {
           COALESCE(SUM(CASE WHEN ${Prisma.raw(colVenc)} > ${daqui30.toISOString()} AND ${Prisma.raw(colVenc)} <= ${daqui60.toISOString()} THEN valor END), 0) AS d31_60,
           COALESCE(SUM(CASE WHEN ${Prisma.raw(colVenc)} > ${daqui60.toISOString()} THEN valor END), 0) AS d60_plus
         FROM ${Prisma.raw(tabela)}
-        WHERE ${Prisma.raw(colData)} >= ${start} AND ${Prisma.raw(colData)} <= ${end}${extra}
+        WHERE (1 = 1)${bandeira}${this.filialWhere(filialId)}
       `;
     };
 
-    const trierQ = faixaSQL('TrierParcela', 'dataVencimento', 'dataEmissao');
-    const redeQ = faixaSQL('RedeParcela', 'vencimento', 'dataVenda');
-    const cieloQ = faixaSQL('CieloParcela', 'dataVencimento', 'dataVenda');
+    const trierQ = faixaSQL('TrierParcela', 'dataVencimento', true);
+    const redeQ = faixaSQL('RedeParcela', 'vencimento', false);
+    const cieloQ = faixaSQL('CieloParcela', 'dataVencimento', true);
 
+    const ZERO = {
+      vencido: 0,
+      hoje: 0,
+      d1_7: 0,
+      d8_15: 0,
+      d16_30: 0,
+      d31_60: 0,
+      d60_plus: 0,
+    };
     const [trierRow, redeRow, cieloRow] = await Promise.all([
-      this.prisma.$queryRaw<any[]>(trierQ),
-      this.prisma.$queryRaw<any[]>(redeQ),
-      this.prisma.$queryRaw<any[]>(cieloQ),
+      inclui('TRIER')
+        ? this.prisma.$queryRaw<any[]>(trierQ)
+        : Promise.resolve([ZERO]),
+      inclui('REDE')
+        ? this.prisma.$queryRaw<any[]>(redeQ)
+        : Promise.resolve([ZERO]),
+      inclui('CIELO')
+        ? this.prisma.$queryRaw<any[]>(cieloQ)
+        : Promise.resolve([ZERO]),
     ]);
 
     const labels = [
@@ -747,6 +918,110 @@ export class ConciliacaoParcDashboardService {
       'd31_60',
       'd60_plus',
     ];
+    const recebiveisWhere = this.recebiveisWhere(
+      dateRange,
+      filialId,
+      bandeiras,
+      bandeirasModo,
+      adquirentes,
+      status,
+    );
+    // Mesmos filtros sem o range de período — base das faixas fora da
+    // "Vencido", que exibem o pipeline global coerente.
+    const recebiveisWhereGlobal = this.recebiveisWhere(
+      dateRange,
+      filialId,
+      bandeiras,
+      bandeirasModo,
+      adquirentes,
+      status,
+      false,
+    );
+
+    // Buckets de vencimento do lado dos recebíveis, com as mesmas 7 faixas
+    // das parcelas (Vencido/Hoje/1-7/.../60+). Cada faixa ganha `_esp`
+    // (valorEsperado) e `_rec` (valorRecebido) para as colunas "Vencidos no
+    // período", "Recebidos de fato" e "Falta receber" da tabela. Assim como
+    // nas parcelas, só o "vencido" carrega o range do período — a base da
+    // query é `recebiveisWhereGlobal` (sem o range) e o range entra dentro
+    // do CASE do vencido.
+    const condicoesFaixa: Record<string, Prisma.Sql> = {
+      vencido: Prisma.sql`r.dataRecebimento >= ${start} AND r.dataRecebimento <= ${end} AND r.dataRecebimento <= ${hojeEnd}`,
+      hoje: Prisma.sql`r.dataRecebimento >= ${hojeStart} AND r.dataRecebimento <= ${hojeEnd}`,
+      d1_7: Prisma.sql`r.dataRecebimento > ${hojeEnd} AND r.dataRecebimento <= ${daqui7.toISOString()}`,
+      d8_15: Prisma.sql`r.dataRecebimento > ${daqui7.toISOString()} AND r.dataRecebimento <= ${daqui15.toISOString()}`,
+      d16_30: Prisma.sql`r.dataRecebimento > ${daqui15.toISOString()} AND r.dataRecebimento <= ${daqui30.toISOString()}`,
+      d31_60: Prisma.sql`r.dataRecebimento > ${daqui30.toISOString()} AND r.dataRecebimento <= ${daqui60.toISOString()}`,
+      d60_plus: Prisma.sql`r.dataRecebimento > ${daqui60.toISOString()}`,
+    };
+    const colunasRecFaixa = keys.flatMap((k) => [
+      Prisma.sql`COALESCE(SUM(CASE WHEN ${condicoesFaixa[k]} THEN r.valorEsperado END), 0) AS ${Prisma.raw(
+        `${k}_esp`,
+      )}`,
+      Prisma.sql`COALESCE(SUM(CASE WHEN ${condicoesFaixa[k]} THEN COALESCE(r.valorRecebido, 0) END), 0) AS ${Prisma.raw(
+        `${k}_rec`,
+      )}`,
+    ]);
+
+    const [chartBarras, totais, recFaixa] = await Promise.all([
+      this.prisma.$queryRaw<
+        {
+          dia: string;
+          vencimento: any;
+          recebimento: any;
+          semBaixa: any;
+          conciliados: any;
+          divergentes: any;
+        }[]
+      >(Prisma.sql`
+        SELECT
+          DATE(r.dataRecebimento) AS dia,
+          COALESCE(SUM(r.valorEsperado), 0) AS vencimento,
+          COALESCE(SUM(r.valorRecebido), 0) AS recebimento,
+          SUM(CASE WHEN r.valorRecebido IS NULL THEN 1 ELSE 0 END) AS semBaixa,
+          SUM(CASE WHEN r.status = 'CONCILIADO' THEN 1 ELSE 0 END) AS conciliados,
+          SUM(CASE WHEN r.status = 'DIVERGENTE' THEN 1 ELSE 0 END) AS divergentes
+        FROM Receivable r
+        ${recebiveisWhere}
+        GROUP BY DATE(r.dataRecebimento)
+        ORDER BY dia
+      `),
+      this.prisma.$queryRaw<
+        {
+          recebiveis: any;
+          vencimento: any;
+          recebimento: any;
+          conciliados: any;
+          divergentes: any;
+          semBaixa: any;
+        }[]
+      >(Prisma.sql`
+        SELECT
+          COUNT(*) AS recebiveis,
+          COALESCE(SUM(r.valorEsperado), 0) AS vencimento,
+          COALESCE(SUM(r.valorRecebido), 0) AS recebimento,
+          COALESCE(
+            SUM(CASE WHEN r.status = 'CONCILIADO' THEN 1 ELSE 0 END),
+            0
+          ) AS conciliados,
+          COALESCE(
+            SUM(CASE WHEN r.status = 'DIVERGENTE' THEN 1 ELSE 0 END),
+            0
+          ) AS divergentes,
+          SUM(CASE WHEN r.valorRecebido IS NULL THEN 1 ELSE 0 END) AS semBaixa
+        FROM Receivable r
+        ${recebiveisWhere}
+      `),
+      this.prisma.$queryRaw<Record<string, any>[]>(Prisma.sql`
+        SELECT ${Prisma.join(colunasRecFaixa, ', ')}
+        FROM Receivable r
+        ${recebiveisWhereGlobal}
+      `),
+    ]);
+
+    const vencimentoTotal = Number(totais[0]?.vencimento || 0);
+    const recebimentoTotal = Number(totais[0]?.recebimento || 0);
+
     const faixas = labels.map((label, i) => {
       const k = keys[i];
       const trier = Number(trierRow[0]?.[k] || 0);
@@ -754,49 +1029,163 @@ export class ConciliacaoParcDashboardService {
         Number(redeRow[0]?.[k] || 0) + Number(cieloRow[0]?.[k] || 0);
       const diferenca =
         Math.abs(adquirentes - trier) < 0.01 ? 0 : adquirentes - trier;
+      const vencidos = Number(recFaixa[0]?.[`${k}_esp`] ?? 0);
+      const recebidos = Number(recFaixa[0]?.[`${k}_rec`] ?? 0);
       return {
         label,
         trier,
         adquirentes,
         diferenca: Number(diferenca.toFixed(2)),
+        vencidos: Number(vencidos.toFixed(2)),
+        recebidos: Number(recebidos.toFixed(2)),
+        faltaReceber: Math.round((vencidos - recebidos) * 100) / 100,
       };
     });
 
-    const chartLinhas = await this.prisma.$queryRaw<
-      { dia: string; trier: any; adquirentes: any }[]
-    >(Prisma.sql`
-      SELECT dia, SUM(trier) AS trier, SUM(adq) AS adquirentes
-      FROM (
-        SELECT DATE(dataVencimento) AS dia, valor AS trier, 0 AS adq
-        FROM TrierParcela
-        WHERE dataEmissao >= ${start} AND dataEmissao <= ${end}${this.trierWhere(
-          bandeiras,
-          filialId,
-        )}
-        UNION ALL
-        SELECT DATE(vencimento), 0, valor
-        FROM RedeParcela
-        WHERE dataVenda >= ${start} AND dataVenda <= ${end}${this.filialWhere(
-          filialId,
-        )}
-        UNION ALL
-        SELECT DATE(dataVencimento), 0, valor
-        FROM CieloParcela
-        WHERE dataVenda >= ${start} AND dataVenda <= ${end}${this.filialWhere(
-          filialId,
-        )}
-      ) t
-      GROUP BY dia
-      ORDER BY dia
-    `);
-
     return {
       faixas,
-      chartLinhas: chartLinhas.map((r) => ({
-        data: r.dia,
-        trier: Number(r.trier || 0),
-        adquirentes: Number(r.adquirentes || 0),
+      chartBarras: chartBarras.map((linha) => ({
+        data: linha.dia,
+        vencimento: Number(linha.vencimento || 0),
+        recebimento: Number(linha.recebimento || 0),
+        semBaixa: Number(linha.semBaixa || 0),
+        conciliados: Number(linha.conciliados || 0),
+        divergentes: Number(linha.divergentes || 0),
       })),
+      totais: {
+        recebiveis: Number(totais[0]?.recebiveis || 0),
+        vencimento: vencimentoTotal,
+        recebimento: recebimentoTotal,
+        saldo: Math.round((vencimentoTotal - recebimentoTotal) * 100) / 100,
+        conciliados: Number(totais[0]?.conciliados || 0),
+        divergentes: Number(totais[0]?.divergentes || 0),
+        semBaixa: Number(totais[0]?.semBaixa || 0),
+      },
+    };
+  }
+
+  /**
+   * Recebíveis com saldo pendente ("falta receber") no mesmo filtro do
+   * dashboard a-receber — é o que o dialog do card "Saldo (falta receber)"
+   * lista. `falta` = esperado ainda não baixado: `valorRecebido` nulo (nada
+   * recebido) ou menor que `valorEsperado` (baixa parcial/divergente).
+   */
+  async pendentesReceber(
+    dateRange: { from: string; to: string },
+    filialId?: number,
+    bandeiras?: string[],
+    bandeirasModo: 'incluir' | 'excluir' = 'excluir',
+    adquirentes?: string[],
+    status?: string[],
+  ) {
+    const pendenteWhere = Prisma.sql`${this.recebiveisWhere(
+      dateRange,
+      filialId,
+      bandeiras,
+      bandeirasModo,
+      adquirentes,
+      status,
+    )} AND (r.valorRecebido IS NULL OR r.valorRecebido < r.valorEsperado)`;
+
+    const [rows, aggr] = await Promise.all([
+      this.prisma.$queryRaw<
+        {
+          id: number;
+          adquirente: string;
+          dataRecebimento: Date;
+          valorEsperado: any;
+          valorRecebido: any;
+          diferenca: any;
+          status: string;
+          movimentoTrierId: number | null;
+          filialId: number;
+          nTrier: any;
+          nRede: any;
+          nCielo: any;
+          bandeirasTrier: string | null;
+          bandeirasCielo: string | null;
+        }[]
+      >(Prisma.sql`
+        SELECT
+          r.id,
+          r.adquirente,
+          r.dataRecebimento,
+          r.valorEsperado,
+          r.valorRecebido,
+          r.diferenca,
+          r.status,
+          r.movimentoTrierId,
+          r.filialId,
+          (SELECT COUNT(*) FROM TrierParcela tp WHERE tp.receivableId = r.id) AS nTrier,
+          (SELECT COUNT(*) FROM RedeParcela rp WHERE rp.receivableId = r.id) AS nRede,
+          (SELECT COUNT(*) FROM CieloParcela cp WHERE cp.receivableId = r.id) AS nCielo,
+          (SELECT GROUP_CONCAT(DISTINCT tp2.bandeira)
+             FROM TrierParcela tp2
+             WHERE tp2.receivableId = r.id AND tp2.bandeira IS NOT NULL AND tp2.bandeira <> '') AS bandeirasTrier,
+          (SELECT GROUP_CONCAT(DISTINCT cp2.bandeira)
+             FROM CieloParcela cp2
+             WHERE cp2.receivableId = r.id AND cp2.bandeira IS NOT NULL AND cp2.bandeira <> '') AS bandeirasCielo
+        FROM Receivable r
+        ${pendenteWhere}
+        ORDER BY r.dataRecebimento ASC, r.id ASC
+        LIMIT 500
+      `),
+      this.prisma.$queryRaw<{ total: any; valorSaldo: any }[]>(Prisma.sql`
+        SELECT COUNT(*) AS total,
+               COALESCE(
+                 SUM(r.valorEsperado - COALESCE(r.valorRecebido, 0)),
+                 0
+               ) AS valorSaldo
+        FROM Receivable r
+        ${pendenteWhere}
+      `),
+    ]);
+
+    const items = rows.map((r) => {
+      const nTrier = Number(r.nTrier || 0);
+      const nRede = Number(r.nRede || 0);
+      const nCielo = Number(r.nCielo || 0);
+      const origens: string[] = [];
+      if (nTrier > 0) origens.push('TRIER');
+      if (nRede > 0) origens.push('REDE');
+      if (nCielo > 0) origens.push('CIELO');
+
+      const bandeirasSet = new Set<string>();
+      (r.bandeirasTrier ?? '')
+        .split(',')
+        .map((b) => b.trim())
+        .filter(Boolean)
+        .forEach((b) => bandeirasSet.add(b));
+      (r.bandeirasCielo ?? '')
+        .split(',')
+        .map((b) => b.trim())
+        .filter(Boolean)
+        .forEach((b) => bandeirasSet.add(b));
+
+      return {
+        id: Number(r.id),
+        adquirente: r.adquirente,
+        dataRecebimento: r.dataRecebimento,
+        valorEsperado: Number(r.valorEsperado || 0),
+        valorRecebido: r.valorRecebido == null ? null : Number(r.valorRecebido),
+        diferenca: r.diferenca == null ? null : Number(r.diferenca),
+        saldo:
+          Math.round(
+            (Number(r.valorEsperado || 0) - Number(r.valorRecebido || 0)) * 100,
+          ) / 100,
+        status: r.status,
+        movimentoTrierId: r.movimentoTrierId,
+        filialId: Number(r.filialId),
+        nParcelas: nTrier + nRede + nCielo,
+        origens,
+        bandeiras: [...bandeirasSet].sort(),
+      };
+    });
+
+    return {
+      total: Number(aggr[0]?.total || 0),
+      valorSaldo: Number(aggr[0]?.valorSaldo || 0),
+      items,
     };
   }
 
