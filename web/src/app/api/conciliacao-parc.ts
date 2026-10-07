@@ -36,10 +36,7 @@ export interface ParcListFilters {
   divergencias?: string[];
 }
 
-function appendFilters(
-  params: URLSearchParams,
-  filters?: ParcListFilters,
-) {
+function appendFilters(params: URLSearchParams, filters?: ParcListFilters) {
   if (filters?.status?.length) params.set("status", filters.status.join(","));
   if (filters?.bandeiras?.length)
     params.set("bandeiras", filters.bandeiras.join(","));
@@ -95,7 +92,12 @@ export async function getParcelasDivergentes(
   filters?: ParcListFilters,
   page = 1,
   pageSize = 100,
-): Promise<{ items: ConciliacaoParcItem[]; total: number; page: number; pageSize: number }> {
+): Promise<{
+  items: ConciliacaoParcItem[];
+  total: number;
+  page: number;
+  pageSize: number;
+}> {
   const token = await getToken();
   const params = new URLSearchParams({ startDate, endDate });
   if (filialId) params.set("filialId", String(filialId));
@@ -146,6 +148,34 @@ const getParcAReceberCached = (query: string) =>
 export async function getParcAReceber(query: string) {
   const token = await getToken();
   return getParcAReceberCached(query)(token ?? "");
+}
+
+/**
+ * Recebíveis com saldo pendente do período, no mesmo filtro do dashboard
+ * a-receber. Chamado pelo dialog do card "Saldo (falta receber)".
+ */
+export async function getParcAReceberPendentes(query: string) {
+  const token = await getToken();
+  const res = await fetch(
+    `${API}/conciliacao-parc/a-receber/pendentes?${query}`,
+    { headers: { Authorization: `Bearer ${token}` } },
+  );
+  if (!res.ok) return null;
+  return res.json();
+}
+
+/**
+ * Grupos de conciliação das parcelas de um recebível. Chamado pelo dialog de
+ * detalhe do dashboard a-receber.
+ */
+export async function getGruposRecebivel(recebivelId: number) {
+  const token = await getToken();
+  const res = await fetch(
+    `${API}/conciliacao-parc/a-receber/grupos?recebivelId=${recebivelId}`,
+    { headers: { Authorization: `Bearer ${token}` } },
+  );
+  if (!res.ok) return [];
+  return res.json();
 }
 
 const getParcBandeirasCached = unstable_cache(
